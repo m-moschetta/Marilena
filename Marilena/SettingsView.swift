@@ -11,6 +11,10 @@ struct SettingsView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     
+    // Perplexity settings
+    @State private var perplexityApiKey = ""
+    @State private var selectedPerplexityModel = "sonar-pro"
+    
     let availableModels = [
         "gpt-4o",
         "gpt-4o-mini",
@@ -20,6 +24,15 @@ struct SettingsView: View {
         "o3-mini",
         "o4-mini",
         "o3"
+    ]
+    
+    let availablePerplexityModels = [
+        // Sonar Online
+        "sonar-pro", "llama-sonar-huge-online", "llama-sonar-large-online",
+        // Sonar Specializzati
+        "sonar-reasoning-pro", "sonar-deep-research",
+        // Open-Source
+        "llama-405b-instruct", "llama-70b-instruct", "mixtral-8x7b-instruct"
     ]
     
     let transcriptionModes = [
@@ -33,7 +46,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                Section("API Configuration") {
+                Section("OpenAI Configuration") {
                     SecureField("OpenAI API Key", text: $apiKey)
                         .textContentType(.password)
                     
@@ -42,6 +55,23 @@ struct SettingsView: View {
                             Text(model).tag(model)
                         }
                     }
+                }
+                
+                Section("Perplexity Search") {
+                    SecureField("Perplexity API Key", text: $perplexityApiKey)
+                        .textContentType(.password)
+                    
+                    Picker("Modello Perplexity", selection: $selectedPerplexityModel) {
+                        ForEach(availablePerplexityModels, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                    
+                    Button("Test Connessione Perplexity") {
+                        testPerplexityConnection()
+                    }
+                    .foregroundColor(.blue)
                 }
                 
                 Section("Trascrizione Audio") {
@@ -169,9 +199,11 @@ struct SettingsView: View {
     }
     
     private func saveSettings() {
-        let success = KeychainManager.shared.save(key: "openai_api_key", value: apiKey)
+        let openAISuccess = KeychainManager.shared.save(key: "openai_api_key", value: apiKey)
+        let perplexitySuccess = PerplexityService.shared.saveAPIKey(perplexityApiKey)
         
         UserDefaults.standard.set(selectedModel, forKey: "selected_model")
+        UserDefaults.standard.set(selectedPerplexityModel, forKey: "selected_perplexity_model")
         UserDefaults.standard.set(temperature, forKey: "temperature")
         UserDefaults.standard.set(maxTokens, forKey: "max_tokens")
         UserDefaults.standard.set(selectedTranscriptionMode, forKey: "transcription_mode")
@@ -180,17 +212,20 @@ struct SettingsView: View {
         UserDefaults.standard.synchronize()
         NotificationCenter.default.post(name: .settingsChanged, object: nil)
         
-        if success {
+        if openAISuccess && perplexitySuccess {
             alertMessage = "Configurazione salvata con successo!"
         } else {
-            alertMessage = "Errore nel salvare la configurazione"
+            alertMessage = "Errore nel salvare alcune configurazioni"
         }
         showAlert = true
     }
     
     private func loadSettings() {
         apiKey = KeychainManager.shared.load(key: "openai_api_key") ?? ""
+        perplexityApiKey = KeychainManager.shared.load(key: "perplexity_api_key") ?? ""
+        
         selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4.1-mini"
+        selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
         maxTokens = UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000
         selectedTranscriptionMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
@@ -222,7 +257,7 @@ struct SettingsView: View {
     
     private func testTranscription() {
         // Crea un file audio di test
-        let testMessage = "Questo è un test di trascrizione per verificare il funzionamento del sistema."
+        _ = "Questo è un test di trascrizione per verificare il funzionamento del sistema."
         
         // Per ora, mostra solo un messaggio informativo
         alertMessage = "Test trascrizione:\n\nModalità: \(selectedTranscriptionMode)\n\nPer testare la trascrizione completa, registra un audio e usa la funzione di trascrizione."
@@ -338,6 +373,30 @@ struct SettingsView: View {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let testFileName = "test_transcription_\(Date().timeIntervalSince1970).m4a"
         return documentsPath.appendingPathComponent(testFileName)
+    }
+    
+    private func testPerplexityConnection() {
+        // Salva la chiave prima di testare
+        _ = PerplexityService.shared.saveAPIKey(perplexityApiKey)
+        
+        Task {
+            do {
+                let success = try await PerplexityService.shared.testConnection()
+                await MainActor.run {
+                    if success {
+                        alertMessage = "✅ Test Perplexity riuscito:\n\n• API Key valida\n• Connessione a Perplexity OK\n• Ricerca online disponibile"
+                    } else {
+                        alertMessage = "❌ Test Perplexity fallito:\n\nImpossibile connettersi a Perplexity."
+                    }
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    alertMessage = "❌ Test Perplexity fallito:\n\nErrore: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
     }
 }
 

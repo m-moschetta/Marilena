@@ -62,30 +62,13 @@ class ProfiloUtenteService {
         
         let contestoAttuale = profiloAttuale.contestoAI ?? "Nessun contesto disponibile"
         
-        return """
-        Analizza i seguenti messaggi dell'utente e aggiorna il suo contesto personale.
-        
-        CONTESTO ATTUALE:
-        \(contestoAttuale)
-        
-        MESSAGGI RECENTI DELL'UTENTE:
-        \(messaggiTesto)
-        
-        INFORMAZIONI PROFILO:
-        Nome: \(profiloAttuale.nome ?? "Non specificato")
-        Bio: \(profiloAttuale.bio ?? "")
-        Username: \(profiloAttuale.username ?? "")
-        
-        ISTRUZIONI:
-        1. Analizza i messaggi per identificare interessi, preferenze, progetti, obiettivi
-        2. Identifica pattern di comportamento, hobby, relazioni, lavoro
-        3. Aggiorna il contesto esistente con nuove informazioni rilevanti
-        4. Mantieni un tono naturale e personale
-        5. Limita la risposta a 200-300 parole
-        6. Rispondi SOLO con il nuovo contesto aggiornato, senza spiegazioni aggiuntive
-        
-        NUOVO CONTESTO AGGIORNATO:
-        """
+        return PromptManager.getPrompt(for: .contextUpdate, replacements: [
+            "CONTESTO_ATTUALE": contestoAttuale,
+            "MESSAGGI_RECENTI": messaggiTesto,
+            "NOME_UTENTE": profiloAttuale.nome ?? "Non specificato",
+            "BIO_UTENTE": profiloAttuale.bio ?? "",
+            "USERNAME_UTENTE": profiloAttuale.username ?? ""
+        ])
     }
     
     func aggiornaContestoAI(profilo: ProfiloUtente, prompt: String, completion: @escaping (Bool) -> Void) {

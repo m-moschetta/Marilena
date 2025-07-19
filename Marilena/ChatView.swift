@@ -7,10 +7,14 @@ struct ChatView: View {
     @ObservedObject var chat: ChatMarilena
 
     @FetchRequest private var messaggi: FetchedResults<MessaggioMarilena>
-    @State private var testo = ""
+        @State private var testo = ""
     @State private var isLoading = false
+    @State private var isSearchingPerplexity = false
+    
     private let openAIService = OpenAIService.shared
     private let profiloService = ProfiloUtenteService.shared
+    private let perplexityService = PerplexityService.shared
+
 
     init(chat: ChatMarilena) {
         self.chat = chat
@@ -57,28 +61,43 @@ struct ChatView: View {
                 VStack(spacing: 0) {
                     Divider()
                     
-                    HStack(alignment: .bottom, spacing: 12) {
-                        // Campo di testo dinamico
+                    HStack(alignment: .bottom, spacing: 8) {
+                        // Campo di testo compatto che si espande
                         ZStack(alignment: .topLeading) {
                             RoundedRectangle(cornerRadius: 20)
                                 .fill(Color(.systemGray6))
-                                .frame(minHeight: 44, maxHeight: 120)
+                                .frame(minHeight: 28, maxHeight: testo.isEmpty ? 28 : nil)
                             
                             TextField("Scrivi un messaggio...", text: $testo, axis: .vertical)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
                                 .background(Color.clear)
                                 .disabled(isLoading)
-                                .lineLimit(1...5)
-                                .onChange(of: testo) { _ in
-                                    // Scroll automatico quando il testo cresce
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                        withAnimation(.easeOut(duration: 0.2)) {
-                                            // Forza il refresh della UI
-                                        }
-                                    }
-                                }
+                                .lineLimit(1...3)
                         }
+                        .animation(.easeOut(duration: 0.15), value: testo.count)
+                        
+                        // Pulsante Perplexity Search
+                        Button(action: searchWithPerplexity) {
+                            ZStack {
+                                Circle()
+                                    .fill(isSearchingPerplexity ? Color.orange : Color(.systemGray5))
+                                    .frame(width: 32, height: 32)
+                                
+                                if isSearchingPerplexity {
+                                    ProgressView()
+                                        .scaleEffect(0.6)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "globe.americas.fill")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                        }
+                        .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSearchingPerplexity || isLoading)
+                        .scaleEffect(isSearchingPerplexity ? 1.1 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSearchingPerplexity)
                         
                         // Pulsante invia moderno
                         Button(action: inviaMessaggio) {
@@ -86,15 +105,15 @@ struct ChatView: View {
                                 Circle()
                                     .fill(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading ? 
                                           Color(.systemGray4) : Color.blue)
-                                    .frame(width: 44, height: 44)
+                                    .frame(width: 36, height: 36)
                                 
                                 if isLoading {
                                     ProgressView()
-                                        .scaleEffect(0.8)
+                                        .scaleEffect(0.7)
                                         .tint(.white)
                                 } else {
-                                    Image(systemName: "arrow.up.circle.fill")
-                                        .font(.system(size: 24, weight: .medium))
+                                    Image(systemName: "arrow.up")
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(.white)
                                 }
                             }
@@ -104,7 +123,7 @@ struct ChatView: View {
                         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 8)
                     .background(Color(.systemBackground))
                 }
             }
@@ -217,25 +236,18 @@ struct ChatView: View {
     private func buildConversationHistory(newMessage: String) -> [OpenAIMessage] {
         var messages: [OpenAIMessage] = []
         
-        // Sistema prompt con contesto utente
+        // Sistema prompt con contesto utente usando PromptManager
         if let profilo = profiloService.ottieniProfiloUtente(in: viewContext),
            let contesto = profilo.contestoAI, !contesto.isEmpty {
-            messages.append(OpenAIMessage(
-                role: "system",
-                content: """
-                Sei Marilena, un'assistente AI personale amichevole e utile. 
-                
-                Contesto dell'utente:
-                \(contesto)
-                
-                Rispondi sempre in italiano e mantieni un tono cordiale e professionale.
-                """
-            ))
+            let systemPrompt = PromptManager.getPrompt(for: .chatBase, replacements: [
+                "CONTESTO_UTENTE": contesto
+            ])
+            messages.append(OpenAIMessage(role: "system", content: systemPrompt))
         } else {
-            messages.append(OpenAIMessage(
-                role: "system",
-                content: "Sei Marilena, un'assistente AI personale amichevole e utile. Rispondi sempre in italiano."
-            ))
+            let systemPrompt = PromptManager.getPrompt(for: .chatBase, replacements: [
+                "CONTESTO_UTENTE": "Nessun contesto specifico disponibile"
+            ])
+            messages.append(OpenAIMessage(role: "system", content: systemPrompt))
         }
         
         // Aggiungi cronologia conversazione
@@ -260,6 +272,85 @@ struct ChatView: View {
             }
         }
     }
+    
+
+    
+    private func getUserContext() async -> String {
+        if let profilo = profiloService.ottieniProfiloUtente(in: viewContext),
+           let contesto = profilo.contestoAI, !contesto.isEmpty {
+            return contesto
+        }
+        return ""
+    }
+    
+    // MARK: - Perplexity Search
+    
+    private func searchWithPerplexity() {
+        let query = testo.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        
+        // Aggiungi il messaggio dell'utente
+        let userMessage = MessaggioMarilena(context: viewContext)
+        userMessage.id = UUID()
+        userMessage.contenuto = query
+        userMessage.isUser = true
+        userMessage.dataCreazione = Date()
+        userMessage.chat = chat
+        
+        // Svuota il campo di testo
+        testo = ""
+        
+        // Inizia la ricerca
+        isSearchingPerplexity = true
+        
+        Task {
+            do {
+                let selectedModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
+                let searchResult = try await perplexityService.search(query: query, model: selectedModel)
+                
+                await MainActor.run {
+                    // Aggiungi la risposta di Perplexity
+                    let perplexityMessage = MessaggioMarilena(context: viewContext)
+                    perplexityMessage.id = UUID()
+                    perplexityMessage.contenuto = "🌐 **Ricerca Perplexity**\n\n\(searchResult)"
+                    perplexityMessage.isUser = false
+                    perplexityMessage.dataCreazione = Date()
+                    perplexityMessage.chat = chat
+                    
+                    do {
+                        try viewContext.save()
+                    } catch {
+                        print("Errore nel salvare i messaggi: \(error)")
+                    }
+                    
+                    isSearchingPerplexity = false
+                }
+                
+            } catch {
+                await MainActor.run {
+                    // Aggiungi messaggio di errore
+                    let errorMessage = MessaggioMarilena(context: viewContext)
+                    errorMessage.id = UUID()
+                    errorMessage.contenuto = "❌ **Errore nella ricerca Perplexity**\n\n\(error.localizedDescription)"
+                    errorMessage.isUser = false
+                    errorMessage.dataCreazione = Date()
+                    errorMessage.chat = chat
+                    
+                    do {
+                        try viewContext.save()
+                    } catch {
+                        print("Errore nel salvare il messaggio di errore: \(error)")
+                    }
+                    
+                    isSearchingPerplexity = false
+                }
+            }
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+
 }
 
 struct MessageRow: View {
@@ -350,3 +441,4 @@ struct MessageRow: View {
     return ChatView(chat: chat)
         .environment(\.managedObjectContext, context)
 } 
+

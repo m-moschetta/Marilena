@@ -26,165 +26,219 @@ struct ProfiloView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 20) {
-                // Sezione Header
-                ProfiloHeaderView(
+            LazyVStack(spacing: 24) {
+                // Header Moderno
+                ModernProfiloHeaderView(
                     profilo: profilo,
                     onSelectImage: { showingImagePicker = true }
                 )
-                .padding(.vertical)
+                .padding(.top, 20)
                 
-                // Sezione Informazioni
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Informazioni Personali")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    
-                    VStack(spacing: 12) {
-                        InfoRow(label: "Nome", value: profilo.nome ?? "N/A")
-                        InfoRow(label: "Username", value: profilo.username ?? "N/A")
-                        InfoRow(label: "Bio", value: profilo.bio ?? "N/A")
+                // Sezione Informazioni Personali
+                ModernInfoCard(
+                    title: "Informazioni Personali",
+                    icon: "person.circle.fill",
+                    iconColor: .blue
+                ) {
+                    VStack(spacing: 16) {
+                        ModernInfoRow(
+                            icon: "person.fill",
+                            label: "Nome",
+                            value: profilo.nome ?? "Non specificato",
+                            iconColor: .blue
+                        )
+                        
+                        ModernInfoRow(
+                            icon: "at",
+                            label: "Username", 
+                            value: profilo.username ?? "Non specificato",
+                            iconColor: .green
+                        )
+                        
+                        ModernInfoRow(
+                            icon: "text.quote",
+                            label: "Bio",
+                            value: profilo.bio ?? "Nessuna bio disponibile",
+                            iconColor: .orange
+                        )
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
                 }
                 
                 // Sezione Contesto AI
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Contesto AI")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    
-                    VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "brain.head.profile")
-                            .font(.title3)
-                            .foregroundColor(.purple)
-                        
-                        Text("Contesto AI")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        Spacer()
-
-                        if isEditingContesto {
-                            Button(action: salvaContesto) {
-                                Text("Salva")
-                                    .font(.headline)
-                                    .foregroundColor(.blue)
-                            }
-                        } else {
-                            HStack(spacing: 12) {
-                                Button(action: { showingCronologia = true }) {
-                                    Image(systemName: "clock.arrow.circlepath")
-                                        .font(.title3)
-                                        .foregroundColor(.gray)
-                                }
+                ModernInfoCard(
+                    title: "Contesto AI",
+                    icon: "brain.head.profile",
+                    iconColor: .purple
+                ) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Header con controlli
+                        HStack {
+                            HStack(spacing: 8) {
+                                Image(systemName: "brain.head.profile")
+                                    .font(.title3)
+                                    .foregroundColor(.purple)
                                 
-                                Button(action: aggiornaContesto) {
-                                    if isLoadingContesto {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                    } else {
-                                        Image(systemName: "arrow.clockwise")
-                                            .font(.title3)
-                                            .foregroundColor(.blue)
+                                Text("Contesto AI")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                            }
+                            
+                            Spacer()
+
+                            if isEditingContesto {
+                                Button(action: salvaContesto) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                        Text("Salva")
                                     }
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.green)
+                                    .cornerRadius(16)
                                 }
-                                .disabled(isLoadingContesto)
+                            } else {
+                                HStack(spacing: 12) {
+                                    Button(action: { showingCronologia = true }) {
+                                        Image(systemName: "clock.arrow.circlepath")
+                                            .font(.title3)
+                                            .foregroundColor(.gray)
+                                            .frame(width: 32, height: 32)
+                                            .background(Color(.systemGray6))
+                                            .clipShape(Circle())
+                                    }
+                                    
+                                    Button(action: aggiornaContesto) {
+                                        if isLoadingContesto {
+                                            ProgressView()
+                                                .scaleEffect(0.7)
+                                                .frame(width: 32, height: 32)
+                                                .background(Color(.systemGray6))
+                                                .clipShape(Circle())
+                                        } else {
+                                            Image(systemName: "arrow.clockwise")
+                                                .font(.title3)
+                                                .foregroundColor(.blue)
+                                                .frame(width: 32, height: 32)
+                                                .background(Color(.systemGray6))
+                                                .clipShape(Circle())
+                                        }
+                                    }
+                                    .disabled(isLoadingContesto)
+                                }
                             }
                         }
-                    }
-                    
-                    if isEditingContesto {
-                        TextEditor(text: $editedContesto)
-                            .font(.body)
-                            .frame(minHeight: 150)
-                            .padding(8)
-                            .background(Color(.systemBackground))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.blue, lineWidth: 1)
-                            )
-                    } else {
-                        Text(profilo.contestoAI ?? "Il contesto AI verrà generato automaticamente basandosi sulle tue conversazioni.")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .padding()
+                        
+                        // Contenuto contesto
+                        if isEditingContesto {
+                            TextEditor(text: $editedContesto)
+                                .font(.body)
+                                .frame(minHeight: 120)
+                                .padding(12)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                )
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(profilo.contestoAI ?? "Il contesto AI verrà generato automaticamente basandosi sulle tue conversazioni.")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(4)
+                                
+                                Button("Modifica contesto") {
+                                    editedContesto = profilo.contestoAI ?? ""
+                                    isEditingContesto = true
+                                }
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            }
+                            .padding(16)
                             .background(Color(.tertiarySystemGroupedBackground))
-                            .cornerRadius(8)
+                            .cornerRadius(12)
                             .onTapGesture {
                                 editedContesto = profilo.contestoAI ?? ""
                                 isEditingContesto = true
                             }
-                    }
-                    
-                    if let ultimoAggiornamento = profilo.dataUltimoAggiornamentoContesto {
-                        HStack {
-                            Image(systemName: "clock")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Text("Ultimo aggiornamento: \(ultimoAggiornamento, style: .relative)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        }
+                        
+                        // Timestamp
+                        if let ultimoAggiornamento = profilo.dataUltimoAggiornamentoContesto {
+                            HStack(spacing: 6) {
+                                Image(systemName: "clock")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Aggiornato \(ultimoAggiornamento, style: .relative)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(Color(.secondarySystemGroupedBackground))
-                .cornerRadius(12)
-                .padding(.horizontal)
-            }
-            
-            // Sezione Suggerimenti
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Suggerimenti")
-                    .font(.headline)
-                    .padding(.horizontal)
                 
-                SuggerimentiProfiloView(profilo: profilo)
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-            }
-            
-            // Sezione Social
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Profili Social")
-                    .font(.headline)
-                    .padding(.horizontal)
-                
-                Button("Gestisci Profili Social") {
-                    showingSocialSheet = true
+                // Sezione Suggerimenti
+                ModernInfoCard(
+                    title: "Suggerimenti",
+                    icon: "lightbulb.fill",
+                    iconColor: .yellow
+                ) {
+                    SuggerimentiProfiloView(profilo: profilo)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(Color(.secondarySystemGroupedBackground))
-                .cornerRadius(12)
-                .padding(.horizontal)
+                
+                // Sezione Social
+                ModernInfoCard(
+                    title: "Profili Social",
+                    icon: "network",
+                    iconColor: .pink
+                ) {
+                    Button(action: { showingSocialSheet = true }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.blue)
+                            
+                            Text("Gestisci Profili Social")
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(16)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                    }
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
         }
-    }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Profilo")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack {
+                HStack(spacing: 16) {
                     if isEditingContesto {
                         Button("Annulla") {
                             isEditingContesto = false
                             editedContesto = profilo.contestoAI ?? ""
                         }
+                        .foregroundColor(.red)
                     }
+                    
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape.fill")
+                            .font(.title3)
+                            .foregroundColor(.primary)
                     }
                 }
             }
@@ -245,7 +299,6 @@ struct ProfiloView: View {
 
     private func salvaContesto() {
         profilo.contestoAI = editedContesto
-        // Salva anche una copia nella cronologia (Fase 3)
         salvaContestoInCronologia(contesto: editedContesto, tipo: "Manuale")
 
         do {
@@ -263,99 +316,172 @@ struct ProfiloView: View {
         historyEntry.id = UUID()
         historyEntry.dataSalvataggio = Date()
         historyEntry.contenuto = contesto
-        historyEntry.tipoAggiornamento = tipo // "Automatico" o "Manuale"
+        historyEntry.tipoAggiornamento = tipo
         historyEntry.profilo = profilo
     }
 }
 
-// MARK: - Header con foto profilo
-struct ProfiloHeaderView: View {
+// MARK: - Header Moderno
+struct ModernProfiloHeaderView: View {
     let profilo: ProfiloUtente
     let onSelectImage: () -> Void
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Foto profilo
+        VStack(spacing: 20) {
+            // Foto profilo moderna
             Button(action: onSelectImage) {
-                Group {
-                    if let fotoData = profilo.fotoProfilo,
-                       let uiImage = UIImage(data: fotoData) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
+                ZStack {
+                    Group {
+                        if let fotoData = profilo.fotoProfilo,
+                           let uiImage = UIImage(data: fotoData) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 80))
+                                .foregroundColor(.gray.opacity(0.3))
+                        }
                     }
+                    .frame(width: 100, height: 100)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.blue, .purple],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 3
+                            )
+                    )
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                    
+                    // Icona camera moderna
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Image(systemName: "camera.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.white)
+                                )
+                                .shadow(radius: 4)
+                        }
+                    }
+                    .frame(width: 100, height: 100)
                 }
-                .frame(width: 120, height: 120)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(Color(.systemBackground), lineWidth: 4)
-                        .shadow(radius: 10)
-                )
-                .overlay(
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Image(systemName: "camera.fill")
-                                .font(.title3)
-                                .foregroundColor(.white)
-                        )
-                        .offset(x: 40, y: 40)
-                )
             }
             
-            // Nome e stato
-            VStack(spacing: 4) {
+            // Informazioni utente
+            VStack(spacing: 8) {
                 Text(profilo.nome ?? "Caricamento...")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
                 
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Circle()
-                        .fill(.green)
+                        .fill(Color.green)
                         .frame(width: 8, height: 8)
                     
-                    Text("in linea")
+                    Text("Online")
                         .font(.caption)
+                        .fontWeight(.medium)
                         .foregroundColor(.secondary)
                 }
             }
         }
-        .padding(.top, 20)
+        .padding(.horizontal, 20)
     }
 }
 
-// MARK: - Riga informazione profilo
-struct InfoRow: View {
-    let label: String
-    let value: String
+// MARK: - Card Moderna
+struct ModernInfoCard<Content: View>: View {
+    let title: String
+    let icon: String
+    let iconColor: Color
+    let content: Content
+    
+    init(title: String, icon: String, iconColor: Color, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = icon
+        self.iconColor = iconColor
+        self.content = content()
+    }
     
     var body: some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+        VStack(alignment: .leading, spacing: 16) {
+            // Header card
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(iconColor)
+                    .frame(width: 24, height: 24)
+                
+                Text(title)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
             
-            Spacer()
-            
-            Text(value)
-                .font(.body)
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.trailing)
+            // Contenuto
+            content
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
+        .padding(20)
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
 }
 
-
+// MARK: - Riga Informazione Moderna
+struct ModernInfoRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    let iconColor: Color
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(iconColor)
+                .frame(width: 24, height: 24)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                
+                Text(value)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
+            
+            Spacer()
+        }
+        .padding(16)
+        .background(Color(.tertiarySystemGroupedBackground))
+        .cornerRadius(12)
+    }
+}
 
 // MARK: - Image Picker
 struct ImagePicker: UIViewControllerRepresentable {
