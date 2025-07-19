@@ -1,5 +1,6 @@
 import CoreData
 import CloudKit
+
 struct PersistenceController {
     static let shared = PersistenceController()
 
@@ -25,32 +26,51 @@ struct PersistenceController {
     let container: NSPersistentContainer
 
     init(inMemory: Bool = false) {
-        // Usa NSPersistentContainer normale (senza CloudKit)
         container = NSPersistentContainer(name: "Marilena")
         
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
         }
         
-        // Configurazione CloudKit
+        // Configurazione per persistenza locale
         container.persistentStoreDescriptions.forEach { storeDescription in
             storeDescription.shouldMigrateStoreAutomatically = true
             storeDescription.shouldInferMappingModelAutomatically = true
             
-            // Configurazione CloudKit
-            storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-            storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+            // Assicura che il file sia salvato nella directory Documents
+            if !inMemory {
+                let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                let storeURL = documentsDirectory.appendingPathComponent("Marilena.sqlite")
+                storeDescription.url = storeURL
+                print("📁 Core Data store URL: \(storeURL.path)")
+            }
         }
         
         container.loadPersistentStores { (storeDescription, error) in
             if let error = error as NSError? {
-                // Sostituisci fatalError con un log per evitare crash in fase di sviluppo
-                // per problemi di migrazione o altro.
-                print("Core Data error: \(error), \(error.userInfo)")
+                print("❌ Core Data error: \(error), \(error.userInfo)")
+                
+                // Se c'è un errore, prova a eliminare il file e ricrearlo
+                if let url = storeDescription.url {
+                    do {
+                        try FileManager.default.removeItem(at: url)
+                        print("🗑️ Rimosso file Core Data corrotto: \(url.path)")
+                    } catch {
+                        print("❌ Errore rimozione file: \(error)")
+                    }
+                }
+            } else {
+                print("✅ Core Data store caricato con successo")
+                if let url = storeDescription.url {
+                    print("📁 Store URL: \(url.path)")
+                }
             }
         }
         
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        // Abilita il salvataggio automatico
+        container.viewContext.automaticallyMergesChangesFromParent = true
     }
 }

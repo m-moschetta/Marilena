@@ -159,60 +159,75 @@ struct AudioRecorderView: View {
     
     private var recordButtonView: some View {
         ZStack {
-            // Multiple outer rings for modern effect
-            ForEach(0..<3, id: \.self) { index in
-            Circle()
-                    .stroke(buttonColor.opacity(0.1 + Double(index) * 0.1), lineWidth: 1)
-                    .frame(width: 200 + CGFloat(index * 20), height: 200 + CGFloat(index * 20))
-                    .scaleEffect(pulseAnimation ? 1.05 + Double(index) * 0.02 : 1.0)
-                    .animation(.easeInOut(duration: 2.0 + Double(index) * 0.5).repeatForever(autoreverses: true), value: pulseAnimation)
-            }
-            
-            // Main button
-            Button {
-                handleRecordButtonTap()
-            } label: {
-                ZStack {
-                    // Background circle with modern gradient
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    buttonColor,
-                                    buttonColor.opacity(0.8),
-                                    buttonColor.opacity(0.6)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 140, height: 140)
-                        .shadow(color: buttonColor.opacity(0.3), radius: 15, x: 0, y: 8)
-                    
-                    // Inner highlight
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.white.opacity(0.3),
-                                    Color.clear
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .center
-                            )
-                        )
-                        .frame(width: 120, height: 120)
-                    
-                    // Icon with modern styling
-                    Image(systemName: buttonIcon)
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.white)
-                        .rotationEffect(.degrees(rotationAngle))
-                        .animation(.linear(duration: 2.0).repeatForever(autoreverses: false), value: rotationAngle)
+            // Bottone glassmorphism compatibile iOS 18+
+            if #available(iOS 26.0, *) {
+                // Versione iOS 26+ con GlassEffectContainer
+                GlassEffectContainer {
+                    Button(action: {
+                        handleRecordButtonTap()
+                    }) {
+                        Image(systemName: recordingService.recordingState == .recording ? "stop.circle.fill" : "mic.circle.fill")
+                            .font(.system(size: 72, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+                            .padding(8)
+                    }
+                    .glassEffect(.regular.tint(recordingService.recordingState == .recording ? Color.red.opacity(0.7) : Color.accentColor.opacity(0.7)).interactive())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.25), lineWidth: 2)
+                    )
+                    .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+                    .scaleEffect(isAnimatingButton ? 0.92 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAnimatingButton)
                 }
+            } else {
+                // Fallback per iOS 18.6-25.x
+                Button(action: {
+                    handleRecordButtonTap()
+                }) {
+                    ZStack {
+                        // Background con blur effect per liquid glass
+                        RoundedRectangle(cornerRadius: 50)
+                            .fill(.ultraThinMaterial)
+                            .background(
+                                RoundedRectangle(cornerRadius: 50)
+                                    .fill(Color.accentColor.opacity(0.1))
+                            )
+                            .overlay(
+                                // Contorno blu trasparente
+                                RoundedRectangle(cornerRadius: 50)
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.accentColor.opacity(0.6),
+                                                Color.accentColor.opacity(0.3)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 2
+                                    )
+                            )
+                            .shadow(
+                                color: recordingService.recordingState == .recording ? 
+                                    Color.red.opacity(0.3) : Color.accentColor.opacity(0.3),
+                                radius: 20,
+                                x: 0,
+                                y: 10
+                            )
+                        
+                        // Icona
+                        Image(systemName: recordingService.recordingState == .recording ? "stop.circle.fill" : "mic.circle.fill")
+                            .font(.system(size: 72, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .frame(width: 120, height: 120)
+                }
+                .scaleEffect(isAnimatingButton ? 0.92 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAnimatingButton)
             }
-            .scaleEffect(isAnimatingButton ? 0.92 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAnimatingButton)
         }
     }
     

@@ -85,5 +85,17 @@
 	<!-- Lock Screen Audio Controls -->
 	<key>UIApplicationExitsOnSuspend</key>
 	<false/>
+	<!-- URL Scheme for Widget and Shortcuts -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.marilena.recording</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>marilena</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

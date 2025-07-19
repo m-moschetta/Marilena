@@ -21,6 +21,8 @@ struct RecordingDetailView: View {
     @State private var showingTranscriptionModeSheet = false
     @State private var selectedTranscriptionMode = "auto"
     @State private var selectedLanguage = "it-IT"
+    @State private var isEditingTitle = false
+    @State private var newTitle = ""
     
     init(recording: RegistrazioneAudio, context: NSManagedObjectContext) {
         self.recording = recording
@@ -65,6 +67,8 @@ struct RecordingDetailView: View {
                     }
                     .foregroundColor(.blue)
                     .font(.headline)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
                     
                     Spacer()
                     
@@ -92,10 +96,12 @@ struct RecordingDetailView: View {
                         Image(systemName: "ellipsis.circle")
                             .foregroundColor(.blue)
                             .font(.title2)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.horizontal, 8)
+                .padding(.top, 12)
                 .background(
                     LinearGradient(
                         colors: [Color(.systemBackground).opacity(0.95), Color(.systemBackground).opacity(0.8)],
@@ -125,6 +131,18 @@ struct RecordingDetailView: View {
         } message: {
             Text("Questa azione eliminerà definitivamente la registrazione e tutte le trascrizioni associate.")
         }
+        .alert("Modifica Nome", isPresented: $isEditingTitle) {
+            TextField("Nome registrazione", text: $newTitle)
+            Button("Salva") {
+                saveTitle()
+            }
+            Button("Annulla", role: .cancel) {
+                isEditingTitle = false
+                newTitle = ""
+            }
+        } message: {
+            Text("Inserisci un nuovo nome per la registrazione")
+        }
         .sheet(isPresented: $showingTranscriptionModeSheet) {
             TranscriptionModeSelectionView(
                 recording: recording,
@@ -144,6 +162,9 @@ struct RecordingDetailView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                         .lineLimit(1)
+                        .onTapGesture {
+                            startEditingTitle()
+                        }
                     
                     Text(formatDate(recording.dataCreazione))
                         .font(.caption)
@@ -591,6 +612,25 @@ struct RecordingDetailView: View {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    private func startEditingTitle() {
+        newTitle = recording.titolo ?? ""
+        isEditingTitle = true
+    }
+    
+    private func saveTitle() {
+        if newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            newTitle = recording.titolo ?? "" // Ripristina il vecchio titolo se vuoto
+        } else {
+            recording.titolo = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            do {
+                try context.save()
+                isEditingTitle = false
+            } catch {
+                print("Errore salvataggio titolo: \(error)")
+            }
+        }
     }
 }
 

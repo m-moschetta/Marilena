@@ -43,9 +43,9 @@ struct ProfiloView: View {
         _editedTwitter = State(initialValue: profiliSocial["twitter"] ?? "")
         _editedInstagram = State(initialValue: profiliSocial["instagram"] ?? "")
     }
-
+    
     var body: some View {
-        ScrollView {
+            ScrollView {
             LazyVStack(spacing: 8) { // Ridotto da 16 a 8
                 // Header del profilo
                 VStack(spacing: 16) {
@@ -327,7 +327,7 @@ struct ProfiloView: View {
                                     }
                                     .font(.body)
                                     .foregroundColor(.white)
-                                    .padding(.horizontal, 16)
+                .padding(.horizontal, 16)
                                     .padding(.vertical, 10)
                                     .background(Color.blue)
                                     .cornerRadius(12)
@@ -396,12 +396,12 @@ struct ProfiloView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
-        }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Profilo")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Profilo")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
                     if isEditingContesto || isEditingProfile {
                         Button("Annulla") {
@@ -422,20 +422,20 @@ struct ProfiloView: View {
                             .font(.title3)
                             .foregroundColor(.primary)
                     }
+                    }
                 }
             }
-        }
-        .sheet(isPresented: $showingImagePicker) {
+            .sheet(isPresented: $showingImagePicker) {
             ImagePicker(selectedImage: $selectedImage) { image in
                 if let img = image {
                     profilo.fotoProfilo = img.jpegData(compressionQuality: 0.8)
                     try? viewContext.save()
-                }
             }
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
+            }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
         .sheet(isPresented: $showingCronologia) {
             CronologiaContestoView(profilo: profilo)
         }
@@ -595,22 +595,22 @@ struct ModernProfiloHeaderView: View {
             // Foto profilo moderna
             Button(action: onSelectImage) {
                 ZStack {
-                    Group {
+                Group {
                         if let fotoData = profilo.fotoProfilo,
-                           let uiImage = UIImage(data: fotoData) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } else {
-                            Image(systemName: "person.circle.fill")
+                       let uiImage = UIImage(data: fotoData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        Image(systemName: "person.circle.fill")
                                 .font(.system(size: 80))
                                 .foregroundColor(.gray.opacity(0.3))
-                        }
                     }
+                }
                     .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
                             .stroke(
                                 LinearGradient(
                                     colors: [.blue, .purple],
@@ -627,7 +627,7 @@ struct ModernProfiloHeaderView: View {
                         Spacer()
                         HStack {
                             Spacer()
-                            Circle()
+                    Circle()
                                 .fill(
                                     LinearGradient(
                                         colors: [.blue, .purple],
@@ -636,11 +636,11 @@ struct ModernProfiloHeaderView: View {
                                     )
                                 )
                                 .frame(width: 32, height: 32)
-                                .overlay(
-                                    Image(systemName: "camera.fill")
+                        .overlay(
+                            Image(systemName: "camera.fill")
                                         .font(.caption)
-                                        .foregroundColor(.white)
-                                )
+                                .foregroundColor(.white)
+                        )
                                 .shadow(radius: 4)
                         }
                     }
@@ -721,25 +721,25 @@ struct ModernInfoRow: View {
     let iconColor: Color
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
+            HStack(spacing: 12) {
+                Image(systemName: icon)
                 .font(.title2)
                 .foregroundColor(iconColor)
                 .frame(width: 28, height: 28)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                Text(value)
-                    .font(.body)
-                    .foregroundColor(.primary)
+                        .foregroundColor(.secondary)
+                    
+                    Text(value)
+                        .font(.body)
+                        .foregroundColor(.primary)
                     .lineLimit(2)
-            }
-            
-            Spacer()
+                }
+                
+                Spacer()
         }
         .padding(12)
         .background(Color(.tertiarySystemGroupedBackground))
@@ -765,7 +765,7 @@ struct ModernEditableInfoRow: View {
                 Text(label)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                        .foregroundColor(.secondary)
                 
                 TextField(label, text: $value)
                     .font(.body)
@@ -803,15 +803,15 @@ struct CompactSuggerimentiView: View {
             if suggerimenti.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.title3)
+                    .font(.title3)
                         .foregroundColor(.green)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Profilo Completo!")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                        
+                    .foregroundColor(.primary)
+                
                         Text("Il tuo profilo è completo e aggiornato")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -822,7 +822,7 @@ struct CompactSuggerimentiView: View {
                 .padding(12)
                 .background(Color(.tertiarySystemGroupedBackground))
                 .cornerRadius(8)
-            } else {
+                    } else {
                 ForEach(suggerimenti.indices, id: \.self) { index in
                     CompactSuggerimentoCard(
                         suggerimento: suggerimenti[index],
@@ -944,24 +944,24 @@ struct CompactSuggerimentoCard: View {
         HStack(spacing: 10) {
             // Icona priorità
             Image(systemName: suggerimento.priorita.icona)
-                .font(.title3)
+                    .font(.title3)
                 .foregroundColor(Color(suggerimento.priorita.colore))
                 .frame(width: 20)
-            
+                
             // Contenuto
-            VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 2) {
                 Text(suggerimento.titolo)
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
                 Text(suggerimento.descrizione)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     .lineLimit(1)
-            }
-            
-            Spacer()
-            
+                }
+                
+                Spacer()
+                
             // Pulsante azione
             Button(action: {
                 eseguiAzione()
@@ -1033,9 +1033,9 @@ struct CompactSuggerimentoCard: View {
                 Button("Continua") {
                     showingAction = false
                     onCompleted()
-                }
-                .buttonStyle(.borderedProminent)
             }
+                .buttonStyle(.borderedProminent)
+        }
             .padding()
         }
     }
@@ -1113,22 +1113,22 @@ struct CronologiaContestoView: View {
                         
                         Text("Nessuna cronologia disponibile")
                             .font(.headline)
-                            .foregroundColor(.secondary)
+                                    .foregroundColor(.secondary)
                         
                         Text("Le modifiche al contesto AI verranno salvate qui")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
-                    }
+                            }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
                     .listRowBackground(Color.clear)
-                } else {
+                    } else {
                     ForEach(cronologiaOrdinata, id: \.id) { voce in
                         CronologiaContestoRow(voce: voce)
                     }
                 }
-            }
+                    }
             .navigationTitle("Cronologia Contesto")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

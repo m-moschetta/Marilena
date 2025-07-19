@@ -3,7 +3,6 @@ import CoreData
 
 struct RecorderMainView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var selectedTab = 0
     @StateObject private var recordingService: RecordingService
     
     init() {
@@ -11,22 +10,7 @@ struct RecorderMainView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Segmented Control
-            Picker("Modalità", selection: $selectedTab) {
-                Text("Registra").tag(0)
-                Text("Registrazioni").tag(1)
-            }
-            .pickerStyle(SegmentedPickerStyle())
-            .padding()
-            
-            // Contenuto basato sulla selezione
-            if selectedTab == 0 {
-                AudioRecorderView(recordingService: recordingService)
-            } else {
-                RecordingsListView(context: viewContext)
-            }
-        }
+        RecordingsListView(context: viewContext, recordingService: recordingService)
     }
 }
 

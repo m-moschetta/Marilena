@@ -13,42 +13,63 @@ struct RecordingsListView: View {
     
     @StateObject private var transcriptionService: SpeechTranscriptionService
     @StateObject private var audioPlayer = AudioPlayer()
+    let recordingService: RecordingService
     
     @State private var searchText = ""
     @State private var selectedFilter: RecordingFilter = .all
+    @State private var showingSearchBar = false
+    @State private var editingRecording: RegistrazioneAudio?
+    @State private var newRecordingName = ""
     @State private var showingDeleteAlert = false
     @State private var recordingToDelete: RegistrazioneAudio?
     @State private var selectedRecording: RegistrazioneAudio?
     
-    init(context: NSManagedObjectContext) {
+    init(context: NSManagedObjectContext, recordingService: RecordingService) {
         self._transcriptionService = StateObject(wrappedValue: SpeechTranscriptionService(context: context))
+        self.recordingService = recordingService
     }
     
     var body: some View {
-        VStack {
-            // Filtri e ricerca
-            filterBarView
-            
-            // Lista registrazioni
-            recordingsListView
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button("Ordina per Data") {
-                        // Implementa ordinamento
+        ZStack {
+            VStack(spacing: 0) {
+                // Header minimale
+                headerView
+                
+                // Lista registrazioni semplificata
+                recordingsListView
+            }
+            // Bottone centrale glassmorphism compatibile iOS 18+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation(.spring()) {
+                            if recordingService.recordingState == .recording {
+                                recordingService.stopRecording()
+                            } else {
+                                recordingService.startRecording()
+                            }
+                        }
+                    }) {
+                        GlassmorphismRecordButton(isRecording: recordingService.recordingState == .recording) {
+                            withAnimation(.spring()) {
+                                if recordingService.recordingState == .recording {
+                                    recordingService.stopRecording()
+                                } else {
+                                    recordingService.startRecording()
+                                }
+                            }
+                        }
                     }
-                    Button("Ordina per Durata") {
-                        // Implementa ordinamento  
-                    }
-                    Button("Ordina per Nome") {
-                        // Implementa ordinamento
-                    }
-                } label: {
-                    Image(systemName: "arrow.up.arrow.down")
+                    .scaleEffect(recordingService.recordingState == .recording ? 1.1 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: recordingService.recordingState)
+                    Spacer()
                 }
+                .padding(.bottom, 36) // sopra i tab
             }
         }
+        .background(Color(.systemGroupedBackground))
         .sheet(item: $selectedRecording) { recording in
             RecordingDetailView(recording: recording, context: viewContext)
         }
@@ -57,40 +78,41 @@ struct RecordingsListView: View {
                 if let recording = recordingToDelete {
                     deleteRecording(recording)
                 }
+                recordingToDelete = nil
             }
-            Button("Annulla", role: .cancel) { }
+            Button("Annulla", role: .cancel) {
+                recordingToDelete = nil
+            }
         } message: {
-            Text("Questa azione non può essere annullata. Verranno eliminate anche tutte le trascrizioni associate.")
+            Text("Sei sicuro di voler eliminare questa registrazione? L'azione non può essere annullata.")
+        }
+        .alert("Modifica Nome",
+               isPresented: Binding(
+                   get: { editingRecording != nil },
+                   set: { newValue in if !newValue { editingRecording = nil; newRecordingName = "" } }
+               )
+        ) {
+            TextField("Nome registrazione", text: $newRecordingName)
+            Button("Salva") {
+                saveRecordingName()
+            }
+            Button("Annulla", role: .cancel) {
+                editingRecording = nil
+                newRecordingName = ""
+            }
+        } message: {
+            Text("Inserisci un nuovo nome per la registrazione")
+        }
+        .onAppear {
+            debugCoreDataState()
         }
     }
     
-    // MARK: - Filter Bar
+    // MARK: - Header View
     
-    private var filterBarView: some View {
-        VStack(spacing: 12) {
-            // Barra di ricerca
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                
-                TextField("Cerca registrazioni...", text: $searchText)
-                    .textFieldStyle(.plain)
-                
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6))
-            .cornerRadius(10)
-            
-            // Filtri
+    private var headerView: some View {
+        VStack(spacing: 16) {
+            // Filtri semplificati
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(RecordingFilter.allCases, id: \.self) { filter in
@@ -105,8 +127,33 @@ struct RecordingsListView: View {
                 }
                 .padding(.horizontal)
             }
+            
+            // Barra di ricerca minimale
+            if !searchText.isEmpty || selectedFilter != .all {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Cerca registrazioni...", text: $searchText)
+                        .textFieldStyle(.plain)
+                    
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
         }
-        .padding()
+        .padding(.top)
     }
     
     // MARK: - Recordings List
@@ -114,7 +161,7 @@ struct RecordingsListView: View {
     private var recordingsListView: some View {
         List {
             ForEach(filteredRecordings, id: \.objectID) { recording in
-                RecordingRowView(
+                MinimalRecordingRowView(
                     recording: recording,
                     audioPlayer: audioPlayer,
                     transcriptionService: transcriptionService
@@ -123,11 +170,13 @@ struct RecordingsListView: View {
                 } onDelete: {
                     recordingToDelete = recording
                     showingDeleteAlert = true
+                } onRename: {
+                    startEditingName(for: recording)
                 }
             }
             .onDelete(perform: deleteRecordings)
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .refreshable {
             // Aggiorna dati se necessario
         }
@@ -209,6 +258,61 @@ struct RecordingsListView: View {
             deleteRecording(recording)
         }
     }
+    
+    private func startEditingName(for recording: RegistrazioneAudio) {
+        editingRecording = recording
+        newRecordingName = recording.titolo ?? ""
+    }
+    
+    private func saveRecordingName() {
+        guard let recording = editingRecording else { return }
+        
+        let trimmedName = newRecordingName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedName.isEmpty {
+            recording.titolo = trimmedName
+            
+            do {
+                try viewContext.save()
+                print("✅ Nome registrazione salvato: \(trimmedName)")
+                
+                // Debug: verifica che la registrazione sia ancora presente
+                let fetchRequest: NSFetchRequest<RegistrazioneAudio> = RegistrazioneAudio.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "id == %@", recording.id! as CVarArg)
+                let results = try viewContext.fetch(fetchRequest)
+                print("🔍 Debug: Registrazioni trovate con questo ID: \(results.count)")
+                
+            } catch {
+                print("❌ Errore salvataggio nome: \(error)")
+            }
+        }
+        editingRecording = nil
+        newRecordingName = ""
+    }
+    
+    // MARK: - Debug Methods
+    
+    private func debugCoreDataState() {
+        print("🔍 === DEBUG CORE DATA STATE ===")
+        
+        let fetchRequest: NSFetchRequest<RegistrazioneAudio> = RegistrazioneAudio.fetchRequest()
+        do {
+            let recordings = try viewContext.fetch(fetchRequest)
+            print("📊 Totale registrazioni in Core Data: \(recordings.count)")
+            
+            for (index, recording) in recordings.enumerated() {
+                print("📝 Registrazione \(index + 1):")
+                print("   - ID: \(recording.id?.uuidString ?? "nil")")
+                print("   - Titolo: \(recording.titolo ?? "nil")")
+                print("   - Data: \(recording.dataCreazione?.description ?? "nil")")
+                print("   - Durata: \(recording.durata)")
+                print("   - Path: \(recording.pathFile?.path ?? "nil")")
+            }
+        } catch {
+            print("❌ Errore fetch registrazioni: \(error)")
+        }
+        
+        print("🔍 === FINE DEBUG ===")
+    }
 }
 
 // MARK: - Supporting Views
@@ -223,19 +327,19 @@ struct FilterChip: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text(title)
-                    .font(.caption.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                 
                 if count > 0 {
                     Text("\(count)")
-                        .font(.caption2)
+                        .font(.caption)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(isSelected ? Color.white.opacity(0.3) : Color.primary.opacity(0.2))
                         .clipShape(Capsule())
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .background(isSelected ? Color.accentColor : Color(.systemGray5))
             .foregroundColor(isSelected ? .white : .primary)
             .clipShape(Capsule())
@@ -244,72 +348,76 @@ struct FilterChip: View {
     }
 }
 
-struct RecordingRowView: View {
+struct MinimalRecordingRowView: View {
     let recording: RegistrazioneAudio
     let audioPlayer: AudioPlayer
     let transcriptionService: SpeechTranscriptionService
     let onTap: () -> Void
     let onDelete: () -> Void
+    let onRename: () -> Void
     
     @State private var isTranscribing = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header con titolo e data
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(recording.titolo ?? "Senza titolo")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    Text(formatDate(recording.dataCreazione))
+        HStack(spacing: 16) {
+            // Play button
+            Button {
+                if audioPlayer.isPlaying && audioPlayer.currentRecording == recording {
+                    audioPlayer.pause()
+                } else {
+                    audioPlayer.play(recording: recording)
+                }
+            } label: {
+                Image(systemName: audioPlayer.isPlaying && audioPlayer.currentRecording == recording ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.accentColor)
+            }
+            
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(recording.titolo ?? "Senza titolo")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                
+                Text(formatDate(recording.dataCreazione))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                // Transcription preview se disponibile
+                if let transcription = getTranscriptions().first,
+                   let text = transcription.testoCompleto,
+                   !text.isEmpty {
+                    Text(text)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
-                
-                Spacer()
-                
-                // Stato elaborazione
-                StatusBadge(stato: recording.statoElaborazione ?? "sconosciuto")
             }
             
-            // Informazioni registrazione
-            HStack(spacing: 16) {
-                InfoItem(
-                    icon: "clock.fill",
-                    text: formatDuration(recording.durata),
-                    color: .blue
-                )
-                
-                InfoItem(
-                    icon: "waveform",
-                    text: recording.qualitaAudio?.capitalized ?? "Media",
-                    color: .green
-                )
-                
-                InfoItem(
-                    icon: "globe",
-                    text: recording.linguaPrincipale?.uppercased() ?? "IT",
-                    color: .orange
-                )
-                
-                Spacer()
-            }
+            Spacer()
             
-            // Trascrizioni e controlli
-            transcriptionInfoView
-            
-            // Controlli audio
-            audioControlsView
+            // Duration
+            Text(formatDuration(recording.durata))
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .monospacedDigit()
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
         .onTapGesture {
             onTap()
         }
+        .onLongPressGesture {
+            onRename()
+        }
         .contextMenu {
+            Button {
+                onRename()
+            } label: {
+                Label("Rinomina", systemImage: "pencil")
+            }
+            
             Button {
                 onTap()
             } label: {
@@ -336,101 +444,6 @@ struct RecordingRowView: View {
                 onDelete()
             } label: {
                 Label("Elimina", systemImage: "trash")
-            }
-        }
-    }
-    
-    private var transcriptionInfoView: some View {
-        let transcriptions = getTranscriptions()
-        
-        return HStack {
-            if transcriptions.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "text.bubble.fill")
-                        .foregroundColor(.gray)
-                    Text("Nessuna trascrizione")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    if isTranscribing {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else {
-                        Button("Trascrivi") {
-                            startTranscription()
-                        }
-                        .font(.caption)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.mini)
-                    }
-                }
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "text.bubble.fill")
-                        .foregroundColor(.green)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(transcriptions.count) trascrizione\(transcriptions.count > 1 ? "i" : "")")
-                            .font(.caption)
-                            .foregroundColor(.primary)
-                        
-                        if let latest = transcriptions.first {
-                            Text("\(latest.paroleTotali) parole • \(Int(latest.accuratezza * 100))% accuratezza")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                }
-            }
-        }
-    }
-    
-    private var audioControlsView: some View {
-        HStack(spacing: 16) {
-            // Play/Pause
-            Button {
-                if audioPlayer.isPlaying && audioPlayer.currentRecording == recording {
-                    audioPlayer.pause()
-                } else {
-                    audioPlayer.play(recording: recording)
-                }
-            } label: {
-                Image(systemName: audioPlayer.isPlaying && audioPlayer.currentRecording == recording ? "pause.fill" : "play.fill")
-                    .foregroundColor(.blue)
-            }
-            
-            // Progress bar
-            if audioPlayer.currentRecording == recording {
-                VStack(spacing: 4) {
-                    ProgressView(value: audioPlayer.currentTime, total: audioPlayer.duration)
-                        .progressViewStyle(.linear)
-                    
-                    HStack {
-                        Text(formatDuration(audioPlayer.currentTime))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Text(formatDuration(audioPlayer.duration))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            } else {
-                HStack {
-                    Rectangle()
-                        .fill(Color(.systemGray5))
-                        .frame(height: 2)
-                    
-                    Text(formatDuration(recording.durata))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
             }
         }
     }
@@ -470,73 +483,24 @@ struct RecordingRowView: View {
     }
     
     private func formatDate(_ date: Date?) -> String {
-        guard let date = date else { return "" }
+        guard let date = date else { return "Data sconosciuta" }
         
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        formatter.locale = Locale.current
+        formatter.locale = Locale(identifier: "it_IT")
+        
         return formatter.string(from: date)
     }
     
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
-struct StatusBadge: View {
-    let stato: String
-    
-    var body: some View {
-        Text(stato.capitalized)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(backgroundColor)
-            .foregroundColor(textColor)
-            .clipShape(Capsule())
-    }
-    
-    private var backgroundColor: Color {
-        switch stato {
-        case "completata": return .green.opacity(0.2)
-        case "in_elaborazione": return .blue.opacity(0.2)
-        case "errore": return .red.opacity(0.2)
-        default: return .gray.opacity(0.2)
-        }
-    }
-    
-    private var textColor: Color {
-        switch stato {
-        case "completata": return .green
-        case "in_elaborazione": return .blue
-        case "errore": return .red
-        default: return .gray
-        }
-    }
-}
-
-struct InfoItem: View {
-    let icon: String
-    let text: String
-    let color: Color
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundColor(color)
-            
-            Text(text)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-}
-
-// MARK: - Supporting Types
+// MARK: - Recording Filter
 
 enum RecordingFilter: CaseIterable {
     case all
@@ -737,5 +701,75 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         currentTime = 0
         currentRecording = nil
         stopTimer()
+    }
+}
+
+// MARK: - Glassmorphism Button View
+
+struct GlassmorphismRecordButton: View {
+    let isRecording: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            // Versione iOS 26+ con GlassEffectContainer
+            GlassEffectContainer {
+                Button(action: action) {
+                    Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
+                        .font(.system(size: 72, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+                        .padding(8)
+                }
+                .glassEffect(.regular.tint(isRecording ? Color.red.opacity(0.7) : Color.accentColor.opacity(0.7)).interactive())
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.25), lineWidth: 2)
+                )
+                .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+            }
+        } else {
+            // Fallback per iOS 18.6-25.x
+            Button(action: action) {
+                ZStack {
+                    // Background con blur effect per liquid glass
+                    RoundedRectangle(cornerRadius: 50)
+                        .fill(.ultraThinMaterial)
+                        .background(
+                            RoundedRectangle(cornerRadius: 50)
+                                .fill(Color.accentColor.opacity(0.1))
+                        )
+                        .overlay(
+                            // Contorno blu trasparente
+                            RoundedRectangle(cornerRadius: 50)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.accentColor.opacity(0.6),
+                                            Color.accentColor.opacity(0.3)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 2
+                                )
+                        )
+                        .shadow(
+                            color: isRecording ? 
+                                Color.red.opacity(0.3) : Color.accentColor.opacity(0.3),
+                            radius: 20,
+                            x: 0,
+                            y: 10
+                        )
+                    
+                    // Icona
+                    Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
+                        .font(.system(size: 72, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .frame(width: 120, height: 120)
+            }
+        }
     }
 }

@@ -3,7 +3,7 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var selectedTab = 0
+    @State private var selectedTab = 1 // Cambiato da 0 a 1 per avviare su registratore
     
     var body: some View {
         TabView(selection: $selectedTab) {
