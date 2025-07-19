@@ -90,4 +90,8 @@ fastlane/test_output
 iOSInjectionProject/
 
 # macOS
-.DS_Store 
+.DS_Store
+
+# Backup files
+*_backup/
+error.md 

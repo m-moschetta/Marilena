@@ -1,5 +1,5 @@
 import SwiftUI
-internal import CoreData
+import CoreData
 import NaturalLanguage
 import Charts
 

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23511" systemVersion="24B83" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="ChatMarilena" representedClassName="ChatMarilena" syncable="YES" codeGenerationType="class">
+        <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="recordingId" optional="YES" attributeType="String"/>
+        <attribute name="titolo" optional="YES" attributeType="String"/>
+        <attribute name="tipo" optional="YES" attributeType="String" defaultValueString="general"/>
+        <relationship name="messaggi" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MessaggioMarilena" inverseName="chat" inverseEntity="MessaggioMarilena"/>
+        <relationship name="profilo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProfiloUtente" inverseName="chats" inverseEntity="ProfiloUtente"/>
+        <relationship name="registrazioni" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="RegistrazioneAudio" inverseName="chat" inverseEntity="RegistrazioneAudio"/>
+    </entity>
+    <entity name="CronologiaContesto" representedClassName="CronologiaContesto" syncable="YES" codeGenerationType="class">
+        <attribute name="contenuto" optional="YES" attributeType="String"/>
+        <attribute name="dataSalvataggio" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="tipoAggiornamento" optional="YES" attributeType="String"/>
+        <relationship name="profilo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProfiloUtente" inverseName="cronologia" inverseEntity="ProfiloUtente"/>
+    </entity>
+    <entity name="Item" representedClassName="Item" syncable="YES" codeGenerationType="class">
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <entity name="MessaggioMarilena" representedClassName="MessaggioMarilena" syncable="YES" codeGenerationType="class">
+        <attribute name="contenuto" optional="YES" attributeType="String"/>
+        <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isUser" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="tipo" optional="YES" attributeType="String" defaultValueString="user"/>
+        <relationship name="chat" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ChatMarilena" inverseName="messaggi" inverseEntity="ChatMarilena"/>
+    </entity>
+    <entity name="ProfiloUtente" representedClassName="ProfiloUtente" syncable="YES" codeGenerationType="class">
+        <attribute name="bio" optional="YES" attributeType="String"/>
+        <attribute name="cellulare" optional="YES" attributeType="String"/>
+        <attribute name="contestoAI" optional="YES" attributeType="String"/>
+        <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dataNascita" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dataUltimoAggiornamentoContesto" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="email" optional="YES" attributeType="String"/>
+        <attribute name="fotoProfilo" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="nome" optional="YES" attributeType="String"/>
+        <attribute name="profiliSocial" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer" customClassName="[String: String]"/>
+        <attribute name="username" optional="YES" attributeType="String"/>
+        <attribute name="uuid" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <relationship name="chats" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ChatMarilena" inverseName="profilo" inverseEntity="ChatMarilena"/>
+        <relationship name="cronologia" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CronologiaContesto" inverseName="profilo" inverseEntity="CronologiaContesto"/>
+        <relationship name="registrazioni" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="RegistrazioneAudio" inverseName="profilo" inverseEntity="RegistrazioneAudio"/>
+    </entity>
+    <entity name="RegistrazioneAudio" representedClassName="RegistrazioneAudio" syncable="YES" codeGenerationType="class">
+        <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="durata" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="formatoAudio" optional="YES" attributeType="String" defaultValueString="m4a"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="linguaPrincipale" optional="YES" attributeType="String" defaultValueString="it"/>
+        <attribute name="pathFile" optional="YES" attributeType="URI"/>
+        <attribute name="qualitaAudio" optional="YES" attributeType="String" defaultValueString="alta"/>
+        <attribute name="statoElaborazione" optional="YES" attributeType="String" defaultValueString="in_attesa"/>
+        <attribute name="tipoRegistrazione" optional="YES" attributeType="String" defaultValueString="voce"/>
+        <attribute name="titolo" optional="YES" attributeType="String"/>
+        <relationship name="chat" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ChatMarilena" inverseName="registrazioni" inverseEntity="ChatMarilena"/>
+        <relationship name="profilo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProfiloUtente" inverseName="registrazioni" inverseEntity="ProfiloUtente"/>
+        <relationship name="trascrizioni" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Trascrizione" inverseName="registrazione" inverseEntity="Trascrizione"/>
+    </entity>
+    <entity name="Trascrizione" representedClassName="Trascrizione" syncable="YES" codeGenerationType="class">
+        <attribute name="accuratezza" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="frameworkUtilizzato" optional="YES" attributeType="String" defaultValueString="SpeechAnalyzer"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="linguaRilevata" optional="YES" attributeType="String"/>
+        <attribute name="metadatiTemporali" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES" customClassName="[TimeInterval: String]"/>
+        <attribute name="paroleTotali" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="statoElaborazione" optional="YES" attributeType="String" defaultValueString="completata"/>
+        <attribute name="testoCompleto" optional="YES" attributeType="String"/>
+        <attribute name="versione" optional="YES" attributeType="String" defaultValueString="1.0"/>
+        <relationship name="registrazione" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="RegistrazioneAudio" inverseName="trascrizioni" inverseEntity="RegistrazioneAudio"/>
+    </entity>
+</model>
