@@ -102,8 +102,8 @@ struct AudioRecorderView: View {
                     .fill(statusDotColor.opacity(0.2))
                     .frame(width: 20, height: 20)
                 
-                Circle()
-                    .fill(statusDotColor)
+            Circle()
+                .fill(statusDotColor)
                     .frame(width: 8, height: 8)
                     .scaleEffect(pulseAnimation ? 1.3 : 1.0)
                     .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: pulseAnimation)
@@ -161,7 +161,7 @@ struct AudioRecorderView: View {
         ZStack {
             // Multiple outer rings for modern effect
             ForEach(0..<3, id: \.self) { index in
-                Circle()
+            Circle()
                     .stroke(buttonColor.opacity(0.1 + Double(index) * 0.1), lineWidth: 1)
                     .frame(width: 200 + CGFloat(index * 20), height: 200 + CGFloat(index * 20))
                     .scaleEffect(pulseAnimation ? 1.05 + Double(index) * 0.02 : 1.0)
@@ -236,11 +236,11 @@ struct AudioRecorderView: View {
                     .frame(width: 8, height: 8)
                     .scaleEffect(pulseAnimation ? 1.2 : 1.0)
                     .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: pulseAnimation)
-                
-                Text("Registrazione in corso...")
+            
+            Text("Registrazione in corso...")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                .foregroundColor(.secondary)
             }
         }
     }
@@ -277,9 +277,9 @@ struct AudioRecorderView: View {
                     )
                     .frame(width: 50, height: 50)
                 
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(.blue)
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(.blue)
             }
             
             Text(value)
@@ -308,8 +308,8 @@ struct AudioRecorderView: View {
                     .font(.title3)
                     .foregroundColor(.blue)
                 
-                Text("Tocca il pulsante per iniziare")
-                    .font(.subheadline)
+            Text("Tocca il pulsante per iniziare")
+                .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.primary)
             }

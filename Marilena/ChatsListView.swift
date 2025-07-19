@@ -15,33 +15,33 @@ struct ChatsListView: View {
     @State private var showingSettings = false
     
     var body: some View {
-        VStack {
-            if chats.isEmpty {
-                emptyStateView
-            } else {
-                chatsList
-            }
-        }
-        .navigationTitle("Chat AI")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: createNewChat) {
-                    Image(systemName: "plus")
+            VStack {
+                if chats.isEmpty {
+                    emptyStateView
+                } else {
+                    chatsList
                 }
             }
-            
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { showingSettings = true }) {
-                    Image(systemName: "gear")
+            .navigationTitle("Chat AI")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: createNewChat) {
+                        Image(systemName: "plus")
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gear")
+                    }
                 }
             }
-        }
-        .sheet(isPresented: $showingNewChatSheet) {
-            NewChatView()
-                .environment(\.managedObjectContext, viewContext)
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
+            .sheet(isPresented: $showingNewChatSheet) {
+                NewChatView()
+                    .environment(\.managedObjectContext, viewContext)
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenChatInMainList"))) { notification in
             if let chat = notification.object as? ChatMarilena {
@@ -238,39 +238,39 @@ struct NewChatView: View {
     @State private var messaggioIniziale = ""
     
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Titolo Chat")
-                    .font(.headline)
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Titolo Chat")
+                        .font(.headline)
+                    
+                    TextField("Es. Pianificazione progetti", text: $titolo)
+                        .textFieldStyle(.roundedBorder)
+                }
                 
-                TextField("Es. Pianificazione progetti", text: $titolo)
-                    .textFieldStyle(.roundedBorder)
-            }
-            
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Messaggio Iniziale (Opzionale)")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Messaggio Iniziale (Opzionale)")
+                        .font(.headline)
+                    
+                    TextField("Inizia la conversazione...", text: $messaggioIniziale, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(3...6)
+                }
                 
-                TextField("Inizia la conversazione...", text: $messaggioIniziale, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(3...6)
+                Spacer()
+                
+                Button("Crea Chat") {
+                    createChat()
+                }
+                .disabled(titolo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(.borderedProminent)
             }
-            
-            Spacer()
-            
-            Button("Crea Chat") {
-                createChat()
-            }
-            .disabled(titolo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .buttonStyle(.borderedProminent)
-        }
-        .padding()
-        .navigationTitle("Nuova Chat AI")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Annulla") {
-                    dismiss()
+            .padding()
+            .navigationTitle("Nuova Chat AI")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annulla") {
+                        dismiss()
                 }
             }
         }

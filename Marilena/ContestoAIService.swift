@@ -123,10 +123,12 @@ class ContestoAIService {
         if ProfiloUtenteService.shared.dovrebbeAggiornareContesto(profilo: profilo) {
             suggerimenti.append(
                 SuggerimentoContesto(
+                    id: UUID(),
                     tipo: .aggiornamentoContesto,
                     titolo: "Aggiorna Contesto",
                     descrizione: "Il tuo contesto AI può essere aggiornato con le conversazioni recenti",
-                    priorita: .alta
+                    priorita: .alta,
+                    azione: "Aggiorna Contesto"
                 )
             )
         }
@@ -135,10 +137,12 @@ class ContestoAIService {
         if profilo.bio?.isEmpty ?? true {
             suggerimenti.append(
                 SuggerimentoContesto(
+                    id: UUID(),
                     tipo: .completaProfilo,
                     titolo: "Completa Profilo",
                     descrizione: "Aggiungi una bio per migliorare il contesto AI",
-                    priorita: .media
+                    priorita: .media,
+                    azione: "Completa Profilo"
                 )
             )
         }
@@ -147,10 +151,12 @@ class ContestoAIService {
         if profilo.fotoProfilo == nil {
             suggerimenti.append(
                 SuggerimentoContesto(
+                    id: UUID(),
                     tipo: .aggiungiFoto,
                     titolo: "Aggiungi Foto",
                     descrizione: "Personalizza il tuo profilo con una foto",
-                    priorita: .bassa
+                    priorita: .bassa,
+                    azione: "Aggiungi Foto"
                 )
             )
         }
@@ -201,6 +207,7 @@ struct SuggerimentoContesto {
         case aggiornamentoContesto
         case completaProfilo
         case aggiungiFoto
+        case social
     }
     
     enum Priorita {
@@ -231,8 +238,10 @@ struct SuggerimentoContesto {
         }
     }
     
+    let id: UUID
     let tipo: Tipo
     let titolo: String
     let descrizione: String
     let priorita: Priorita
+    let azione: String
 } 
