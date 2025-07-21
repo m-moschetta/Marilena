@@ -161,7 +161,7 @@ struct AudioRecorderView: View {
         ZStack {
             // Bottone glassmorphism compatibile iOS 18+
             if #available(iOS 26.0, *) {
-                // Versione iOS 26+ con GlassEffectContainer
+                // Versione iOS 26+ con GlassEffectContainer e Liquid Glass
                 GlassEffectContainer {
                     Button(action: {
                         handleRecordButtonTap()
@@ -182,7 +182,7 @@ struct AudioRecorderView: View {
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAnimatingButton)
                 }
             } else {
-                // Fallback per iOS 18.6-25.x
+                // Fallback per iOS 18-25.x
                 Button(action: {
                     handleRecordButtonTap()
                 }) {

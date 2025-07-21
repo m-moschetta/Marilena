@@ -733,7 +733,7 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
             // IMPORTANTE: Aggiungi timeout per evitare blocchi
             var hasCompleted = false
             
-            let task = recognizer.recognitionTask(with: request) { result, error in
+            let _ = recognizer.recognitionTask(with: request) { result, error in
                 // Evita chiamate multiple
                 guard !hasCompleted else { return }
                 hasCompleted = true
@@ -1050,6 +1050,10 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
             return formatTimestampedText(transcription)
         case .srt:
             return formatSRT(transcription)
+        case .json:
+            return formatJSON(transcription)
+        case .csv:
+            return formatCSV(transcription)
         }
     }
     
@@ -1107,6 +1111,61 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
         let milliseconds = Int((seconds.truncatingRemainder(dividingBy: 1)) * 1000)
         
         return String(format: "%02d:%02d:%02d,%03d", hours, minutes, secs, milliseconds)
+    }
+    
+    private func formatJSON(_ transcription: Trascrizione) -> String {
+        var jsonObject: [String: Any] = [:]
+        
+        // Dati di base - correggo i nomi delle proprietà
+        jsonObject["text"] = transcription.testoCompleto
+        jsonObject["dataCreazione"] = transcription.dataCreazione?.timeIntervalSince1970
+        jsonObject["linguaRilevata"] = transcription.linguaRilevata
+        
+        // Metadati temporali se disponibili
+        if let metadataData = transcription.metadatiTemporali,
+           let timestamps = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSDictionary.self, from: metadataData) as? [TimeInterval: String] {
+            
+            var timestampsArray: [[String: Any]] = []
+            for (time, text) in timestamps.sorted(by: { $0.key < $1.key }) {
+                timestampsArray.append([
+                    "timestamp": time,
+                    "text": text
+                ])
+            }
+            jsonObject["timestamps"] = timestampsArray
+        }
+        
+        // Converti in JSON
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted)
+            return String(data: jsonData, encoding: .utf8) ?? "{}"
+        } catch {
+            print("❌ Errore nella conversione JSON: \(error)")
+            return "{\"error\": \"Impossibile convertire in JSON\"}"
+        }
+    }
+    
+    private func formatCSV(_ transcription: Trascrizione) -> String {
+        var csvLines: [String] = []
+        
+        // Header CSV
+        csvLines.append("Timestamp,Text")
+        
+        // Dati CSV
+        if let metadataData = transcription.metadatiTemporali,
+           let timestamps = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSDictionary.self, from: metadataData) as? [TimeInterval: String] {
+            
+            for (time, text) in timestamps.sorted(by: { $0.key < $1.key }) {
+                let escapedText = "\"" + text.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+                csvLines.append("\(time),\(escapedText)")
+            }
+        } else {
+            // Se non ci sono timestamp, aggiungi solo il testo
+            let escapedText = "\"" + (transcription.testoCompleto ?? "").replacingOccurrences(of: "\"", with: "\"\"") + "\""
+            csvLines.append("0.0,\(escapedText)")
+        }
+        
+        return csvLines.joined(separator: "\n")
     }
     
     // MARK: - Analysis con NaturalLanguage
@@ -1173,7 +1232,7 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
         print("🇮🇹 SpeechTranscriptionService: Ottimizzazioni per italiano...")
         
         // Configurazioni specifiche per l'italiano
-        if let recognizer = speechRecognizer {
+        if speechRecognizer != nil {
             // Imposta task hint per dictation (migliore per italiano)
             print("🇮🇹 SpeechTranscriptionService: Configurazione ottimizzata per dictation")
         }
@@ -1229,7 +1288,7 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
             
             var hasCompleted = false
             
-            let task = recognizer.recognitionTask(with: request) { result, error in
+            let _ = recognizer.recognitionTask(with: request) { result, error in
                 guard !hasCompleted else { return }
                 hasCompleted = true
                 
@@ -1280,10 +1339,4 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
 }
 
 // MARK: - Supporting Types
-
-enum ExportFormat {
-    case text
-    case timestamped
-    case srt
-} 
 
