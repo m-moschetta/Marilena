@@ -111,3 +111,81 @@ Marilena è un assistente AI personale per iOS, focalizzato su trascrizione audi
 
 **Nota per AI e sviluppatori:**
 Questa documentazione è aggiornata a giugno 2024 e include riferimenti a tecnologie di ultima generazione. Se stai lavorando con una AI non aggiornata, consulta sempre le sezioni dedicate alle tecnologie moderne e i commenti architetturali nel codice per evitare errori di compatibilità o implementazioni obsolete. 
+
+---
+
+## 10. FAQ – Domande Frequenti
+
+**❓ L’app funziona anche senza API key?**
+- Alcune funzionalità base (registrazione, salvataggio locale) funzionano, ma per chat AI e trascrizione avanzata serve almeno una API key configurata (OpenAI, Perplexity, Anthropic, Groq).
+
+**❓ Come posso cambiare modello AI?**
+- Vai su Impostazioni → scegli il provider e il modello desiderato. Il limite di token si aggiorna automaticamente.
+
+**❓ Perché non vedo subito le nuove registrazioni/trascrizioni?**
+- L’interfaccia è reattiva: se non vedi aggiornamenti, assicurati che i permessi siano concessi e che non ci siano errori di Core Data.
+
+**❓ Come posso fare una ricerca online?**
+- Premi il mappamondo nella chat AI per attivare la ricerca web tramite Perplexity.
+
+**❓ L’app è pronta per iOS 26?**
+- Sì, il codice è già compatibile e sfrutta le nuove API (SpeechAnalyzer, GlassEffectContainer, ecc.).
+
+**❓ Posso usare modelli open-source?**
+- Sì, tramite Groq e Perplexity puoi selezionare modelli come Llama 3, Mixtral, ecc.
+
+**❓ Come posso contribuire?**
+- Segui la guida rapida qui sotto!
+
+---
+
+## 11. Guida Rapida per Nuovi Contributor
+
+1. **Clona il repository**
+   ```bash
+   git clone https://github.com/m-moschetta/Marilena.git
+   cd Marilena
+   ```
+2. **Apri il progetto in Xcode**
+   ```bash
+   open Marilena.xcodeproj
+   ```
+3. **Configura le API key**
+   - Inserisci le chiavi nelle impostazioni dell’app (OpenAI, Perplexity, Anthropic, Groq)
+4. **Crea un branch per la tua feature**
+   ```bash
+   git checkout -b feature/il-tuo-nome-feature
+   ```
+5. **Sviluppa seguendo le best practice**
+   - Commenta il codice, aggiorna la documentazione se necessario
+6. **Fai commit e push**
+   ```bash
+   git add .
+   git commit -m "Descrizione della feature"
+   git push origin feature/il-tuo-nome-feature
+   ```
+7. **Apri una Pull Request su GitHub**
+
+---
+
+## 12. Esempio di Flusso Architetturale
+
+```mermaid
+graph TD;
+    A[Utente preme "Registra"] --> B[AudioRecorderView avvia registrazione]
+    B --> C[RecordingService salva audio in Core Data]
+    C --> D[SpeechTranscriptionService avvia trascrizione]
+    D -->|iOS 26+| E[SpeechAnalyzer]
+    D -->|iOS 13-25| F[Speech Framework]
+    D -->|API| G[Whisper/OpenAI]
+    E & F & G --> H[Trascrizione salvata in Core Data]
+    H --> I[UI aggiornata automaticamente con @FetchRequest]
+    I --> J[L’utente può avviare chat AI sulla trascrizione]
+    J --> K[AIProviderManager seleziona provider migliore]
+    K --> L[OpenAIService/AnthropicService/PerplexityService/GroqService]
+    L --> M[Risposta AI mostrata in ChatView]
+```
+
+---
+
+Se hai bisogno di altri esempi, diagrammi o vuoi una guida dettagliata su una parte specifica, apri una issue o chiedi direttamente! 
