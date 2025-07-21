@@ -11,6 +11,9 @@ struct RecordingsListView: View {
         animation: .default
     ) private var recordings: FetchedResults<RegistrazioneAudio>
     
+    @State private var refreshID = UUID()
+    @State private var currentPlayerRecording: RegistrazioneAudio?
+    
     @StateObject private var transcriptionService: SpeechTranscriptionService
     @StateObject private var audioPlayer = AudioPlayer()
     let recordingService: RecordingService
@@ -34,9 +37,15 @@ struct RecordingsListView: View {
             VStack(spacing: 0) {
                 // Header minimale
                 headerView
-                
-                // Lista registrazioni semplificata
-                recordingsListView
+                // Splash screen se non ci sono registrazioni
+                if recordings.isEmpty {
+                    splashScreenView
+                } else {
+                    // Spazio extra tra filtri e lista
+                    Spacer().frame(height: 24)
+                    // Lista registrazioni semplificata
+                    recordingsListView
+                }
             }
             // Bottone centrale glassmorphism compatibile iOS 18+
             VStack {
@@ -52,7 +61,7 @@ struct RecordingsListView: View {
                             }
                         }
                     }) {
-                        GlassmorphismRecordButton(isRecording: recordingService.recordingState == .recording) {
+                        GlassmorphismRecordButton(isRecording: recordingService.recordingState == .recording, audioLevel: recordingService.audioLevel) {
                             withAnimation(.spring()) {
                                 if recordingService.recordingState == .recording {
                                     recordingService.stopRecording()
@@ -106,6 +115,21 @@ struct RecordingsListView: View {
         .onAppear {
             debugCoreDataState()
         }
+        .id(refreshID) // Forza refresh quando cambia refreshID
+        .onReceive(NotificationCenter.default.publisher(for: .recordingCreated)) { _ in
+            // Forza aggiornamento della lista quando viene creata una nuova registrazione
+            print("📱 RecordingsListView: Ricevuta notifica recordingCreated")
+            DispatchQueue.main.async {
+                refreshID = UUID()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .transcriptionCompleted)) { _ in
+            // Forza aggiornamento della lista quando viene completata una trascrizione  
+            print("📱 RecordingsListView: Ricevuta notifica transcriptionCompleted")
+            DispatchQueue.main.async {
+                refreshID = UUID()
+            }
+        }
     }
     
     // MARK: - Header View
@@ -156,6 +180,32 @@ struct RecordingsListView: View {
         .padding(.top)
     }
     
+    // MARK: - Splash Screen
+    private var splashScreenView: some View {
+        VStack(spacing: 32) {
+            Image(systemName: "waveform.circle.fill")
+                .resizable()
+                .frame(width: 80, height: 80)
+                .foregroundColor(.accentColor)
+                .shadow(radius: 8)
+            Text("Benvenuto in Marilena!")
+                .font(.title)
+                .fontWeight(.bold)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("• Tocca il microfono per iniziare una nuova registrazione audio.")
+                Text("• Dopo aver registrato, potrai trascrivere l'audio in testo con un solo tap.")
+                Text("• Le trascrizioni ti permettono di cercare, analizzare e chattare con l'AI sul contenuto.")
+                Text("• Puoi filtrare le registrazioni in base alla presenza di trascrizioni.")
+            }
+            .font(.body)
+            .foregroundColor(.secondary)
+            .padding(.horizontal)
+            Spacer()
+        }
+        .padding(.top, 48)
+        .padding(.horizontal, 24)
+    }
+    
     // MARK: - Recordings List
     
     private var recordingsListView: some View {
@@ -164,21 +214,34 @@ struct RecordingsListView: View {
                 MinimalRecordingRowView(
                     recording: recording,
                     audioPlayer: audioPlayer,
-                    transcriptionService: transcriptionService
-                ) {
-                    selectedRecording = recording
-                } onDelete: {
-                    recordingToDelete = recording
-                    showingDeleteAlert = true
-                } onRename: {
-                    startEditingName(for: recording)
-                }
+                    transcriptionService: transcriptionService,
+                    onRequestFullScreen: { rec in
+                        currentPlayerRecording = rec
+                    },
+                    onSelect: {
+                        selectedRecording = recording
+                    },
+                    onDelete: {
+                        recordingToDelete = recording
+                        showingDeleteAlert = true
+                    },
+                    onRename: {
+                        startEditingName(for: recording)
+                    }
+                )
             }
             .onDelete(perform: deleteRecordings)
         }
         .listStyle(.plain)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
         .refreshable {
             // Aggiorna dati se necessario
+        }
+        .fullScreenCover(item: $currentPlayerRecording) { rec in
+            FullScreenPlayerView(recording: rec, audioPlayer: audioPlayer) {
+                currentPlayerRecording = nil
+            }
         }
     }
     
@@ -350,64 +413,132 @@ struct FilterChip: View {
 
 struct MinimalRecordingRowView: View {
     let recording: RegistrazioneAudio
-    let audioPlayer: AudioPlayer
+    @ObservedObject var audioPlayer: AudioPlayer
     let transcriptionService: SpeechTranscriptionService
-    let onTap: () -> Void
+    let onRequestFullScreen: (RegistrazioneAudio) -> Void
+    let onSelect: () -> Void
     let onDelete: () -> Void
     let onRename: () -> Void
     
     @State private var isTranscribing = false
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Play button
-            Button {
-                if audioPlayer.isPlaying && audioPlayer.currentRecording == recording {
-                    audioPlayer.pause()
-                } else {
-                    audioPlayer.play(recording: recording)
+        VStack(spacing: 0) {
+            // MARK: - Informazioni Principali
+            HStack(spacing: 16) {
+                // Play button più grande
+                Button {
+                    if audioPlayer.isPlaying && audioPlayer.currentRecording == recording {
+                        audioPlayer.pause()
+                    } else {
+                        audioPlayer.play(recording: recording)
+                        onRequestFullScreen(recording)
+                    }
+                } label: {
+                    Image(systemName: audioPlayer.isPlaying && audioPlayer.currentRecording == recording ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.title)
+                        .foregroundColor(.accentColor)
                 }
-            } label: {
-                Image(systemName: audioPlayer.isPlaying && audioPlayer.currentRecording == recording ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.accentColor)
-            }
-            
-            // Content
-            VStack(alignment: .leading, spacing: 4) {
-                Text(recording.titolo ?? "Senza titolo")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
+                .buttonStyle(.borderless)
                 
-                Text(formatDate(recording.dataCreazione))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Content migliorato
+                VStack(alignment: .leading, spacing: 6) {
+                    // Titolo e durata sulla stessa riga
+                    HStack {
+                        Text(recording.titolo ?? "Senza titolo")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        Text(formatDuration(recording.durata))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
+                    }
+                    
+                    // Data e info trascrizioni
+                    HStack {
+                        Text(formatDate(recording.dataCreazione))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        // Badge trascrizioni
+                        let transcriptionsCount = getTranscriptions().count
+                        if transcriptionsCount > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "text.quote")
+                                    .font(.caption2)
+                                Text("\(transcriptionsCount)")
+                                    .font(.caption2)
+                                    .bold()
+                            }
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.1))
+                            .cornerRadius(4)
+                        }
+                    }
+                    
+                    // Preview trascrizione se disponibile
+                    if let transcription = getTranscriptions().first,
+                       let text = transcription.testoCompleto,
+                       !text.isEmpty {
+                        Text(text)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                            .padding(.top, 2)
+                    }
+                }
+                .onTapGesture {
+                    onSelect()
+                }
                 
-                // Transcription preview se disponibile
-                if let transcription = getTranscriptions().first,
-                   let text = transcription.testoCompleto,
-                   !text.isEmpty {
-                    Text(text)
+                // Chevron per indicare che è tappabile
+                Button {
+                    onSelect()
+                } label: {
+                    Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .lineLimit(2)
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             
-            Spacer()
-            
-            // Duration
-            Text(formatDuration(recording.durata))
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .monospacedDigit()
+            // MARK: - Player Compatto (solo barra progresso)
+            if audioPlayer.currentRecording == recording {
+                HStack {
+                    Text(formatDuration(audioPlayer.currentTime))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                    
+                    ProgressView(value: audioPlayer.currentTime, total: recording.durata)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .accentColor))
+                        .frame(maxWidth: .infinity)
+
+                    Text(formatDuration(recording.durata))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .monospacedDigit()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color(.secondarySystemGroupedBackground))
+                .cornerRadius(8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onTap()
-        }
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        /* tap per dettaglio delegato a testo/chevron */
         .onLongPressGesture {
             onRename()
         }
@@ -419,7 +550,7 @@ struct MinimalRecordingRowView: View {
             }
             
             Button {
-                onTap()
+                onSelect()
             } label: {
                 Label("Visualizza Dettagli", systemImage: "info.circle")
             }
@@ -523,7 +654,7 @@ enum RecordingFilter: CaseIterable {
 // MARK: - Audio Player
 
 @MainActor
-class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
+class AudioPlayer: NSObject, ObservableObject, @preconcurrency AVAudioPlayerDelegate {
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
@@ -590,7 +721,7 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
             try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
             
             // Configura per riproduzione con opzioni specifiche per dispositivo fisico
-            try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetoothHFP, .allowBluetoothA2DP, .defaultToSpeaker])
+                            try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetoothA2DP, .defaultToSpeaker])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
             
             print("✅ AudioPlayer: Sessione audio configurata per riproduzione")
@@ -670,6 +801,16 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         print("✅ AudioPlayer: Riproduzione fermata")
     }
     
+    func seek(to time: TimeInterval) {
+        print("⏭️ AudioPlayer: Seek a \(time) secondi")
+        guard let audioPlayer = audioPlayer else { return }
+        
+        audioPlayer.currentTime = max(0, min(time, duration))
+        currentTime = audioPlayer.currentTime
+        
+        print("✅ AudioPlayer: Seek completato a \(audioPlayer.currentTime) secondi")
+    }
+    
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -687,20 +828,24 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         currentTime = audioPlayer?.currentTime ?? 0
     }
     
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         print("🏁 AudioPlayer: Riproduzione completata, successo: \(flag)")
-        isPlaying = false
-        currentTime = 0
-        currentRecording = nil
-        stopTimer()
+        Task { @MainActor in
+            isPlaying = false
+            currentTime = 0
+            currentRecording = nil
+            stopTimer()
+        }
     }
     
-    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         print("❌ AudioPlayer: Errore di decodifica: \(error?.localizedDescription ?? "Unknown")")
-        isPlaying = false
-        currentTime = 0
-        currentRecording = nil
-        stopTimer()
+        Task { @MainActor in
+            isPlaying = false
+            currentTime = 0
+            currentRecording = nil
+            stopTimer()
+        }
     }
 }
 
@@ -708,68 +853,98 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
 struct GlassmorphismRecordButton: View {
     let isRecording: Bool
+    let audioLevel: Float // 0.0 - 1.0
     let action: () -> Void
     
     var body: some View {
-        if #available(iOS 26.0, *) {
-            // Versione iOS 26+ con GlassEffectContainer
-            GlassEffectContainer {
-                Button(action: action) {
-                    Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                        .font(.system(size: 72, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
-                        .padding(8)
-                }
-                .glassEffect(.regular.tint(isRecording ? Color.red.opacity(0.7) : Color.accentColor.opacity(0.7)).interactive())
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.25), lineWidth: 2)
-                )
-                .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+        ZStack {
+            // Animazione differenziata per versione iOS
+            if #available(iOS 26.0, *) {
+                // Versione iOS 26+: Animazione liquida più complessa
+                liquidAnimationView(level: audioLevel, isRecording: isRecording)
+            } else {
+                // Versione iOS 18-25: Animazione a anelli con blur
+                legacyAnimationView(level: audioLevel, isRecording: isRecording)
             }
-        } else {
-            // Fallback per iOS 18.6-25.x
-            Button(action: action) {
-                ZStack {
-                    // Background con blur effect per liquid glass
-                    RoundedRectangle(cornerRadius: 50)
-                        .fill(.ultraThinMaterial)
-                        .background(
-                            RoundedRectangle(cornerRadius: 50)
-                                .fill(Color.accentColor.opacity(0.1))
+
+            // Pulsante principale, comune a entrambe le versioni
+            mainButton()
+        }
+    }
+    
+    // MARK: - Viste di Animazione
+    
+    /// Animazione per iOS 18-25 basata su anelli e blur.
+    @ViewBuilder
+    private func legacyAnimationView(level: Float, isRecording: Bool) -> some View {
+        if isRecording {
+            ZStack {
+                ForEach(0..<3) { i in
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [.red.opacity(0.6), .purple.opacity(0.4)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 3
                         )
-                        .overlay(
-                            // Contorno blu trasparente
-                            RoundedRectangle(cornerRadius: 50)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.accentColor.opacity(0.6),
-                                            Color.accentColor.opacity(0.3)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 2
-                                )
+                        .frame(width: 130, height: 130)
+                        .scaleEffect(1 + (CGFloat(level) * (0.4 + CGFloat(i) * 0.2)))
+                        .opacity(1 - (CGFloat(level) * 0.5))
+                        .animation(
+                            .spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0.2)
+                            .delay(Double(i) * 0.05),
+                            value: level
                         )
-                        .shadow(
-                            color: isRecording ? 
-                                Color.red.opacity(0.3) : Color.accentColor.opacity(0.3),
-                            radius: 20,
-                            x: 0,
-                            y: 10
-                        )
-                    
-                    // Icona
-                    Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                        .font(.system(size: 72, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
-                .frame(width: 120, height: 120)
+            }
+            .blur(radius: 10)
+        }
+    }
+    
+    /// Animazione per iOS 26+ con effetto "liquid glass" più avanzato.
+    @available(iOS 26.0, *)
+    @ViewBuilder
+    private func liquidAnimationView(level: Float, isRecording: Bool) -> some View {
+        if isRecording {
+            // Semplifichiamo la vista per evitare l'errore di type-checking
+            // Usiamo un singolo cerchio con un gradiente e un'animazione complessa
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [.cyan.opacity(0.7), .purple.opacity(0.5), .red.opacity(0.4)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 150, height: 150)
+                .scaleEffect(1 + CGFloat(level) * 0.5)
+                .blur(radius: 15 + CGFloat(level) * 10)
+                .animation(.spring(response: 0.4, dampingFraction: 0.5, blendDuration: 0.3), value: level)
+        }
+    }
+    
+    // MARK: - Pulsante Principale
+    
+    @ViewBuilder
+    private func mainButton() -> some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .background(
+                        Circle()
+                            .fill(isRecording ? Color.red.opacity(0.6) : Color.accentColor.opacity(0.6))
+                    )
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+                
+                Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                    .font(.system(size: 50, weight: .bold))
+                    .foregroundColor(.white)
             }
         }
+        .frame(width: 120, height: 120)
     }
 }

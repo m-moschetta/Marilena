@@ -1,12 +1,19 @@
 import Foundation
 import AVFoundation
 import CoreData
+
+// MARK: - Notification Names
+extension Notification.Name {
+    static let recordingCreated = Notification.Name("recordingCreated")
+    static let transcriptionCompleted = Notification.Name("transcriptionCompleted")
+}
 import CoreLocation
 import Combine
 
 class RecordingService: NSObject, ObservableObject {
     @Published var recordingState: RecordingState = .idle
     @Published var isPermissionGranted = false
+    @Published var audioLevel: Float = 0.0 // Livello audio normalizzato (0-1)
     
     private var audioRecorder: AVAudioRecorder?
     private var audioSession: AVAudioSession?
@@ -15,7 +22,8 @@ class RecordingService: NSObject, ObservableObject {
     
     private let context: NSManagedObjectContext
     private let documentsDirectory: URL
-    
+    private var levelTimer: Timer?
+
     init(context: NSManagedObjectContext) {
         self.context = context
         self.documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -89,6 +97,7 @@ class RecordingService: NSObject, ObservableObject {
             if success {
                 recordingState = .recording
                 print("✅ Recording started successfully")
+                startMonitoringLevels()
             } else {
                 print("❌ Failed to start recording")
                 recordingState = .error("Impossibile avviare registrazione")
@@ -122,9 +131,46 @@ class RecordingService: NSObject, ObservableObject {
         // Wait a bit for file to be written
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.finalizeRecording(duration: duration)
+            self.stopMonitoringLevels()
         }
     }
     
+    // MARK: - Audio Level Monitoring
+    
+    private func startMonitoringLevels() {
+        levelTimer?.invalidate()
+        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            guard let self = self, self.audioRecorder != nil else { return }
+            self.audioRecorder?.updateMeters()
+            
+            // Calcola il livello di potenza e normalizzalo
+            let peakPower = self.audioRecorder?.peakPower(forChannel: 0) ?? -160.0
+            let normalizedLevel = self.normalizePowerLevel(peakPower)
+            
+            DispatchQueue.main.async {
+                self.audioLevel = normalizedLevel
+            }
+        }
+    }
+    
+    private func stopMonitoringLevels() {
+        levelTimer?.invalidate()
+        levelTimer = nil
+        DispatchQueue.main.async {
+            self.audioLevel = 0.0
+        }
+    }
+    
+    private func normalizePowerLevel(_ level: Float) -> Float {
+        // I livelli di potenza sono in dB, da -160 (silenzio) a 0 (massimo).
+        // Li normalizziamo in un range 0-1.
+        let minDb: Float = -60.0 // Soglia minima per visualizzare qualcosa
+        if level < minDb {
+            return 0.0
+        }
+        return min((1.0 - (level / minDb)), 1.0)
+    }
+
     // MARK: - Private Methods
     
     private func finalizeRecording(duration: TimeInterval) {
@@ -190,6 +236,11 @@ class RecordingService: NSObject, ObservableObject {
             try context.save()
             print("✅ RecordingService: Recording finalized and saved to Core Data")
             recordingState = .completed
+            
+            // IMPORTANTE: Notifica l'aggiornamento delle registrazioni
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .recordingCreated, object: recording)
+            }
             
         } catch {
             print("❌ RecordingService: Error finalizing recording: \(error)")
