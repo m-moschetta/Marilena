@@ -35,6 +35,10 @@ struct RecordingsListView: View {
                 // Header minimale
                 headerView
                 
+                // Spazio tra filtri e lista
+                Spacer()
+                    .frame(height: 16)
+                
                 // Lista registrazioni semplificata
                 recordingsListView
             }
