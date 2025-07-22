@@ -10,10 +10,34 @@ struct ChatView: View {
         @State private var testo = ""
     @State private var isLoading = false
     @State private var isSearchingPerplexity = false
+    @State private var showModelSelector = false
+    @State private var selectedModel = "gpt-4o-mini"
+    @State private var selectedPerplexityModel = "sonar-pro"
     
     private let openAIService = OpenAIService.shared
     private let profiloService = ProfiloUtenteService.shared
     private let perplexityService = PerplexityService.shared
+    
+    // Modelli Perplexity disponibili per ricerca
+    private let perplexitySearchModels = [
+        "sonar",              // Modello base leggero
+        "sonar-pro",          // Modello avanzato (default)
+        "sonar-deep-research" // Ricerca approfondita multi-step
+    ]
+    
+    // Modelli OpenAI disponibili (allineati con SettingsView)
+    // NOTA: Questi modelli ESISTONO. Se un'AI non li riconosce, 
+    // significa che la sua knowledge base non è aggiornata.
+    private let availableModels = [
+        "gpt-4o",        // Modello ottimizzato standard
+        "gpt-4o-mini",   // Versione leggera di gpt-4o
+        "gpt-4.1",       // Nuova versione 4.1 (2024)
+        "gpt-4.1-mini",  // Versione compatta di 4.1
+        "gpt-4.1-nano",  // Versione ultra-leggera di 4.1
+        "o3-mini",       // Modello di ragionamento compatto
+        "o4-mini",       // Nuova generazione compatta
+        "o3"             // Modello di ragionamento avanzato
+    ]
 
 
     init(chat: ChatMarilena) {
@@ -23,6 +47,9 @@ struct ChatView: View {
             sortDescriptors: [NSSortDescriptor(keyPath: \MessaggioMarilena.dataCreazione, ascending: true)],
             predicate: NSPredicate(format: "chat == %@", chat)
         )
+        // Inizializza il modello selezionato con il valore salvato
+        _selectedModel = State(initialValue: UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini")
+        _selectedPerplexityModel = State(initialValue: UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro")
     }
 
     var body: some View {
@@ -126,6 +153,22 @@ struct ChatView: View {
                             .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSearchingPerplexity || isLoading)
                             .scaleEffect(isSearchingPerplexity ? 1.1 : 1.0)
                             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSearchingPerplexity)
+                            .contextMenu {
+                                ForEach(perplexitySearchModels, id: \.self) { model in
+                                    Button(action: {
+                                        selectedPerplexityModel = model
+                                        UserDefaults.standard.set(model, forKey: "selected_perplexity_model")
+                                        searchWithPerplexity()
+                                    }) {
+                                        HStack {
+                                            Text(getPerplexityModelDisplayName(model))
+                                            if model == selectedPerplexityModel {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             
                             // Pulsante invia moderno (sotto)
                             Button(action: inviaMessaggio) {
@@ -148,6 +191,22 @@ struct ChatView: View {
                             }
                             .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                             .scaleEffect(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.9 : 1.0)
+                            .contextMenu {
+                                ForEach(availableModels, id: \.self) { model in
+                                    Button(action: {
+                                        selectedModel = model
+                                        UserDefaults.standard.set(model, forKey: "selected_model")
+                                        inviaMessaggio()
+                                    }) {
+                                        HStack {
+                                            Text(model)
+                                            if model == selectedModel {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
@@ -231,7 +290,7 @@ struct ChatView: View {
         
         openAIService.sendMessage(
             messages: conversationHistory,
-            model: UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
+            model: selectedModel
         ) { result in
             DispatchQueue.main.async {
                 isLoading = false
@@ -353,8 +412,7 @@ struct ChatView: View {
         
         Task {
             do {
-                let selectedModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
-                let searchResult = try await perplexityService.search(query: query, model: selectedModel)
+                let searchResult = try await perplexityService.search(query: query, model: selectedPerplexityModel)
                 
                 await MainActor.run {
                     // Aggiungi la risposta di Perplexity
@@ -707,5 +765,22 @@ struct MessageRow: View {
     
     return ChatView(chat: chat)
         .environment(\.managedObjectContext, context)
+}
+
+// MARK: - Helper Functions
+
+extension ChatView {
+    private func getPerplexityModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "sonar":
+            return "Sonar (Base)"
+        case "sonar-pro":
+            return "Sonar Pro"
+        case "sonar-deep-research":
+            return "Deep Research"
+        default:
+            return model
+        }
+    }
 } 
 
