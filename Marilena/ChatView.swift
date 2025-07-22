@@ -784,3 +784,63 @@ extension ChatView {
     }
 } 
 
+// MARK: - Responsive Layout Manager
+class ResponsiveLayoutManager {
+    static let shared = ResponsiveLayoutManager()
+    
+    private init() {}
+    
+    // MARK: - Device Detection
+    func isPad() -> Bool {
+        #if canImport(Device)
+        return Device.current.isPad
+        #endif
+        return false
+    }
+    
+    // MARK: - Touch Targets
+    func getTouchTarget() -> CGFloat {
+        return isPad() ? 60 : 44 // 60pt per iPad, 44pt per iPhone
+    }
+    
+    // MARK: - Spacing
+    func getSpacing() -> CGFloat {
+        return isPad() ? 24 : 16 // Maggiorato per tablet
+    }
+    
+    // MARK: - Layout Dimensions
+    func getSidebarWidth() -> CGFloat {
+        return isPad() ? 320 : 0 // Sidebar per iPad
+    }
+    
+    // MARK: - Font Sizes
+    func getFontSize() -> CGFloat {
+        return isPad() ? 18 : 16 // Maggiorato per tablet
+    }
+    
+    // MARK: - Corner Radius
+    func getCornerRadius() -> CGFloat {
+        return isPad() ? 24 : 20 // Maggiorato per tablet
+    }
+}
+
+// MARK: - Responsive Style Guide
+struct ResponsiveStyleGuide {
+    static let shared = ResponsiveStyleGuide()
+    
+    // Colori specifici per iPad
+    static let ipadAccentColor = Color.blue.opacity(0.9)
+    static let ipadBackgroundColor = Color(.systemBackground).opacity(0.95)
+    
+    // Spaziature specifici
+    static let ipadHorizontalPadding = 32
+    static let ipadVerticalPadding = 24
+    
+    // Touch targets specifici
+    static let ipadTouchTarget = 60
+    
+    // Fonti specifici
+    static let ipadTitleFont = Font(.title2.weight(.semibold))
+    static let ipadBodyFont = Font(.body.weight(.medium))
+} 
+
