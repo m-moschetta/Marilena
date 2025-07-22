@@ -279,6 +279,9 @@ struct TranscriptionChatView: View {
 
 struct ChatMessageView: View {
     let message: ChatMessage
+    @State private var isEditing = false
+    @State private var editedText = ""
+    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
         HStack {
@@ -286,17 +289,44 @@ struct ChatMessageView: View {
                 Spacer(minLength: 50)
                 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(message.content)
-                        .font(.body)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                    if isEditing {
+                        TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .lineLimit(1...5)
+                            .focused($isTextFieldFocused)
+                            .onSubmit {
+                                saveEditedMessage()
+                            }
+                            .onAppear {
+                                isTextFieldFocused = true
+                            }
+                    } else {
+                        Text(message.content)
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .textSelection(.enabled)
+                    }
                     
                     Text(formatTime(message.timestamp))
                         .font(.caption2)
                         .foregroundColor(.secondary)
+                }
+                .contextMenu {
+                    Button("Modifica") {
+                        startEditing()
+                    }
+                    Button("Copia Messaggio") {
+                        UIPasteboard.general.string = message.content
+                    }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
@@ -308,13 +338,32 @@ struct ChatMessageView: View {
                             .background(Color.blue.opacity(0.1))
                             .clipShape(Circle())
                         
-                        Text(message.content)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(Color(.systemGray6))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                        if isEditing {
+                            TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .lineLimit(1...5)
+                                .focused($isTextFieldFocused)
+                                .onSubmit {
+                                    saveEditedMessage()
+                                }
+                                .onAppear {
+                                    isTextFieldFocused = true
+                                }
+                        } else {
+                            Text(message.content)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color(.systemGray6))
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .textSelection(.enabled)
+                        }
                     }
                     
                     HStack(spacing: 4) {
@@ -330,10 +379,32 @@ struct ChatMessageView: View {
                     }
                     .padding(.leading, 32)
                 }
+                .contextMenu {
+                    Button("Modifica") {
+                        startEditing()
+                    }
+                    Button("Copia Messaggio") {
+                        UIPasteboard.general.string = message.content
+                    }
+                }
                 
                 Spacer(minLength: 50)
             }
         }
+    }
+    
+    private func startEditing() {
+        editedText = message.content
+        isEditing = true
+    }
+    
+    private func saveEditedMessage() {
+        guard !editedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        
+        // Per ora solo copia negli appunti, in futuro si potrebbe salvare nel database
+        UIPasteboard.general.string = editedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        isEditing = false
+        isTextFieldFocused = false
     }
     
     private func formatTime(_ date: Date) -> String {

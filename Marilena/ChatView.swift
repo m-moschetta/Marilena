@@ -390,6 +390,9 @@ struct ChatView: View {
 
 struct MessageRow: View {
     let messaggio: MessaggioMarilena
+    @State private var isEditing = false
+    @State private var editedText = ""
+    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -397,19 +400,44 @@ struct MessageRow: View {
                 Spacer()
                 
                 VStack(alignment: .trailing, spacing: 6) {
-                    Text(messaggio.contenuto ?? "")
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            LinearGradient(
-                                colors: [Color.blue, Color.blue.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                    if isEditing {
+                        TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        .shadow(color: .blue.opacity(0.3), radius: 2, x: 0, y: 1)
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .shadow(color: .blue.opacity(0.3), radius: 2, x: 0, y: 1)
+                            .lineLimit(1...5)
+                            .focused($isTextFieldFocused)
+                            .onSubmit {
+                                saveEditedMessage()
+                            }
+                            .onAppear {
+                                isTextFieldFocused = true
+                            }
+                    } else {
+                        Text(messaggio.contenuto ?? "")
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.blue.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .foregroundColor(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            .shadow(color: .blue.opacity(0.3), radius: 2, x: 0, y: 1)
+                            .textSelection(.enabled)
+                    }
                     
                     if let data = messaggio.dataCreazione {
                         Text(data, style: .time)
@@ -419,6 +447,14 @@ struct MessageRow: View {
                     }
                 }
                 .frame(maxWidth: .infinity * 0.75, alignment: .trailing)
+                .contextMenu {
+                    Button("Modifica") {
+                        startEditing()
+                    }
+                    Button("Copia Messaggio") {
+                        UIPasteboard.general.string = messaggio.contenuto
+                    }
+                }
                 
             } else {
                 // Avatar moderno con gradiente
@@ -440,15 +476,36 @@ struct MessageRow: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(messaggio.contenuto ?? "")
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(Color(.systemGray6))
-                                .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
-                        )
-                        .foregroundColor(.primary)
+                    if isEditing {
+                        TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color(.systemGray6))
+                                    .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+                            )
+                            .foregroundColor(.primary)
+                            .lineLimit(1...5)
+                            .focused($isTextFieldFocused)
+                            .onSubmit {
+                                saveEditedMessage()
+                            }
+                            .onAppear {
+                                isTextFieldFocused = true
+                            }
+                    } else {
+                        Text(messaggio.contenuto ?? "")
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color(.systemGray6))
+                                    .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+                            )
+                            .foregroundColor(.primary)
+                            .textSelection(.enabled)
+                    }
                     
                     if let data = messaggio.dataCreazione {
                         Text(data, style: .time)
@@ -458,11 +515,39 @@ struct MessageRow: View {
                     }
                 }
                 .frame(maxWidth: .infinity * 0.75, alignment: .leading)
+                .contextMenu {
+                    Button("Modifica") {
+                        startEditing()
+                    }
+                    Button("Copia Messaggio") {
+                        UIPasteboard.general.string = messaggio.contenuto
+                    }
+                }
                 
                 Spacer()
             }
         }
         .id(messaggio.objectID)
+    }
+    
+    private func startEditing() {
+        editedText = messaggio.contenuto ?? ""
+        isEditing = true
+    }
+    
+    private func saveEditedMessage() {
+        guard !editedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        
+        messaggio.contenuto = editedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        do {
+            try messaggio.managedObjectContext?.save()
+        } catch {
+            print("Errore salvataggio messaggio modificato: \(error)")
+        }
+        
+        isEditing = false
+        isTextFieldFocused = false
     }
 }
 
