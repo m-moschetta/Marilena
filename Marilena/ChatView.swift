@@ -36,7 +36,20 @@ struct ChatView: View {
                                 welcomeView
                             } else {
                                 ForEach(messaggi, id: \.objectID) { messaggio in
-                                    MessageRow(messaggio: messaggio)
+                                    MessageRow(
+                                        messaggio: messaggio,
+                                        onSendToAI: { editedText in
+                                            // Invia il messaggio modificato all'AI
+                                            let messageWithPrefix = "Ecco come lo modificherei: \(editedText)"
+                                            testo = messageWithPrefix
+                                            inviaMessaggio()
+                                        },
+                                        onSearchWithPerplexity: { editedText in
+                                            // Usa il testo modificato per la ricerca Perplexity
+                                            testo = editedText
+                                            searchWithPerplexity()
+                                        }
+                                    )
                                 }
                             }
                             
@@ -390,6 +403,8 @@ struct ChatView: View {
 
 struct MessageRow: View {
     let messaggio: MessaggioMarilena
+    let onSendToAI: (String) -> Void
+    let onSearchWithPerplexity: (String) -> Void
     @State private var isEditing = false
     @State private var editedText = ""
     @FocusState private var isTextFieldFocused: Bool
@@ -401,27 +416,87 @@ struct MessageRow: View {
                 
                 VStack(alignment: .trailing, spacing: 6) {
                     if isEditing {
-                        TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.blue, Color.blue.opacity(0.8)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+                        VStack(spacing: 8) {
+                            TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.blue, Color.blue.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                            .foregroundColor(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .shadow(color: .blue.opacity(0.3), radius: 2, x: 0, y: 1)
-                            .lineLimit(1...5)
-                            .focused($isTextFieldFocused)
-                            .onSubmit {
-                                saveEditedMessage()
+                                .foregroundColor(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                .shadow(color: .blue.opacity(0.3), radius: 2, x: 0, y: 1)
+                                .lineLimit(1...5)
+                                .focused($isTextFieldFocused)
+                                .onSubmit {
+                                    saveEditedMessage()
+                                    isEditing = false
+                                    isTextFieldFocused = false
+                                }
+                                .onAppear {
+                                    isTextFieldFocused = true
+                                }
+                            
+                            // Pulsanti di azione per la modifica
+                            HStack(spacing: 8) {
+                                // Pulsante per inviare all'AI
+                                Button(action: {
+                                    onSendToAI(editedText)
+                                    isEditing = false
+                                    isTextFieldFocused = false
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.up.circle.fill")
+                                            .font(.caption)
+                                        Text("Invia all'AI")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.green)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                
+                                // Pulsante per copiare
+                                Button(action: {
+                                    UIPasteboard.general.string = editedText
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "doc.on.doc.fill")
+                                            .font(.caption)
+                                        Text("Copia")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.orange)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                
+                                // Pulsante per ricerca Perplexity
+                                Button(action: {
+                                    onSearchWithPerplexity(editedText)
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "globe.americas.fill")
+                                            .font(.caption)
+                                        Text("Cerca")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.purple)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
                             }
-                            .onAppear {
-                                isTextFieldFocused = true
-                            }
+                        }
                     } else {
                         Text(messaggio.contenuto ?? "")
                             .padding(.horizontal, 16)
@@ -477,23 +552,83 @@ struct MessageRow: View {
                 
                 VStack(alignment: .leading, spacing: 6) {
                     if isEditing {
-                        TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(.systemGray6))
-                                    .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
-                            )
-                            .foregroundColor(.primary)
-                            .lineLimit(1...5)
-                            .focused($isTextFieldFocused)
-                            .onSubmit {
-                                saveEditedMessage()
+                        VStack(spacing: 8) {
+                            TextField("Modifica messaggio...", text: $editedText, axis: .vertical)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color(.systemGray6))
+                                        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+                                )
+                                .foregroundColor(.primary)
+                                .lineLimit(1...5)
+                                .focused($isTextFieldFocused)
+                                .onSubmit {
+                                    saveEditedMessage()
+                                    isEditing = false
+                                    isTextFieldFocused = false
+                                }
+                                .onAppear {
+                                    isTextFieldFocused = true
+                                }
+                            
+                            // Pulsanti di azione per la modifica
+                            HStack(spacing: 8) {
+                                // Pulsante per inviare all'AI
+                                Button(action: {
+                                    onSendToAI(editedText)
+                                    isEditing = false
+                                    isTextFieldFocused = false
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.up.circle.fill")
+                                            .font(.caption)
+                                        Text("Invia all'AI")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.green)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                
+                                // Pulsante per copiare
+                                Button(action: {
+                                    UIPasteboard.general.string = editedText
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "doc.on.doc.fill")
+                                            .font(.caption)
+                                        Text("Copia")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.orange)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                
+                                // Pulsante per ricerca Perplexity
+                                Button(action: {
+                                    onSearchWithPerplexity(editedText)
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "globe.americas.fill")
+                                            .font(.caption)
+                                        Text("Cerca")
+                                            .font(.caption)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.purple)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
                             }
-                            .onAppear {
-                                isTextFieldFocused = true
-                            }
+                        }
                     } else {
                         Text(messaggio.contenuto ?? "")
                             .padding(.horizontal, 16)
