@@ -57,73 +57,89 @@ struct ChatView: View {
                     }
                 }
                 
-                // Input area moderna e dinamica
+                // Input area moderna e dinamica con dimensioni standard
                 VStack(spacing: 0) {
                     Divider()
                     
-                    HStack(alignment: .bottom, spacing: 8) {
-                        // Campo di testo compatto che si espande
+                    HStack(alignment: .bottom, spacing: 12) {
+                        // Campo di testo con espansione dinamica graduale
                         ZStack(alignment: .topLeading) {
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 22)
                                 .fill(Color(.systemGray6))
-                                .frame(minHeight: 28, maxHeight: testo.isEmpty ? 28 : nil)
+                                .frame(height: calculateTextEditorHeight())
                             
-                            TextField("Scrivi un messaggio...", text: $testo, axis: .vertical)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
+                            if testo.isEmpty {
+                                Text("Scrivi un messaggio...")
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                            }
+                            
+                            TextEditor(text: $testo)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
                                 .background(Color.clear)
                                 .disabled(isLoading)
-                                .lineLimit(1...3)
+                                .scrollContentBackground(.hidden)
+                                .frame(height: calculateTextEditorHeight())
+                                .onSubmit {
+                                    // Return invia il messaggio
+                                    if !testo.isEmpty {
+                                        inviaMessaggio()
+                                    }
+                                }
                         }
-                        .animation(.easeOut(duration: 0.15), value: testo.count)
+                        .animation(.easeOut(duration: 0.2), value: testo.count)
                         
-                        // Pulsante Perplexity Search
-                        Button(action: searchWithPerplexity) {
-                            ZStack {
-                                Circle()
-                                    .fill(isSearchingPerplexity ? Color.orange : Color(.systemGray5))
-                                    .frame(width: 32, height: 32)
-                                
-                                if isSearchingPerplexity {
-                                    ProgressView()
-                                        .scaleEffect(0.6)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "globe.americas.fill")
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(.orange)
+                        // Pulsanti con dimensioni uniformi (best practice iOS)
+                        VStack(spacing: 4) {
+                            Button(action: searchWithPerplexity) {
+                                ZStack {
+                                    Circle()
+                                        .fill(isSearchingPerplexity ? Color.orange : Color(.systemGray5))
+                                        .frame(width: 44, height: 44) // Stessa dimensione del pulsante invio
+                                    
+                                    if isSearchingPerplexity {
+                                        ProgressView()
+                                            .scaleEffect(0.6)
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "globe.americas.fill")
+                                            .font(.system(size: 18, weight: .medium)) // Icona più grande
+                                            .foregroundColor(.orange)
+                                    }
                                 }
                             }
-                        }
-                        .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSearchingPerplexity || isLoading)
-                        .scaleEffect(isSearchingPerplexity ? 1.1 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSearchingPerplexity)
-                        
-                        // Pulsante invia moderno
-                        Button(action: inviaMessaggio) {
-                            ZStack {
-                                Circle()
-                                    .fill(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading ? 
-                                          Color(.systemGray4) : Color.blue)
-                                    .frame(width: 36, height: 36)
-                                
-                                if isLoading {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "arrow.up")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white)
+                            .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSearchingPerplexity || isLoading)
+                            .scaleEffect(isSearchingPerplexity ? 1.1 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSearchingPerplexity)
+                            
+                            // Pulsante invia moderno (sotto)
+                            Button(action: inviaMessaggio) {
+                                ZStack {
+                                    Circle()
+                                        .fill(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading ? 
+                                              Color(.systemGray4) : Color.blue)
+                                        .frame(width: 44, height: 44) // Standard iOS
+                                    
+                                    if isLoading {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "arrow.up")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    }
                                 }
                             }
+                            .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
+                            .scaleEffect(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.9 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-                        .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
-                        .scaleEffect(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.9 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 12) // Aumentato padding verticale
                     .background(Color(.systemBackground))
                 }
             }
@@ -281,6 +297,25 @@ struct ChatView: View {
             return contesto
         }
         return ""
+    }
+    
+    // MARK: - Text Editor Height Calculation
+    
+    private func calculateTextEditorHeight() -> CGFloat {
+        let baseHeight: CGFloat = 44
+        let maxHeight: CGFloat = 120 // 5 righe circa
+        let lineHeight: CGFloat = 20
+        
+        if testo.isEmpty {
+            return baseHeight
+        }
+        
+        // Calcola il numero di righe basato sui caratteri di nuova riga
+        let lines = testo.components(separatedBy: "\n").count
+        let calculatedHeight = baseHeight + CGFloat(lines - 1) * lineHeight
+        
+        // Limita l'altezza massima
+        return min(maxHeight, max(baseHeight, calculatedHeight))
     }
     
     // MARK: - Perplexity Search

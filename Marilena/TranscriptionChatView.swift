@@ -164,25 +164,56 @@ struct TranscriptionChatView: View {
                 .frame(height: 0.5)
             
             HStack(alignment: .bottom, spacing: 12) {
-                TextField("Fai una domanda sulla trascrizione...", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .focused($isTextFieldFocused)
-                    .disabled(chatService.isProcessing || chatService.transcription == nil)
+                // Campo di testo con espansione dinamica graduale
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: 22)
+                        .fill(Color(.systemGray6))
+                        .frame(height: calculateTextEditorHeight())
+                    
+                    if messageText.isEmpty {
+                        Text("Fai una domanda sulla trascrizione...")
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                    
+                    TextEditor(text: $messageText)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.clear)
+                        .focused($isTextFieldFocused)
+                        .disabled(chatService.isProcessing || chatService.transcription == nil)
+                        .scrollContentBackground(.hidden)
+                        .frame(height: calculateTextEditorHeight())
+                        .onSubmit {
+                            // Return invia il messaggio
+                            if !messageText.isEmpty {
+                                sendMessage(messageText)
+                            }
+                        }
+                }
+                .animation(.easeOut(duration: 0.2), value: messageText.count)
                 
+                // Pulsante invia moderno con dimensioni standard
                 Button {
                     sendMessage(messageText)
                 } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(canSendMessage ? .blue : .gray)
+                    ZStack {
+                        Circle()
+                            .fill(canSendMessage ? Color.blue : Color(.systemGray4))
+                            .frame(width: 44, height: 44) // Standard iOS
+                        
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
                 }
                 .disabled(!canSendMessage)
+                .scaleEffect(canSendMessage ? 1.0 : 0.9)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: canSendMessage)
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12) // Aumentato padding verticale
             .background(Color(.systemBackground))
         }
     }
@@ -222,6 +253,25 @@ struct TranscriptionChatView: View {
             name: NSNotification.Name("OpenChatInMainList"),
             object: chat
         )
+    }
+    
+    // MARK: - Text Editor Height Calculation
+    
+    private func calculateTextEditorHeight() -> CGFloat {
+        let baseHeight: CGFloat = 44
+        let maxHeight: CGFloat = 120 // 5 righe circa
+        let lineHeight: CGFloat = 20
+        
+        if messageText.isEmpty {
+            return baseHeight
+        }
+        
+        // Calcola il numero di righe basato sui caratteri di nuova riga
+        let lines = messageText.components(separatedBy: "\n").count
+        let calculatedHeight = baseHeight + CGFloat(lines - 1) * lineHeight
+        
+        // Limita l'altezza massima
+        return min(maxHeight, max(baseHeight, calculatedHeight))
     }
 }
 
