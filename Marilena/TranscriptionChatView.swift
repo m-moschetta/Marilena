@@ -401,6 +401,12 @@ struct ChatMessageView: View {
                     Button("Copia Messaggio") {
                         UIPasteboard.general.string = message.content
                     }
+                    Button("Cerca online") {
+                        onSearchWithPerplexity(message.content)
+                    }
+                    ShareLink(item: message.content) {
+                        Label("Condividi", systemImage: "square.and.arrow.up")
+                    }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
@@ -519,6 +525,12 @@ struct ChatMessageView: View {
                     }
                     Button("Copia Messaggio") {
                         UIPasteboard.general.string = message.content
+                    }
+                    Button("Cerca online") {
+                        onSearchWithPerplexity(message.content)
+                    }
+                    ShareLink(item: message.content) {
+                        Label("Condividi", systemImage: "square.and.arrow.up")
                     }
                 }
                 

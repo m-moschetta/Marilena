@@ -527,7 +527,13 @@ struct MessageRow: View {
                         startEditing()
                     }
                     Button("Copia Messaggio") {
-                        UIPasteboard.general.string = messaggio.contenuto
+                        UIPasteboard.general.string = messaggio.contenuto ?? ""
+                    }
+                    Button("Cerca online") {
+                        onSearchWithPerplexity(messaggio.contenuto ?? "")
+                    }
+                    ShareLink(item: messaggio.contenuto ?? "") {
+                        Label("Condividi", systemImage: "square.and.arrow.up")
                     }
                 }
                 
@@ -655,7 +661,13 @@ struct MessageRow: View {
                         startEditing()
                     }
                     Button("Copia Messaggio") {
-                        UIPasteboard.general.string = messaggio.contenuto
+                        UIPasteboard.general.string = messaggio.contenuto ?? ""
+                    }
+                    Button("Cerca online") {
+                        onSearchWithPerplexity(messaggio.contenuto ?? "")
+                    }
+                    ShareLink(item: messaggio.contenuto ?? "") {
+                        Label("Condividi", systemImage: "square.and.arrow.up")
                     }
                 }
                 
