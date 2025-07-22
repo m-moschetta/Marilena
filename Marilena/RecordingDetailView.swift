@@ -1220,7 +1220,7 @@ struct TranscriptionModeCard: View {
                 // Contenuto
                 VStack(alignment: .leading, spacing: 4) {
                     Text(mode.1)
-                        .font(.headline)
+                    .font(.headline)
                         .foregroundColor(isSelected ? .white : .primary)
                     
                     Text(mode.2)

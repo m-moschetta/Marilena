@@ -111,7 +111,7 @@ struct RecordingsListView: View {
     // MARK: - Header View
     
     private var headerView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) { // Aumentato da 16 a 20
             // Filtri semplificati
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -154,6 +154,7 @@ struct RecordingsListView: View {
             }
         }
         .padding(.top)
+        .padding(.bottom, 10) // Aumentato padding bottom per separare meglio dall'elenco
     }
     
     // MARK: - Recordings List
@@ -177,6 +178,7 @@ struct RecordingsListView: View {
             .onDelete(perform: deleteRecordings)
         }
         .listStyle(.plain)
+        .padding(.top, 10) // Aumentato padding top per separare meglio dall'header
         .refreshable {
             // Aggiorna dati se necessario
         }
