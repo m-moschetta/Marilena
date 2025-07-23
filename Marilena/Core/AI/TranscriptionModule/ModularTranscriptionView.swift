@@ -300,9 +300,9 @@ struct ModularTranscriptionResultView: View {
             
             // Stats
             HStack(spacing: 16) {
-                StatItem(title: "Parole", value: "\(result.wordCount)")
-                StatItem(title: "Durata", value: String(format: "%.1fs", result.duration))
-                StatItem(title: "Lingua", value: result.detectedLanguage)
+                ModularStatItem(title: "Parole", value: "\(result.wordCount)")
+                ModularStatItem(title: "Durata", value: String(format: "%.1fs", result.duration))
+                ModularStatItem(title: "Lingua", value: result.detectedLanguage)
             }
             
             // Text
@@ -381,9 +381,9 @@ struct ModularTranscriptionTypingIndicatorView: View {
     }
 }
 
-// MARK: - Stat Item
+// MARK: - Modular Stat Item
 
-struct StatItem: View {
+struct ModularStatItem: View {
     let title: String
     let value: String
     
