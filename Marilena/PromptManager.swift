@@ -4,8 +4,8 @@ import Foundation
 // File centralizzato per tutti i prompt dell'applicazione
 // Facilita la gestione e personalizzazione dei prompt
 
-class PromptManager {
-    static let shared = PromptManager()
+public class PromptManager {
+    public static let shared = PromptManager()
     
     private init() {}
     
@@ -202,7 +202,7 @@ class PromptManager {
     }
     
     /// Ottiene il prompt per il tipo specificato
-    static func getPrompt(for type: PromptType, replacements: [String: String] = [:]) -> String {
+    public static func getPrompt(for type: PromptType, replacements: [String: String] = [:]) -> String {
         let basePrompt: String
         
         switch type {
@@ -232,7 +232,7 @@ class PromptManager {
 
 // MARK: - Prompt Types
 
-enum PromptType {
+public enum PromptType {
     case contextUpdate
     case profileSuggestions
     case chatBase

@@ -2,8 +2,8 @@ import Foundation
 
 // MARK: - AI Provider Manager
 
-class AIProviderManager {
-    static let shared = AIProviderManager()
+public class AIProviderManager {
+    public static let shared = AIProviderManager()
     
     private init() {}
     

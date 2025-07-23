@@ -67,7 +67,7 @@ class AnthropicService {
         "claude-3-5-haiku-20241022"
     ]
     
-    private init() {}
+    public init() {}
     
     // MARK: - API Key Management
     private func getAPIKey() -> String? {

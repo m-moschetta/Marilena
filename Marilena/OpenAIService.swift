@@ -23,7 +23,7 @@ struct OpenAIResponse: Codable {
 class OpenAIService {
     static let shared = OpenAIService()
     
-    private init() {}
+    public init() {}
     
     func sendMessage(messages: [OpenAIMessage], model: String, completion: @escaping (Result<String, Error>) -> Void) {
         guard let apiKey = KeychainManager.shared.load(key: "openai_api_key"), !apiKey.isEmpty else {
