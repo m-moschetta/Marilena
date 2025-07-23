@@ -46,7 +46,7 @@ public class ModuleAdapter: ObservableObject {
     
     public func createModularTranscriptionView(for recording: RegistrazioneAudio) -> ModularTranscriptionView {
         // Converti RegistrazioneAudio in ModularTranscriptionSession
-        let session = convertRecordingToSession(recording)
+        _ = convertRecordingToSession(recording)
         
         // Crea configurazione per il modulo
         let configuration = ModularTranscriptionConfiguration(
@@ -69,14 +69,14 @@ public class ModuleAdapter: ObservableObject {
     // MARK: - Conversion Methods
     
     private func convertChatToSession(_ chat: ChatMarilena) -> ModularChatSession {
-        let messages = (chat.messaggi?.allObjects as? [MessaggioMarilena] ?? [])
-            .sorted { ($0.timestamp ?? Date()) < ($1.timestamp ?? Date()) }
-            .map { message in
+        let allMessages = chat.messaggi?.allObjects as? [MessaggioMarilena] ?? []
+        let sortedMessages = allMessages.sorted { ($0.dataCreazione ?? Date()) < ($1.dataCreazione ?? Date()) }
+        let messages = sortedMessages.map { message in
                 ModularChatMessage(
                     id: message.id ?? UUID(),
                     content: message.contenuto ?? "",
-                    role: message.isFromUser ? .user : .assistant,
-                    timestamp: message.timestamp ?? Date(),
+                    role: message.isUser ? .user : .assistant,
+                    timestamp: message.dataCreazione ?? Date(),
                     metadata: MessageMetadata(
                         model: "unknown",
                         processingTime: nil,
@@ -106,20 +106,20 @@ public class ModuleAdapter: ObservableObject {
             retryCount: 3
         )
         
-        let transcriptions = (recording.trascrizioni?.allObjects as? [Trascrizione] ?? [])
-            .sorted { ($0.dataCreazione ?? Date()) > ($1.dataCreazione ?? Date()) }
-            .map { transcription in
-                ModularTranscriptionResult(
-                    id: transcription.id ?? UUID(),
-                    text: transcription.testo ?? "",
-                    confidence: transcription.confidenza,
-                    language: transcription.lingua ?? "it-IT",
-                    duration: transcription.durata,
-                    wordCount: Int(transcription.numeroParole),
-                    timestamp: transcription.dataCreazione ?? Date(),
-                    framework: transcription.framework ?? "speech_framework"
-                )
-            }
+        let allTranscriptions = recording.trascrizioni?.allObjects as? [Trascrizione] ?? []
+        let sortedTranscriptions = allTranscriptions.sorted { ($0.dataCreazione ?? Date()) > ($1.dataCreazione ?? Date()) }
+                let transcriptions = sortedTranscriptions.map { transcription in
+            ModularTranscriptionResult(
+                text: transcription.testoCompleto ?? "",
+                confidence: transcription.accuratezza,
+                timestamps: [:],
+                detectedLanguage: transcription.linguaRilevata ?? "it-IT",
+                wordCount: Int(transcription.paroleTotali),
+                framework: .speechFramework,
+                processingTime: 0.0,
+                segments: []
+            )
+        }
         
         return ModularTranscriptionSession(
             id: recording.id ?? UUID(),
@@ -143,7 +143,6 @@ public class ModuleAdapter: ObservableObject {
             chat.id = session.id
             chat.titolo = session.title
             chat.dataCreazione = session.createdAt
-            chat.dataModifica = Date()
             chat.tipo = session.type
             
             // Salva i messaggi
@@ -151,8 +150,8 @@ public class ModuleAdapter: ObservableObject {
                 let chatMessage = MessaggioMarilena(context: context)
                 chatMessage.id = message.id
                 chatMessage.contenuto = message.content
-                chatMessage.isFromUser = message.role == .user
-                chatMessage.timestamp = message.timestamp
+                chatMessage.isUser = message.role == .user
+                chatMessage.dataCreazione = message.timestamp
                 chatMessage.chat = chat
             }
             
@@ -175,20 +174,18 @@ public class ModuleAdapter: ObservableObject {
             recording.id = session.id
             recording.titolo = "Registrazione"
             recording.dataCreazione = session.createdAt
-            recording.dataModifica = Date()
             recording.pathFile = session.audioURL
             
             // Salva la trascrizione se disponibile
             if let result = session.result {
                 let transcription = Trascrizione(context: context)
-                transcription.id = result.id
-                transcription.testo = result.text
-                transcription.confidenza = result.confidence
-                transcription.lingua = result.language
-                transcription.durata = result.duration
-                transcription.numeroParole = Int32(result.wordCount)
-                transcription.dataCreazione = result.timestamp
-                transcription.framework = result.framework
+                transcription.id = UUID()
+                transcription.testoCompleto = result.text
+                transcription.accuratezza = result.confidence
+                transcription.linguaRilevata = result.detectedLanguage
+                transcription.dataCreazione = Date()
+                transcription.paroleTotali = Int32(result.wordCount)
+                transcription.frameworkUtilizzato = "SpeechFramework"
                 transcription.registrazione = recording
             }
             
