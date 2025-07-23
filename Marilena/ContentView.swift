@@ -7,13 +7,22 @@ struct ContentView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            if geometry.size.width > 768 { // iPad layout
-                iPadLayout(selectedTab: $selectedTab)
-            } else { // iPhone layout
-                iPhoneLayout(selectedTab: $selectedTab)
+            let isIPad = geometry.size.width > 600 // Ridotto da 768 a 600 per essere più permissivo
+            Group {
+                if isIPad {
+                    iPadLayout(selectedTab: $selectedTab)
+                } else {
+                    iPhoneLayout(selectedTab: $selectedTab)
+                }
+            }
+            .onAppear {
+                print("📱 ContentView: width = \(geometry.size.width), isIPad = \(isIPad)")
             }
         }
         .accentColor(.blue)
+        .onAppear {
+            print("📱 iPadLayout: caricato")
+        }
     }
 }
 
