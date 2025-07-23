@@ -98,7 +98,20 @@ class NotificationService {
     
     func aggiornaBadge(numero: Int) {
         DispatchQueue.main.async {
-            UIApplication.shared.applicationIconBadgeNumber = numero
+            if #available(iOS 16.0, *) {
+                // Nuova API per iOS 16+
+                UNUserNotificationCenter.current().setBadgeCount(numero) { error in
+                    if let error = error {
+                        print("❌ Errore impostazione badge (iOS 16+): \(error)")
+                    } else {
+                        print("✅ Badge impostato a \(numero) (iOS 16+)")
+                    }
+                }
+            } else {
+                // Fallback per iOS < 16 (deprecato ma ancora funzionante)
+                UIApplication.shared.applicationIconBadgeNumber = numero
+                print("⚠️ Badge impostato con API deprecata (iOS < 16)")
+            }
         }
     }
     

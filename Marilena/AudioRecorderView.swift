@@ -48,7 +48,7 @@ struct AudioRecorderView: View {
         .onAppear {
             print("✅ AudioRecorderView caricata")
         }
-        .onChange(of: recordingService.recordingState) { newState in
+        .onChange(of: recordingService.recordingState) { oldState, newState in
             handleRecordingStateChange(newState)
         }
     }

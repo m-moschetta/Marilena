@@ -92,7 +92,7 @@ struct ChatView: View {
                         }
                         .padding()
                     }
-                    .onChange(of: messaggi.count) { _ in
+                    .onChange(of: messaggi.count) { oldValue, newValue in
                         scrollToBottom(proxy: proxy)
                     }
                 }

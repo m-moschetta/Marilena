@@ -109,10 +109,10 @@ struct TranscriptionChatView: View {
                 }
                 .padding()
             }
-            .onChange(of: chatService.messages.count) { _ in
+            .onChange(of: chatService.messages.count) { oldValue, newValue in
                 scrollToBottom(proxy: proxy)
             }
-            .onChange(of: chatService.isProcessing) { _ in
+            .onChange(of: chatService.isProcessing) { oldValue, newValue in
                 scrollToBottom(proxy: proxy)
             }
         }

@@ -198,29 +198,60 @@ class RecordingService: NSObject, ObservableObject {
     }
     
     private func checkPermissions() {
-        let status = AVAudioSession.sharedInstance().recordPermission
-        print("🔐 Permission status: \(status.rawValue)")
-        
-        switch status {
-        case .granted:
-            isPermissionGranted = true
-            print("✅ Permission granted")
-        case .denied:
-            isPermissionGranted = false
-            print("❌ Permission denied")
-        case .undetermined:
-            print("❓ Permission undetermined")
-            requestPermission()
-        @unknown default:
-            isPermissionGranted = false
+        // Supporto per iOS 17+ con fallback per versioni precedenti
+        if #available(iOS 17.0, *) {
+            let status = AVAudioSession.sharedInstance().recordPermission
+            print("🔐 Permission status (iOS 17+): \(status.rawValue)")
+            
+            switch status {
+            case .granted:
+                isPermissionGranted = true
+                print("✅ Permission granted")
+            case .denied:
+                isPermissionGranted = false
+                print("❌ Permission denied")
+            case .undetermined:
+                print("❓ Permission undetermined")
+                requestPermission()
+            @unknown default:
+                isPermissionGranted = false
+            }
+        } else {
+            // Fallback per iOS < 17
+            let status = AVAudioSession.sharedInstance().recordPermission
+            print("🔐 Permission status (iOS < 17): \(status.rawValue)")
+            
+            switch status {
+            case .granted:
+                isPermissionGranted = true
+                print("✅ Permission granted")
+            case .denied:
+                isPermissionGranted = false
+                print("❌ Permission denied")
+            case .undetermined:
+                print("❓ Permission undetermined")
+                requestPermission()
+            @unknown default:
+                isPermissionGranted = false
+            }
         }
     }
     
     private func requestPermission() {
-        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
-            DispatchQueue.main.async {
-                self?.isPermissionGranted = granted
-                print("🔐 Permission request result: \(granted)")
+        if #available(iOS 17.0, *) {
+            AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+                DispatchQueue.main.async {
+                    self?.isPermissionGranted = granted
+                    print("🔐 Permission request result (iOS 17+): \(granted)")
+                }
+            }
+        } else {
+            // Fallback per iOS < 17
+            AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+                DispatchQueue.main.async {
+                    self?.isPermissionGranted = granted
+                    print("🔐 Permission request result (iOS < 17): \(granted)")
+                }
             }
         }
     }

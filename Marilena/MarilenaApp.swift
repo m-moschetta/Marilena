@@ -42,12 +42,12 @@ struct MarilenaApp: App {
                     // Gestisce gli URL schemes dal widget
                     handleURL(url)
                 }
-                .onChange(of: shouldStartRecording) { newValue in
+                .onChange(of: shouldStartRecording) { oldValue, newValue in
                     if newValue {
                         startRecordingFromIntent()
                     }
                 }
-                .onChange(of: shouldStopRecording) { newValue in
+                .onChange(of: shouldStopRecording) { oldValue, newValue in
                     if newValue {
                         stopRecordingFromIntent()
                     }
