@@ -147,7 +147,8 @@ struct iPadLayout: View {
             case 0:
                 ChatsListView()
             case 1:
-                RecorderMainView()
+                // Su iPad, mostra solo la lista senza il pulsante di registrazione
+                RecordingsListView(context: viewContext, recordingService: recordingService, hideRecordButton: true)
             case 2:
                 ProfiloWrapperView()
                     .padding(.top, 16) // Aggiunto spazio sopra il profilo

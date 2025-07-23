@@ -24,10 +24,12 @@ struct RecordingsListView: View {
     @State private var showingDeleteAlert = false
     @State private var recordingToDelete: RegistrazioneAudio?
     @State private var selectedRecording: RegistrazioneAudio?
+    let hideRecordButton: Bool
     
-    init(context: NSManagedObjectContext, recordingService: RecordingService) {
+    init(context: NSManagedObjectContext, recordingService: RecordingService, hideRecordButton: Bool = false) {
         self._transcriptionService = StateObject(wrappedValue: SpeechTranscriptionService(context: context))
         self.recordingService = recordingService
+        self.hideRecordButton = hideRecordButton
     }
     
     var body: some View {
@@ -43,21 +45,13 @@ struct RecordingsListView: View {
                 // Lista registrazioni semplificata
                 recordingsListView
             }
-            // Bottone centrale glassmorphism compatibile iOS 18+
-            VStack {
-                Spacer()
-                HStack {
+            // Bottone centrale glassmorphism compatibile iOS 18+ (solo se non nascosto)
+            if !hideRecordButton {
+                VStack {
                     Spacer()
-                    Button(action: {
-                        withAnimation(.spring()) {
-                            if recordingService.recordingState == .recording {
-                                recordingService.stopRecording()
-                            } else {
-                                recordingService.startRecording()
-                            }
-                        }
-                    }) {
-                        GlassmorphismRecordButton(isRecording: recordingService.recordingState == .recording) {
+                    HStack {
+                        Spacer()
+                        Button(action: {
                             withAnimation(.spring()) {
                                 if recordingService.recordingState == .recording {
                                     recordingService.stopRecording()
@@ -65,13 +59,23 @@ struct RecordingsListView: View {
                                     recordingService.startRecording()
                                 }
                             }
+                        }) {
+                            GlassmorphismRecordButton(isRecording: recordingService.recordingState == .recording) {
+                                withAnimation(.spring()) {
+                                    if recordingService.recordingState == .recording {
+                                        recordingService.stopRecording()
+                                    } else {
+                                        recordingService.startRecording()
+                                    }
+                                }
+                            }
                         }
+                        .scaleEffect(recordingService.recordingState == .recording ? 1.1 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: recordingService.recordingState)
+                        Spacer()
                     }
-                    .scaleEffect(recordingService.recordingState == .recording ? 1.1 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: recordingService.recordingState)
-                    Spacer()
+                    .padding(.bottom, 36) // sopra i tab
                 }
-                .padding(.bottom, 36) // sopra i tab
             }
         }
         .background(Color(.systemGroupedBackground))
