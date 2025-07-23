@@ -24,6 +24,7 @@ struct AnthropicRequest: Codable {
     }
 }
 
+@MainActor
 struct AnthropicResponse: Codable {
     let id: String
     let type: String
@@ -168,7 +169,7 @@ class AnthropicService {
     }
     
     // MARK: - Model Information
-    
+    	
     func getModelInfo(model: String) -> AIModelInfo? {
         switch model {
         case "claude-opus-4-20250514":

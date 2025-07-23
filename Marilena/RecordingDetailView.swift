@@ -810,6 +810,7 @@ struct TranscriptionTextView: View {
 // MARK: - Detail Audio Player
 
 @MainActor
+@preconcurrency
 class DetailAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
@@ -882,9 +883,11 @@ class DetailAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         currentTime = audioPlayer?.currentTime ?? 0
     }
     
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        isPlaying = false
-        stopTimer()
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in
+            isPlaying = false
+            stopTimer()
+        }
     }
 }
 

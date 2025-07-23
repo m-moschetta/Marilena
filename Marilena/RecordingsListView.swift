@@ -2,6 +2,7 @@ import SwiftUI
 import CoreData
 import AVFoundation
 import Combine
+import SwiftUI
 
 struct RecordingsListView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -527,6 +528,7 @@ enum RecordingFilter: CaseIterable {
 // MARK: - Audio Player
 
 @MainActor
+@preconcurrency
 class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
@@ -594,7 +596,7 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
             try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
             
             // Configura per riproduzione con opzioni specifiche per dispositivo fisico
-            try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetoothHFP, .allowBluetoothA2DP, .defaultToSpeaker])
+            try audioSession.setCategory(.playback, mode: .default, options: [.allowBluetoothA2DP, .defaultToSpeaker])
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
             
             print("✅ AudioPlayer: Sessione audio configurata per riproduzione")
@@ -691,20 +693,24 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         currentTime = audioPlayer?.currentTime ?? 0
     }
     
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         print("🏁 AudioPlayer: Riproduzione completata, successo: \(flag)")
-        isPlaying = false
-        currentTime = 0
-        currentRecording = nil
-        stopTimer()
+        Task { @MainActor in
+            isPlaying = false
+            currentTime = 0
+            currentRecording = nil
+            stopTimer()
+        }
     }
     
-    func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         print("❌ AudioPlayer: Errore di decodifica: \(error?.localizedDescription ?? "Unknown")")
-        isPlaying = false
-        currentTime = 0
-        currentRecording = nil
-        stopTimer()
+        Task { @MainActor in
+            isPlaying = false
+            currentTime = 0
+            currentRecording = nil
+            stopTimer()
+        }
     }
 }
 
@@ -716,22 +722,19 @@ struct GlassmorphismRecordButton: View {
     
     var body: some View {
         if #available(iOS 26.0, *) {
-            // Versione iOS 26+ con GlassEffectContainer
-            GlassEffectContainer {
-                Button(action: action) {
-                    Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                        .font(.system(size: 72, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
-                        .padding(8)
-                }
-                .glassEffect(.regular.tint(isRecording ? Color.red.opacity(0.7) : Color.accentColor.opacity(0.7)).interactive())
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.25), lineWidth: 2)
-                )
-                .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+            // Versione iOS 26+ con Liquid Glass
+            Button(action: action) {
+                Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
+                    .font(.system(size: 72, weight: .bold))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+                    .padding(8)
             }
+            .overlay(
+                Circle()
+                    .stroke(Color.white.opacity(0.25), lineWidth: 2)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
         } else {
             // Fallback per iOS 18.6-25.x
             Button(action: action) {

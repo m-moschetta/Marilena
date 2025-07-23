@@ -840,7 +840,7 @@ struct ResponsiveStyleGuide {
     static let ipadTouchTarget = 60
     
     // Fonti specifici
-    static let ipadTitleFont = Font(.title2.weight(.semibold))
-    static let ipadBodyFont = Font(.body.weight(.medium))
+    static let ipadTitleFont = Font.title2.weight(.semibold)
+    static let ipadBodyFont = Font.body.weight(.medium)
 } 
 

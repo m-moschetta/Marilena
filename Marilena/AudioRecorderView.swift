@@ -161,26 +161,23 @@ struct AudioRecorderView: View {
         ZStack {
             // Bottone glassmorphism compatibile iOS 18+
             if #available(iOS 26.0, *) {
-                // Versione iOS 26+ con GlassEffectContainer e Liquid Glass
-                GlassEffectContainer {
-                    Button(action: {
-                        handleRecordButtonTap()
-                    }) {
-                        Image(systemName: recordingService.recordingState == .recording ? "stop.circle.fill" : "mic.circle.fill")
-                            .font(.system(size: 72, weight: .bold))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
-                            .padding(8)
-                    }
-                    .glassEffect(.regular.tint(recordingService.recordingState == .recording ? Color.red.opacity(0.7) : Color.accentColor.opacity(0.7)).interactive())
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white.opacity(0.25), lineWidth: 2)
-                    )
-                    .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
-                    .scaleEffect(isAnimatingButton ? 0.92 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAnimatingButton)
+                // Versione iOS 26+ con Liquid Glass
+                Button(action: {
+                    handleRecordButtonTap()
+                }) {
+                    Image(systemName: recordingService.recordingState == .recording ? "stop.circle.fill" : "mic.circle.fill")
+                        .font(.system(size: 72, weight: .bold))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+                        .padding(8)
                 }
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.25), lineWidth: 2)
+                )
+                .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+                .scaleEffect(isAnimatingButton ? 0.92 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAnimatingButton)
             } else {
                 // Fallback per iOS 18-25.x
                 Button(action: {
