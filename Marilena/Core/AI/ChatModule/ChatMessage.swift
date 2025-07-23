@@ -1,4 +1,5 @@
 import Foundation
+import CoreData
 
 // MARK: - Chat Message Model
 // Modello dati per messaggi di chat riutilizzabile
@@ -106,27 +107,84 @@ public struct ChatSession: Identifiable, Codable {
     }
 }
 
+// MARK: - Modular Chat Session
+
+public struct ModularChatSession: Identifiable, Codable {
+    public let id: UUID
+    public let title: String
+    public var messages: [ModularChatMessage]
+    public let createdAt: Date
+    public var updatedAt: Date
+    public let type: String
+    
+    public init(
+        id: UUID = UUID(),
+        title: String,
+        messages: [ModularChatMessage] = [],
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        type: String = "chat"
+    ) {
+        self.id = id
+        self.title = title
+        self.messages = messages
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.type = type
+    }
+}
+
 // MARK: - Chat Configuration
 
 public struct ChatConfiguration {
+    public let session: ModularChatSession
+    public let aiProviderManager: AIProviderManager
+    public let promptManager: PromptManager
+    public let context: NSManagedObjectContext
+    public let adapter: ModuleAdapter?
+    
+    // Impostazioni AI
     public let maxTokens: Int
     public let temperature: Double
-    public let model: String
-    public let systemPrompt: String?
-    public let contextWindow: Int
+    public let selectedProvider: AIProvider
+    public let selectedModel: String
     
     public init(
-        maxTokens: Int = 4000,
+        session: ModularChatSession,
+        aiProviderManager: AIProviderManager,
+        promptManager: PromptManager,
+        context: NSManagedObjectContext,
+        adapter: ModuleAdapter? = nil,
+        maxTokens: Int = 100000,
         temperature: Double = 0.7,
-        model: String = "gpt-4.1-mini",
-        systemPrompt: String? = nil,
-        contextWindow: Int = 8000
+        selectedProvider: AIProvider = .openai,
+        selectedModel: String = "gpt-4o-mini"
     ) {
+        self.session = session
+        self.aiProviderManager = aiProviderManager
+        self.promptManager = promptManager
+        self.context = context
+        self.adapter = adapter
         self.maxTokens = maxTokens
         self.temperature = temperature
-        self.model = model
-        self.systemPrompt = systemPrompt
-        self.contextWindow = contextWindow
+        self.selectedProvider = selectedProvider
+        self.selectedModel = selectedModel
+    }
+}
+
+// MARK: - AI Provider
+
+public enum AIProvider: String, CaseIterable {
+    case openai = "openai"
+    case anthropic = "anthropic"
+    case groq = "groq"
+    
+    public var displayName: String {
+        switch self {
+        case .openai: return "OpenAI"
+        case .anthropic: return "Anthropic"
+        case .groq: return "Groq"
+        }
     }
 }
 

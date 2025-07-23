@@ -424,7 +424,8 @@ struct RecordingDetailView: View {
     }
     
     private var analysisView: some View {
-        TranscriptionAnalysisView(recording: recording)
+        let adapter = ModuleAdapter(context: context)
+        return adapter.createModularTranscriptionView(for: recording)
     }
     
 

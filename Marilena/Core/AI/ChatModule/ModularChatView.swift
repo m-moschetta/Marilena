@@ -26,8 +26,7 @@ public struct ModularChatView: View {
         self.customConfiguration = configuration
         self.showSettings = showSettings
         
-        let config = configuration ?? ChatConfiguration()
-        self._chatService = StateObject(wrappedValue: ChatService(configuration: config))
+        self._chatService = StateObject(wrappedValue: ChatService(configuration: configuration))
     }
     
     // MARK: - Body

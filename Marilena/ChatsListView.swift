@@ -96,7 +96,8 @@ struct ChatsListView: View {
             // Refresh logic if needed
         }
         .sheet(item: $selectedChat) { chat in
-            ChatView(chat: chat)
+            let adapter = ModuleAdapter(context: viewContext)
+            adapter.createModularChatView(for: chat)
                 .environment(\.managedObjectContext, viewContext)
         }
     }

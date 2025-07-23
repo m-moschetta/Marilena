@@ -16,7 +16,7 @@ public class ChatService: ObservableObject {
     // MARK: - Configuration
     private let aiProviderManager: AIProviderManager
     private let promptManager: PromptManager
-    private let configuration: ChatConfiguration
+    private let configuration: ChatConfiguration?
     
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
@@ -27,7 +27,7 @@ public class ChatService: ObservableObject {
     public init(
         aiProviderManager: AIProviderManager = .shared,
         promptManager: PromptManager = .shared,
-        configuration: ChatConfiguration = ChatConfiguration()
+        configuration: ChatConfiguration? = nil
     ) {
         self.aiProviderManager = aiProviderManager
         self.promptManager = promptManager
@@ -59,7 +59,7 @@ public class ChatService: ObservableObject {
                 content: response,
                 role: .assistant,
                 metadata: MessageMetadata(
-                    model: configuration.model,
+                    model: configuration?.selectedModel ?? "unknown",
                     processingTime: processingTime,
                     context: context
                 )
@@ -178,7 +178,7 @@ public class ChatService: ObservableObject {
         
         // Verifica che il contesto non sia troppo lungo
         let totalContext = prompt.count + context.count
-        if totalContext > configuration.contextWindow {
+        if let config = configuration, totalContext > config.maxTokens {
             throw ChatError.contextTooLong
         }
         
@@ -212,7 +212,7 @@ public class ChatService: ObservableObject {
         return try await withCheckedThrowingContinuation { continuation in
             let content = AnthropicContent(type: "text", text: prompt)
             let message = AnthropicMessage(role: "user", content: [content])
-            service.sendMessage(messages: [message], model: model, maxTokens: configuration.maxTokens, temperature: configuration.temperature) { result in
+            service.sendMessage(messages: [message], model: model, maxTokens: configuration?.maxTokens ?? 100000, temperature: configuration?.temperature ?? 0.7) { result in
                 switch result {
                 case .success(let response):
                     continuation.resume(returning: response)
@@ -254,6 +254,29 @@ extension ChatService {
             totalTokens: totalTokens,
             averageProcessingTime: avgProcessingTime
         )
+    }
+    
+    /// Salva la sessione corrente
+    public func saveSession() {
+        // Aggiorna la sessione corrente con i messaggi
+        if let session = currentSession {
+            let updatedSession = ModularChatSession(
+                id: session.id,
+                title: session.title,
+                messages: messages,
+                createdAt: session.createdAt,
+                updatedAt: Date(),
+                type: session.type
+            )
+            currentSession = updatedSession
+            
+            // Salva tramite l'adapter se disponibile
+            if let adapter = configuration?.adapter {
+                adapter.saveChatSession(updatedSession)
+            }
+        }
+        
+        print("💾 ChatService: Sessione salvata")
     }
 }
 
