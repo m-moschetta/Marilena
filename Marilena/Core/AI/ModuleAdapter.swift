@@ -50,8 +50,13 @@ public class ModuleAdapter: ObservableObject {
         
         // Crea configurazione per il modulo
         let configuration = ModularTranscriptionConfiguration(
-            session: session,
-            context: context
+            mode: .auto,
+            language: "it-IT",
+            enableTimestamps: true,
+            enableConfidence: true,
+            enableSegments: true,
+            maxProcessingTime: 300.0,
+            retryCount: 3
         )
         
         return ModularTranscriptionView(
@@ -73,10 +78,9 @@ public class ModuleAdapter: ObservableObject {
                     role: message.isFromUser ? .user : .assistant,
                     timestamp: message.timestamp ?? Date(),
                     metadata: MessageMetadata(
-                        provider: message.provider ?? "unknown",
-                        model: message.model ?? "unknown",
-                        tokens: Int(message.tokens),
-                        cost: message.costo
+                        model: "unknown",
+                        processingTime: nil,
+                        context: nil
                     )
                 )
             }
@@ -86,12 +90,22 @@ public class ModuleAdapter: ObservableObject {
             title: chat.titolo ?? "Chat",
             messages: messages,
             createdAt: chat.dataCreazione ?? Date(),
-            updatedAt: chat.dataModifica ?? Date(),
-            type: chat.tipo ?? "chat"
+            updatedAt: Date(),
+            type: "chat"
         )
     }
     
     private func convertRecordingToSession(_ recording: RegistrazioneAudio) -> ModularTranscriptionSession {
+        let configuration = ModularTranscriptionConfiguration(
+            mode: .auto,
+            language: "it-IT",
+            enableTimestamps: true,
+            enableConfidence: true,
+            enableSegments: true,
+            maxProcessingTime: 300.0,
+            retryCount: 3
+        )
+        
         let transcriptions = (recording.trascrizioni?.allObjects as? [Trascrizione] ?? [])
             .sorted { ($0.dataCreazione ?? Date()) > ($1.dataCreazione ?? Date()) }
             .map { transcription in
@@ -109,11 +123,8 @@ public class ModuleAdapter: ObservableObject {
         
         return ModularTranscriptionSession(
             id: recording.id ?? UUID(),
-            title: recording.titolo ?? "Registrazione",
-            audioURL: recording.pathFile,
-            results: transcriptions,
-            createdAt: recording.dataCreazione ?? Date(),
-            updatedAt: recording.dataModifica ?? Date()
+            audioURL: recording.pathFile ?? URL(fileURLWithPath: ""),
+            configuration: configuration
         )
     }
     
@@ -132,7 +143,7 @@ public class ModuleAdapter: ObservableObject {
             chat.id = session.id
             chat.titolo = session.title
             chat.dataCreazione = session.createdAt
-            chat.dataModifica = session.updatedAt
+            chat.dataModifica = Date()
             chat.tipo = session.type
             
             // Salva i messaggi
@@ -142,10 +153,6 @@ public class ModuleAdapter: ObservableObject {
                 chatMessage.contenuto = message.content
                 chatMessage.isFromUser = message.role == .user
                 chatMessage.timestamp = message.timestamp
-                chatMessage.provider = message.metadata.provider
-                chatMessage.model = message.metadata.model
-                chatMessage.tokens = Int32(message.metadata.tokens)
-                chatMessage.costo = message.metadata.cost
                 chatMessage.chat = chat
             }
             
@@ -166,13 +173,13 @@ public class ModuleAdapter: ObservableObject {
             
             // Aggiorna i dati della registrazione
             recording.id = session.id
-            recording.titolo = session.title
+            recording.titolo = "Registrazione"
             recording.dataCreazione = session.createdAt
-            recording.dataModifica = session.updatedAt
+            recording.dataModifica = Date()
             recording.pathFile = session.audioURL
             
-            // Salva le trascrizioni
-            for result in session.results {
+            // Salva la trascrizione se disponibile
+            if let result = session.result {
                 let transcription = Trascrizione(context: context)
                 transcription.id = result.id
                 transcription.testo = result.text

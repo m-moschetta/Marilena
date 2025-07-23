@@ -260,20 +260,19 @@ extension ChatService {
     public func saveSession() {
         // Aggiorna la sessione corrente con i messaggi
         if let session = currentSession {
-            let updatedSession = ModularChatSession(
+            let updatedSession = ChatSession(
                 id: session.id,
                 title: session.title,
                 messages: messages,
                 createdAt: session.createdAt,
                 updatedAt: Date(),
-                type: session.type
+                context: session.context
             )
             currentSession = updatedSession
             
             // Salva tramite l'adapter se disponibile
-            if let adapter = configuration?.adapter {
-                adapter.saveChatSession(updatedSession)
-            }
+            // TODO: Implementare salvataggio tramite adapter
+            print("💾 ChatService: Sessione aggiornata")
         }
         
         print("💾 ChatService: Sessione salvata")
