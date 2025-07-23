@@ -175,7 +175,7 @@ struct SettingsView: View {
                             Spacer()
                             Text(String(format: "%.0f", maxTokens))
                         }
-                        Slider(value: $maxTokens, in: 100...4000, step: 100)
+                        Slider(value: $maxTokens, in: 100...200000, step: 1000)
                     }
                 }
                 

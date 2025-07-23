@@ -25,21 +25,8 @@ public class ModuleAdapter: ObservableObject {
     // MARK: - Chat Module Integration
     
     public func createModularChatView(for chat: ChatMarilena) -> ModularChatView {
-        // Converti ChatMarilena in ModularChatSession
-        let session = convertChatToSession(chat)
-        
-        // Crea configurazione per il modulo
-        let configuration = ChatConfiguration(
-            session: session,
-            aiProviderManager: aiProviderManager,
-            promptManager: promptManager,
-            context: context,
-            adapter: self
-        )
-        
         return ModularChatView(
-            title: chat.titolo ?? "Chat AI",
-            configuration: configuration,
+            chat: chat,
             showSettings: true
         )
     }
@@ -68,7 +55,7 @@ public class ModuleAdapter: ObservableObject {
     
     // MARK: - Conversion Methods
     
-    private func convertChatToSession(_ chat: ChatMarilena) -> ModularChatSession {
+    private func convertChatToSession(_ chat: ChatMarilena) -> ChatSession {
         let allMessages = chat.messaggi?.allObjects as? [MessaggioMarilena] ?? []
         let sortedMessages = allMessages.sorted { ($0.dataCreazione ?? Date()) < ($1.dataCreazione ?? Date()) }
         let messages = sortedMessages.map { message in
@@ -85,7 +72,7 @@ public class ModuleAdapter: ObservableObject {
                 )
             }
         
-        return ModularChatSession(
+        return ChatSession(
             id: chat.id ?? UUID(),
             title: chat.titolo ?? "Chat",
             messages: messages,
@@ -108,7 +95,7 @@ public class ModuleAdapter: ObservableObject {
         
         let allTranscriptions = recording.trascrizioni?.allObjects as? [Trascrizione] ?? []
         let sortedTranscriptions = allTranscriptions.sorted { ($0.dataCreazione ?? Date()) > ($1.dataCreazione ?? Date()) }
-                let transcriptions = sortedTranscriptions.map { transcription in
+        let _ = sortedTranscriptions.map { transcription in
             ModularTranscriptionResult(
                 text: transcription.testoCompleto ?? "",
                 confidence: transcription.accuratezza,
@@ -130,7 +117,7 @@ public class ModuleAdapter: ObservableObject {
     
     // MARK: - Save Methods
     
-    public func saveChatSession(_ session: ModularChatSession) {
+    public func saveChatSession(_ session: ChatSession) {
         // Trova o crea il ChatMarilena corrispondente
         let fetchRequest: NSFetchRequest<ChatMarilena> = ChatMarilena.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "id == %@", session.id as CVarArg)

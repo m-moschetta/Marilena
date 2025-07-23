@@ -1,8 +1,9 @@
 import Foundation
 import Combine
+import CoreData
 
 // MARK: - Chat Service (Riusabile)
-// Servizio di chat AI modulare e riutilizzabile
+// Servizio di chat AI modulare e riutilizzabile con tutte le funzionalità avanzate
 
 @MainActor
 public class ChatService: ObservableObject {
@@ -12,28 +13,48 @@ public class ChatService: ObservableObject {
     @Published public var isProcessing = false
     @Published public var error: String?
     @Published public var currentSession: ChatSession?
+    @Published public var coreDataChat: ChatMarilena?
     
     // MARK: - Configuration
     private let aiProviderManager: AIProviderManager
     private let promptManager: PromptManager
     private let configuration: ChatConfiguration?
     
+    // MARK: - Core Data
+    private let context: NSManagedObjectContext
+    private let moduleAdapter: ModuleAdapter
+    
+    // MARK: - Services
+    private let openAIService = OpenAIService.shared
+    private let profiloService = ProfiloUtenteService.shared
+    private let perplexityService = PerplexityService.shared
+    
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
     private var processingStartTime: Date?
+    private var selectedModel = "gpt-4o-mini"
+    private var selectedPerplexityModel = "sonar-pro"
     
     // MARK: - Initialization
     
     public init(
         aiProviderManager: AIProviderManager = .shared,
         promptManager: PromptManager = .shared,
-        configuration: ChatConfiguration? = nil
+        configuration: ChatConfiguration? = nil,
+        context: NSManagedObjectContext? = nil
     ) {
         self.aiProviderManager = aiProviderManager
         self.promptManager = promptManager
         self.configuration = configuration
+        self.context = context ?? PersistenceController.shared.container.viewContext
+        self.moduleAdapter = ModuleAdapter(context: self.context)
+        
+        // Carica modelli salvati
+        self.selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
+        self.selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         
         setupObservers()
+        loadOrCreateDefaultSession()
     }
     
     // MARK: - Public Methods
@@ -51,23 +72,33 @@ public class ChatService: ObservableObject {
         error = nil
         processingStartTime = Date()
         
+        // Salva il messaggio utente in Core Data
+        saveCoreDataMessage(userMessage)
+        
         do {
-            let response = try await processMessage(text, context: context)
+            // Ottieni il contesto utente dal profilo
+            let userContext = getUserContext()
+            let response = try await processMessage(text, context: userContext)
             let processingTime = processingStartTime.map { Date().timeIntervalSince($0) }
             
             let aiMessage = ModularChatMessage(
                 content: response,
                 role: .assistant,
                 metadata: MessageMetadata(
-                    model: configuration?.selectedModel ?? "unknown",
+                    model: selectedModel,
                     processingTime: processingTime,
-                    context: context
+                    context: userContext,
+                    provider: "OpenAI"
                 )
             )
             messages.append(aiMessage)
             
+            // Salva la risposta AI in Core Data
+            saveCoreDataMessage(aiMessage)
+            
             // Aggiorna la sessione
             updateCurrentSession()
+            updateCoreDataSession()
             
         } catch {
             self.error = error.localizedDescription
@@ -78,11 +109,23 @@ public class ChatService: ObservableObject {
         processingStartTime = nil
     }
     
+    /// Ricerca con Perplexity
+    public func searchWithPerplexity(_ query: String) async throws -> String {
+        return try await perplexityService.search(
+            query: query,
+            model: selectedPerplexityModel
+        )
+    }
+    
     /// Cancella tutti i messaggi
     public func clearMessages() {
         messages.removeAll()
         error = nil
+        
+        // Cancella messaggi da Core Data
+        clearCoreDataMessages()
         updateCurrentSession()
+        updateCoreDataSession()
     }
     
     /// Esporta la conversazione
@@ -94,48 +137,98 @@ public class ChatService: ObservableObject {
     
     /// Crea una nuova sessione di chat
     public func createSession(title: String, context: String? = nil) {
+        // Crea sessione modulare
         currentSession = ChatSession(
             title: title,
-            messages: messages,
-            context: context
+            messages: messages
         )
+        
+        // Crea entità Core Data
+        createCoreDataSession(title: title)
     }
     
     /// Carica una sessione esistente
     public func loadSession(_ session: ChatSession) {
-        currentSession = session
         messages = session.messages
+        currentSession = session
+        error = nil
+        
+        // Carica la sessione Core Data corrispondente
+        loadCoreDataSession(sessionId: session.id)
+    }
+    
+    /// Carica una sessione da Core Data
+    public func loadCoreDataSession(_ chat: ChatMarilena) {
+        coreDataChat = chat
+        
+        // Carica messaggi dalla chat
+        let messaggi = chat.messaggi?.allObjects as? [MessaggioMarilena] ?? []
+        let messaggiOrdinati = messaggi.sorted { 
+            ($0.dataCreazione ?? Date()) < ($1.dataCreazione ?? Date()) 
+        }
+        
+        // Converti in ModularChatMessage
+        messages = messaggiOrdinati.map { messaggio in
+            ModularChatMessage(
+                id: messaggio.id ?? UUID(),
+                content: messaggio.contenuto ?? "",
+                role: messaggio.isUser ? .user : .assistant,
+                timestamp: messaggio.dataCreazione ?? Date(),
+                metadata: MessageMetadata(
+                    model: selectedModel,
+                    context: getUserContext()
+                )
+            )
+        }
+        
+        // Crea sessione modulare corrispondente
+        currentSession = ChatSession(
+            id: chat.id ?? UUID(),
+            title: chat.titolo ?? "Chat",
+            messages: messages,
+            createdAt: chat.dataCreazione ?? Date(),
+            updatedAt: Date(),
+            type: chat.tipo ?? "chat"
+        )
+        
         error = nil
     }
     
-    /// Salva la sessione corrente
-    public func saveSession() -> ChatSession? {
-        guard let session = currentSession else { return nil }
-        
-        let updatedSession = ChatSession(
-            id: session.id,
-            title: session.title,
-            messages: messages,
-            createdAt: session.createdAt,
-            updatedAt: Date(),
-            context: session.context
-        )
-        
-        currentSession = updatedSession
-        return updatedSession
+    /// Alias per loadCoreDataSession
+    public func loadChat(_ chat: ChatMarilena) {
+        loadCoreDataSession(chat)
     }
     
-    /// Ottiene il riassunto della conversazione
-    public func getConversationSummary() -> String {
-        let userMessages = messages.filter { $0.role == .user }
-        let assistantMessages = messages.filter { $0.role == .assistant }
+    /// Ottieni statistiche della conversazione
+    public func getConversationStats() -> ConversationStats {
+        let totalMessages = messages.count
+        let userMessages = messages.filter { $0.role == .user }.count
+        let assistantMessages = messages.filter { $0.role == .assistant }.count
         
-        return """
-        Conversazione: \(messages.count) messaggi totali
-        Messaggi utente: \(userMessages.count)
-        Messaggi assistente: \(assistantMessages.count)
-        Ultimo aggiornamento: \(Date().formatted())
-        """
+        let totalTokens = messages.compactMap { $0.metadata?.tokens }.reduce(0, +)
+        
+        let processingTimes = messages.compactMap { $0.metadata?.processingTime }
+        let averageProcessingTime = processingTimes.isEmpty ? 0 : processingTimes.reduce(0, +) / Double(processingTimes.count)
+        
+        return ConversationStats(
+            totalMessages: totalMessages,
+            userMessages: userMessages,
+            assistantMessages: assistantMessages,
+            totalTokens: totalTokens,
+            averageProcessingTime: averageProcessingTime
+        )
+    }
+    
+    /// Imposta il modello selezionato
+    public func setSelectedModel(_ model: String) {
+        selectedModel = model
+        UserDefaults.standard.set(model, forKey: "selected_model")
+    }
+    
+    /// Imposta il modello Perplexity selezionato
+    public func setSelectedPerplexityModel(_ model: String) {
+        selectedPerplexityModel = model
+        UserDefaults.standard.set(model, forKey: "selected_perplexity_model")
     }
     
     // MARK: - Private Methods
@@ -149,133 +242,186 @@ public class ChatService: ObservableObject {
             .store(in: &cancellables)
     }
     
+    private func loadOrCreateDefaultSession() {
+        // Carica l'ultima chat dell'utente o creane una nuova
+        if let profilo = profiloService.ottieniProfiloUtente(in: context) {
+            let chats = profilo.chats?.allObjects as? [ChatMarilena] ?? []
+            let chatOrdinati = chats.sorted { 
+                ($0.dataCreazione ?? Date()) > ($1.dataCreazione ?? Date()) 
+            }
+            
+            if let ultimaChat = chatOrdinati.first, 
+               let messaggi = ultimaChat.messaggi?.allObjects as? [MessaggioMarilena],
+               !messaggi.isEmpty {
+                // Carica l'ultima chat con messaggi
+                loadCoreDataSession(ultimaChat)
+            } else {
+                // Crea una nuova sessione
+                createSession(title: "Nuova Conversazione")
+            }
+        } else {
+            // Crea una nuova sessione se non c'è profilo
+            createSession(title: "Nuova Conversazione")
+        }
+    }
+    
+    private func processMessage(_ text: String, context: String = "") async throws -> String {
+        // Costruisci la cronologia della conversazione
+        let conversationHistory = buildConversationHistory(newMessage: text, context: context)
+        
+        // Invia a OpenAI
+        let response = try await withCheckedThrowingContinuation { continuation in
+            openAIService.sendMessage(
+                messages: conversationHistory,
+                model: selectedModel
+            ) { result in
+                switch result {
+                case .success(let response):
+                    continuation.resume(returning: response)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+        
+        return response
+    }
+    
+    private func buildConversationHistory(newMessage: String, context: String = "") -> [OpenAIMessage] {
+        var messages: [OpenAIMessage] = []
+        
+        // Sistema prompt con contesto utente usando PromptManager
+        let systemPrompt = PromptManager.getPrompt(for: .chatBase, replacements: [
+            "CONTESTO_UTENTE": context.isEmpty ? "Nessun contesto specifico disponibile" : context
+        ])
+        messages.append(OpenAIMessage(role: "system", content: systemPrompt))
+        
+        // Aggiungi cronologia conversazione (ultimi 15 messaggi)
+        let recentMessages = Array(self.messages.suffix(15))
+        for message in recentMessages {
+            messages.append(OpenAIMessage(
+                role: message.role.rawValue,
+                content: message.content
+            ))
+        }
+        
+        // Aggiungi nuovo messaggio
+        messages.append(OpenAIMessage(role: "user", content: newMessage))
+        
+        return messages
+    }
+    
     private func updateCurrentSession() {
-        guard let session = currentSession else { return }
-        
-        currentSession = ChatSession(
-            id: session.id,
-            title: session.title,
-            messages: messages,
-            createdAt: session.createdAt,
-            updatedAt: Date(),
-            context: session.context
-        )
-    }
-    
-    private func processMessage(_ text: String, context: String) async throws -> String {
-        guard let (provider, model) = aiProviderManager.getBestChatProvider() else {
-            throw ChatError.noProviderConfigured
-        }
-        
-        // Prepara il prompt con il contesto
-        let prompt = PromptManager.getPrompt(
-            for: .chatBase,
-            replacements: [
-                "CONTESTO_UTENTE": context,
-                "MESSAGGIO": text
-            ]
-        )
-        
-        // Verifica che il contesto non sia troppo lungo
-        let totalContext = prompt.count + context.count
-        if let config = configuration, totalContext > config.maxTokens {
-            throw ChatError.contextTooLong
-        }
-        
-        switch provider {
-        case .openai:
-            return try await sendToOpenAI(prompt: prompt, model: model)
-        case .anthropic:
-            return try await sendToAnthropic(prompt: prompt, model: model)
-        case .groq:
-            return try await sendToGroq(prompt: prompt, model: model)
-        }
-    }
-    
-    private func sendToOpenAI(prompt: String, model: String) async throws -> String {
-        let service = OpenAIService.shared
-        return try await withCheckedThrowingContinuation { continuation in
-            let message = OpenAIMessage(role: "user", content: prompt)
-            service.sendMessage(messages: [message], model: model) { result in
-                switch result {
-                case .success(let response):
-                    continuation.resume(returning: response)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
-    
-    private func sendToAnthropic(prompt: String, model: String) async throws -> String {
-        let service = AnthropicService.shared
-        return try await withCheckedThrowingContinuation { continuation in
-            let content = AnthropicContent(type: "text", text: prompt)
-            let message = AnthropicMessage(role: "user", content: [content])
-            service.sendMessage(messages: [message], model: model, maxTokens: configuration?.maxTokens ?? 100000, temperature: configuration?.temperature ?? 0.7) { result in
-                switch result {
-                case .success(let response):
-                    continuation.resume(returning: response)
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
-    
-    private func sendToGroq(prompt: String, model: String) async throws -> String {
-        // TODO: Implementare GroqService
-        throw ChatError.providerNotImplemented
-    }
-}
-
-// MARK: - Chat Service Extensions
-
-extension ChatService {
-    
-    /// Configura il servizio con nuove impostazioni
-    public func configure(_ newConfiguration: ChatConfiguration) {
-        // Aggiorna la configurazione
-        // Nota: In una implementazione completa, questo richiederebbe una refactor per rendere configuration mutabile
-        print("🔧 ChatService: Configurazione aggiornata")
-    }
-    
-    /// Ottiene statistiche della conversazione
-    public func getConversationStats() -> ConversationStats {
-        let userMessages = messages.filter { $0.role == .user }
-        let assistantMessages = messages.filter { $0.role == .assistant }
-        let totalTokens = messages.compactMap { $0.metadata?.tokens }.reduce(0, +)
-        let avgProcessingTime = messages.compactMap { $0.metadata?.processingTime }.reduce(0, +) / Double(max(messages.count, 1))
-        
-        return ConversationStats(
-            totalMessages: messages.count,
-            userMessages: userMessages.count,
-            assistantMessages: assistantMessages.count,
-            totalTokens: totalTokens,
-            averageProcessingTime: avgProcessingTime
-        )
-    }
-    
-    /// Salva la sessione corrente
-    public func saveSession() {
-        // Aggiorna la sessione corrente con i messaggi
         if let session = currentSession {
-            let updatedSession = ChatSession(
+            currentSession = ChatSession(
                 id: session.id,
                 title: session.title,
                 messages: messages,
                 createdAt: session.createdAt,
                 updatedAt: Date(),
-                context: session.context
+                type: session.type
             )
-            currentSession = updatedSession
-            
-            // Salva tramite l'adapter se disponibile
-            // TODO: Implementare salvataggio tramite adapter
-            print("💾 ChatService: Sessione aggiornata")
+        }
+    }
+    
+    // MARK: - Core Data Methods
+    
+    private func getUserContext() -> String {
+        if let profilo = profiloService.ottieniProfiloUtente(in: context) {
+            return profilo.contestoAI ?? "Nessun contesto specifico disponibile"
+        }
+        return "Nessun contesto specifico disponibile"
+    }
+    
+    private func createCoreDataSession(title: String) {
+        let chat = ChatMarilena(context: context)
+        chat.id = UUID()
+        chat.dataCreazione = Date()
+        chat.titolo = title
+        chat.tipo = "chat"
+        
+        // Associa al profilo utente
+        if let profilo = profiloService.ottieniProfiloUtente(in: context) {
+            chat.profilo = profilo
         }
         
-        print("💾 ChatService: Sessione salvata")
+        coreDataChat = chat
+        
+        do {
+            try context.save()
+            print("✅ ChatService: Sessione Core Data creata")
+        } catch {
+            print("❌ ChatService: Errore creazione sessione: \(error)")
+        }
+    }
+    
+    private func loadCoreDataSession(sessionId: UUID) {
+        let fetchRequest: NSFetchRequest<ChatMarilena> = ChatMarilena.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", sessionId as CVarArg)
+        
+        do {
+            let chats = try context.fetch(fetchRequest)
+            if let chat = chats.first {
+                loadCoreDataSession(chat)
+            }
+        } catch {
+            print("❌ ChatService: Errore caricamento sessione: \(error)")
+        }
+    }
+    
+    private func updateCoreDataSession() {
+        guard let chat = coreDataChat else { return }
+        
+        // Aggiorna titolo se è la prima conversazione
+        if messages.count == 2 && messages.first?.role == .user {
+            let firstUserMessage = messages.first?.content ?? ""
+            let shortTitle = String(firstUserMessage.prefix(50))
+            chat.titolo = shortTitle.isEmpty ? "Nuova Conversazione" : shortTitle
+        }
+        
+        do {
+            try context.save()
+        } catch {
+            print("❌ ChatService: Errore aggiornamento sessione: \(error)")
+        }
+    }
+    
+    private func saveCoreDataMessage(_ message: ModularChatMessage) {
+        guard let _ = coreDataChat else {
+            // Se non c'è una chat, creane una
+            createCoreDataSession(title: "Nuova Conversazione")
+            guard coreDataChat != nil else { return }
+            return saveCoreDataMessage(message) // Richiama ricorsivamente dopo aver creato la chat
+        }
+        
+        let messaggio = MessaggioMarilena(context: context)
+        messaggio.id = message.id
+        messaggio.contenuto = message.content
+        messaggio.isUser = message.role == .user
+        messaggio.tipo = message.role.rawValue
+        messaggio.dataCreazione = message.timestamp
+        messaggio.chat = coreDataChat
+        
+        do {
+            try context.save()
+        } catch {
+            print("❌ ChatService: Errore salvataggio messaggio: \(error)")
+        }
+    }
+    
+    private func clearCoreDataMessages() {
+        guard let chat = coreDataChat else { return }
+        
+        let messaggi = chat.messaggi?.allObjects as? [MessaggioMarilena] ?? []
+        for messaggio in messaggi {
+            context.delete(messaggio)
+        }
+        
+        do {
+            try context.save()
+        } catch {
+            print("❌ ChatService: Errore cancellazione messaggi: \(error)")
+        }
     }
 }
 

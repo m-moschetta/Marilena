@@ -117,7 +117,7 @@ class PerplexityService {
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 30
+        request.timeoutInterval = selectedModel == "sonar-deep-research" ? 300 : 60
         
         let messages = [
             PerplexityMessage(role: "system", content: "Sei un assistente di ricerca esperto. Fornisci risposte accurate e aggiornate in italiano."),
@@ -127,7 +127,7 @@ class PerplexityService {
         let requestBody = PerplexityRequest(
             model: selectedModel,
             messages: messages,
-            maxTokens: 2048,
+            maxTokens: selectedModel == "sonar-deep-research" ? 8000 : 2048,
             temperature: nil,
             topP: nil,
             topK: nil,

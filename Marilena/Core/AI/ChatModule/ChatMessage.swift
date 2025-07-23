@@ -2,7 +2,7 @@ import Foundation
 import CoreData
 
 // MARK: - Chat Message Model
-// Modello dati per messaggi di chat riutilizzabile
+// Modello dati per messaggi di chat riutilizzabile con tutte le funzionalità avanzate
 
 public struct ModularChatMessage: Identifiable, Codable, Equatable {
     public let id: UUID
@@ -64,63 +64,45 @@ public struct MessageMetadata: Codable, Equatable {
     public let processingTime: TimeInterval?
     public let error: String?
     public let context: String?
+    public let provider: String?
+    public let cost: Double?
+    public let confidence: Double?
     
     public init(
         model: String? = nil,
         tokens: Int? = nil,
         processingTime: TimeInterval? = nil,
         error: String? = nil,
-        context: String? = nil
+        context: String? = nil,
+        provider: String? = nil,
+        cost: Double? = nil,
+        confidence: Double? = nil
     ) {
         self.model = model
         self.tokens = tokens
         self.processingTime = processingTime
         self.error = error
         self.context = context
+        self.provider = provider
+        self.cost = cost
+        self.confidence = confidence
     }
 }
 
 // MARK: - Chat Session
 
-public struct ChatSession: Identifiable, Codable {
+public struct ChatSession: Codable, Identifiable {
     public let id: UUID
     public let title: String
     public let messages: [ModularChatMessage]
     public let createdAt: Date
     public let updatedAt: Date
-    public let context: String?
-    
-    public init(
-        id: UUID = UUID(),
-        title: String,
-        messages: [ModularChatMessage] = [],
-        createdAt: Date = Date(),
-        updatedAt: Date = Date(),
-        context: String? = nil
-    ) {
-        self.id = id
-        self.title = title
-        self.messages = messages
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-        self.context = context
-    }
-}
-
-// MARK: - Modular Chat Session
-
-public struct ModularChatSession: Identifiable, Codable {
-    public let id: UUID
-    public let title: String
-    public var messages: [ModularChatMessage]
-    public let createdAt: Date
-    public var updatedAt: Date
     public let type: String
     
     public init(
         id: UUID = UUID(),
         title: String,
-        messages: [ModularChatMessage] = [],
+        messages: [ModularChatMessage],
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         type: String = "chat"
@@ -137,54 +119,27 @@ public struct ModularChatSession: Identifiable, Codable {
 // MARK: - Chat Configuration
 
 public struct ChatConfiguration {
-    public let session: ModularChatSession
-    public let aiProviderManager: AIProviderManager
-    public let promptManager: PromptManager
-    public let context: NSManagedObjectContext
-    public let adapter: ModuleAdapter?
-    
-    // Impostazioni AI
+    public let selectedModel: String
     public let maxTokens: Int
     public let temperature: Double
-    public let selectedProvider: AIProvider
-    public let selectedModel: String
+    public let enableStreaming: Bool
+    public let enableContext: Bool
+    public let adapter: ModuleAdapter?
     
     public init(
-        session: ModularChatSession,
-        aiProviderManager: AIProviderManager,
-        promptManager: PromptManager,
-        context: NSManagedObjectContext,
-        adapter: ModuleAdapter? = nil,
-        maxTokens: Int = 100000,
+        selectedModel: String = "gpt-4o-mini",
+        maxTokens: Int = 4000,
         temperature: Double = 0.7,
-        selectedProvider: AIProvider = .openai,
-        selectedModel: String = "gpt-4o-mini"
+        enableStreaming: Bool = false,
+        enableContext: Bool = true,
+        adapter: ModuleAdapter? = nil
     ) {
-        self.session = session
-        self.aiProviderManager = aiProviderManager
-        self.promptManager = promptManager
-        self.context = context
-        self.adapter = adapter
+        self.selectedModel = selectedModel
         self.maxTokens = maxTokens
         self.temperature = temperature
-        self.selectedProvider = selectedProvider
-        self.selectedModel = selectedModel
-    }
-}
-
-// MARK: - AI Provider
-
-public enum AIProvider: String, CaseIterable {
-    case openai = "openai"
-    case anthropic = "anthropic"
-    case groq = "groq"
-    
-    public var displayName: String {
-        switch self {
-        case .openai: return "OpenAI"
-        case .anthropic: return "Anthropic"
-        case .groq: return "Groq"
-        }
+        self.enableStreaming = enableStreaming
+        self.enableContext = enableContext
+        self.adapter = adapter
     }
 }
 
@@ -192,16 +147,19 @@ public enum AIProvider: String, CaseIterable {
 
 public enum ChatError: LocalizedError {
     case noProviderConfigured
+    case contextTooLong
     case providerNotImplemented
     case invalidResponse
     case networkError(String)
     case rateLimitExceeded
-    case contextTooLong
+    case quotaExceeded
     
     public var errorDescription: String? {
         switch self {
         case .noProviderConfigured:
             return "Nessun provider AI configurato"
+        case .contextTooLong:
+            return "Il contesto è troppo lungo per essere elaborato"
         case .providerNotImplemented:
             return "Provider non ancora implementato"
         case .invalidResponse:
@@ -210,8 +168,43 @@ public enum ChatError: LocalizedError {
             return "Errore di rete: \(message)"
         case .rateLimitExceeded:
             return "Limite di richieste superato"
-        case .contextTooLong:
-            return "Contesto troppo lungo per il modello"
+        case .quotaExceeded:
+            return "Quota API esaurita"
+        }
+    }
+}
+
+// MARK: - AI Provider
+
+public enum AIProvider: String, CaseIterable, Codable {
+    case openai = "openai"
+    case anthropic = "anthropic"
+    case groq = "groq"
+    case perplexity = "perplexity"
+    
+    public var displayName: String {
+        switch self {
+        case .openai:
+            return "OpenAI"
+        case .anthropic:
+            return "Anthropic"
+        case .groq:
+            return "Groq"
+        case .perplexity:
+            return "Perplexity"
+        }
+    }
+    
+    public var iconName: String {
+        switch self {
+        case .openai:
+            return "brain.head.profile"
+        case .anthropic:
+            return "person.2.circle.fill"
+        case .groq:
+            return "bolt.circle.fill"
+        case .perplexity:
+            return "magnifyingglass.circle.fill"
         }
     }
 } 
