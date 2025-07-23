@@ -6,6 +6,152 @@ struct ContentView: View {
     @State private var selectedTab = 1 // Cambiato da 0 a 1 per avviare su registratore
     
     var body: some View {
+        GeometryReader { geometry in
+            if geometry.size.width > 768 { // iPad layout
+                iPadLayout(selectedTab: $selectedTab)
+            } else { // iPhone layout
+                iPhoneLayout(selectedTab: $selectedTab)
+            }
+        }
+        .accentColor(.blue)
+    }
+}
+
+// MARK: - iPad Layout
+struct iPadLayout: View {
+    @Binding var selectedTab: Int
+    @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var recordingService: RecordingService
+    
+    init(selectedTab: Binding<Int>) {
+        self._selectedTab = selectedTab
+        self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
+    }
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Parte sinistra: Contenuto principale
+            VStack(spacing: 0) {
+                // Header con navigazione
+                headerView
+                
+                // Contenuto principale
+                mainContentView
+            }
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemGroupedBackground))
+            
+            // Parte destra: Registrazione sempre visibile
+            VStack(spacing: 0) {
+                // Header della registrazione
+                recordingHeaderView
+                
+                // Interfaccia di registrazione
+                AudioRecorderView(recordingService: recordingService)
+                    .padding()
+            }
+            .frame(width: 320)
+            .background(Color(.systemBackground))
+            .overlay(
+                Rectangle()
+                    .frame(width: 1)
+                    .foregroundColor(Color(.separator)),
+                alignment: .leading
+            )
+        }
+    }
+    
+    private var headerView: some View {
+        HStack {
+            // Tab buttons
+            HStack(spacing: 0) {
+                TabButton(
+                    title: "Chat AI",
+                    icon: "message.fill",
+                    isSelected: selectedTab == 0,
+                    action: { selectedTab = 0 }
+                )
+                
+                TabButton(
+                    title: "Registratore",
+                    icon: "mic.fill",
+                    isSelected: selectedTab == 1,
+                    action: { selectedTab = 1 }
+                )
+                
+                TabButton(
+                    title: "Profilo",
+                    icon: "person.fill",
+                    isSelected: selectedTab == 2,
+                    action: { selectedTab = 2 }
+                )
+            }
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+        .padding(.vertical, 8)
+        .background(Color(.systemBackground))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(.separator)),
+            alignment: .bottom
+        )
+    }
+    
+    private var recordingHeaderView: some View {
+        HStack {
+            Text("Registrazione")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            Spacer()
+            
+            // Stato registrazione
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(recordingService.recordingState == .recording ? Color.red : Color.green)
+                    .frame(width: 8, height: 8)
+                
+                Text(recordingService.recordingState == .recording ? "Registrando" : "Pronto")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(.separator)),
+            alignment: .bottom
+        )
+    }
+    
+    private var mainContentView: some View {
+        Group {
+            switch selectedTab {
+            case 0:
+                ChatsListView()
+            case 1:
+                RecorderMainView()
+            case 2:
+                ProfiloWrapperView()
+            default:
+                RecorderMainView()
+            }
+        }
+    }
+}
+
+// MARK: - iPhone Layout
+struct iPhoneLayout: View {
+    @Binding var selectedTab: Int
+    
+    var body: some View {
         TabView(selection: $selectedTab) {
             // Tab 1: Chat AI
             NavigationView {
@@ -37,7 +183,30 @@ struct ContentView: View {
             }
             .tag(2)
         }
-        .accentColor(.blue)
+    }
+}
+
+// MARK: - Tab Button
+struct TabButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                
+                Text(title)
+                    .font(.caption)
+            }
+            .foregroundColor(isSelected ? .blue : .secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
