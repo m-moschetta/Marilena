@@ -15,6 +15,7 @@ struct ChatsListView: View {
     @State private var showingSettings = false
     
     var body: some View {
+        NavigationStack {
             VStack {
                 if chats.isEmpty {
                     emptyStateView
@@ -42,10 +43,16 @@ struct ChatsListView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenChatInMainList"))) { notification in
-            if let chat = notification.object as? ChatMarilena {
-                selectedChat = chat
+            }
+            .navigationDestination(item: $selectedChat) { chat in
+                let adapter = ModuleAdapter(context: viewContext)
+                adapter.createModularChatView(for: chat)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenChatInMainList"))) { notification in
+                if let chat = notification.object as? ChatMarilena {
+                    selectedChat = chat
+                }
             }
         }
     }
@@ -94,11 +101,6 @@ struct ChatsListView: View {
         }
         .refreshable {
             // Refresh logic if needed
-        }
-        .sheet(item: $selectedChat) { chat in
-            let adapter = ModuleAdapter(context: viewContext)
-            adapter.createModularChatView(for: chat)
-                .environment(\.managedObjectContext, viewContext)
         }
     }
     

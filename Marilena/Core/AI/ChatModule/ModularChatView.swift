@@ -14,7 +14,6 @@ extension View {
 
 public struct ModularChatView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.dismiss) private var dismiss
     @ObservedObject var chat: ChatMarilena
     
     @FetchRequest private var messaggi: FetchedResults<MessaggioMarilena>
@@ -244,13 +243,6 @@ public struct ModularChatView: View {
             }
             .navigationTitle(chat.titolo ?? "Chat")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Chiudi") {
-                        dismiss()
-                    }
-                }
-            }
         }
     }
     
