@@ -226,27 +226,35 @@ struct TabButton: View {
 struct ProfiloWrapperView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var profilo: ProfiloUtente?
+    @State private var isLoading = true
     
     var body: some View {
         Group {
             if let profilo = profilo {
                 ProfiloView(profilo: profilo)
+                    .transition(.opacity)
             } else {
                 ProgressView("Caricamento profilo...")
-                    .onAppear {
-                        caricaProfilo()
-                    }
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: profilo != nil)
+        .onAppear {
+            if profilo == nil {
+                caricaProfilo()
             }
         }
     }
     
     private func caricaProfilo() {
-        profilo = ProfiloUtenteService.shared.ottieniProfiloUtente(in: viewContext)
-        
-        // Se non esiste un profilo, ne crea uno di default
-        if profilo == nil {
-            profilo = ProfiloUtenteService.shared.creaProfiloDefault(in: viewContext)
-            _ = ProfiloUtenteService.shared.salvaProfilo(profilo!, in: viewContext)
+        DispatchQueue.main.async {
+            profilo = ProfiloUtenteService.shared.ottieniProfiloUtente(in: viewContext)
+            
+            // Se non esiste un profilo, ne crea uno di default
+            if profilo == nil {
+                profilo = ProfiloUtenteService.shared.creaProfiloDefault(in: viewContext)
+                _ = ProfiloUtenteService.shared.salvaProfilo(profilo!, in: viewContext)
+            }
         }
     }
 }
