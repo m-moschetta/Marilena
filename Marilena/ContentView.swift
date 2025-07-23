@@ -101,7 +101,7 @@ struct iPadLayout: View {
             
             Spacer()
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 12) // Aumentato da 8 a 12 per uniformare altezza
         .background(Color(.systemBackground))
         .overlay(
             Rectangle()
@@ -130,7 +130,8 @@ struct iPadLayout: View {
                     .foregroundColor(.secondary)
             }
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 12) // Uniformato con headerView
         .background(Color(.systemBackground))
         .overlay(
             Rectangle()
@@ -149,6 +150,7 @@ struct iPadLayout: View {
                 RecorderMainView()
             case 2:
                 ProfiloWrapperView()
+                    .padding(.top, 16) // Aggiunto spazio sopra il profilo
             default:
                 RecorderMainView()
             }
