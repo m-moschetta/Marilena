@@ -120,11 +120,11 @@ public struct ModularChatView: View {
         }
     }
     
-                // Input area moderna e dinamica con dimensioni standard (COPIA ESATTA)
+                                // Input area moderna e dinamica con dimensioni standard (COPIA ESATTA)
         VStack(spacing: 0) {
             Divider()
             
-            HStack(alignment: .bottom, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 8) {
                         // Campo di testo con espansione dinamica graduale
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: 22)
@@ -157,21 +157,21 @@ public struct ModularChatView: View {
                         .animation(.easeOut(duration: 0.2), value: testo.components(separatedBy: "\n").count)
                         .animation(.easeOut(duration: 0.2), value: calculateTextEditorHeight())
                         
-                        // Pulsanti con dimensioni uniformi (best practice iOS) - COPIA ESATTA
-                        VStack(spacing: 4) {
+                        // Pulsanti rimpiccioliti e vicini in orizzontale
+                        HStack(spacing: 6) {
                             Button(action: searchWithPerplexity) {
                                 ZStack {
                                     Circle()
                                         .fill(isSearchingPerplexity ? Color.orange : Color(.systemGray5))
-                                        .frame(width: 44, height: 44) // Stessa dimensione del pulsante invio
+                                        .frame(width: 36, height: 36) // Rimpicciolito da 44 a 36
                                     
                                     if isSearchingPerplexity {
                                         ProgressView()
-                                            .scaleEffect(0.6)
+                                            .scaleEffect(0.5)
                                             .tint(.white)
                                     } else {
                                         Image(systemName: "globe.americas.fill")
-                                            .font(.system(size: 18, weight: .medium)) // Icona più grande
+                                            .font(.system(size: 16, weight: .medium)) // Icona più piccola
                                             .foregroundColor(.orange)
                                     }
                                 }
@@ -196,21 +196,21 @@ public struct ModularChatView: View {
                                 }
                             }
                             
-                            // Pulsante invia moderno (sotto) - COPIA ESATTA
+                            // Pulsante invia rimpicciolito
                             Button(action: inviaMessaggio) {
                     ZStack {
                         Circle()
                                         .fill(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading ? 
                                   Color(.systemGray4) : Color.blue)
-                                        .frame(width: 44, height: 44) // Standard iOS
+                                        .frame(width: 36, height: 36) // Rimpicciolito da 44 a 36
                         
                                     if isLoading {
                             ProgressView()
-                                .scaleEffect(0.7)
+                                .scaleEffect(0.6)
                                 .tint(.white)
                         } else {
                             Image(systemName: "arrow.up")
-                                .font(.system(size: 18, weight: .semibold))
+                                .font(.system(size: 16, weight: .semibold)) // Icona più piccola
                                 .foregroundColor(.white)
                         }
                     }
@@ -237,7 +237,7 @@ public struct ModularChatView: View {
                         }
             }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12) // Aumentato padding verticale
+                    .padding(.vertical, 8) // Ridotto padding verticale da 12 a 8
                     .background(Color(.systemBackground))
                 }
             }

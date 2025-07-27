@@ -16,7 +16,7 @@ Il `ChatModule` è un modulo SwiftUI completamente riutilizzabile per implementa
 
 ### 🔧 Configurazione Flessibile
 - **Provider multipli**: OpenAI, Anthropic, Groq
-- **Modelli personalizzabili**: GPT-4, Claude, Llama, ecc.
+- **Modelli personalizzabili**: GPT-4o, Claude, Llama, ecc.
 - **Parametri configurabili**: temperature, max tokens, context window
 - **Prompt personalizzabili** tramite PromptManager
 

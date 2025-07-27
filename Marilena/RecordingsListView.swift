@@ -49,9 +49,9 @@ struct RecordingsListView: View {
             if !hideRecordButton {
                 VStack {
                     Spacer()
-                    HStack {
-                        Spacer()
-                        Button(action: {
+                    GlassmorphismRecordButton(
+                        isRecording: recordingService.recordingState == .recording,
+                        action: {
                             withAnimation(.spring()) {
                                 if recordingService.recordingState == .recording {
                                     recordingService.stopRecording()
@@ -59,22 +59,10 @@ struct RecordingsListView: View {
                                     recordingService.startRecording()
                                 }
                             }
-                        }) {
-                            GlassmorphismRecordButton(isRecording: recordingService.recordingState == .recording) {
-                                withAnimation(.spring()) {
-                                    if recordingService.recordingState == .recording {
-                                        recordingService.stopRecording()
-                                    } else {
-                                        recordingService.startRecording()
-                                    }
-                                }
-                            }
-                        }
-                        .scaleEffect(recordingService.recordingState == .recording ? 1.1 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: recordingService.recordingState)
-                        Spacer()
-                    }
-                    .padding(.bottom, 36) // sopra i tab
+                        },
+                        recordingService: recordingService
+                    )
+                    .padding(.bottom, 80) // Poco sopra la tab registratore
                 }
             }
         }
@@ -723,64 +711,163 @@ class AudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 struct GlassmorphismRecordButton: View {
     let isRecording: Bool
     let action: () -> Void
+    @ObservedObject var recordingService: RecordingService
+    @State private var recordingDuration: TimeInterval = 0
+    @State private var timer: Timer?
+    @State private var isPressed: Bool = false
     
     var body: some View {
-        if #available(iOS 26.0, *) {
-            // Versione iOS 26+ con Liquid Glass
-            Button(action: action) {
-                Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                    .font(.system(size: 72, weight: .bold))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
-                    .padding(8)
+        ZStack {
+            // Timer flottante sopra il pulsante (solo durante registrazione)
+            if isRecording {
+                recordingTimerView
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .scale.combined(with: .opacity)
+                    ))
+                    .zIndex(2)
             }
-            .overlay(
-                Circle()
-                    .stroke(Color.white.opacity(0.25), lineWidth: 2)
-            )
-            .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
-        } else {
-            // Fallback per iOS 18.6-25.x
-            Button(action: action) {
-                ZStack {
-                    // Background con blur effect per liquid glass
-                    RoundedRectangle(cornerRadius: 50)
-                        .fill(.ultraThinMaterial)
-                        .background(
-                            RoundedRectangle(cornerRadius: 50)
-                                .fill(Color.accentColor.opacity(0.1))
-                        )
-                        .overlay(
-                            // Contorno blu trasparente
-                            RoundedRectangle(cornerRadius: 50)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.accentColor.opacity(0.6),
-                                            Color.accentColor.opacity(0.3)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 2
-                                )
-                        )
-                        .shadow(
-                            color: isRecording ? 
-                                Color.red.opacity(0.3) : Color.accentColor.opacity(0.3),
-                            radius: 20,
-                            x: 0,
-                            y: 10
-                        )
-                    
-                    // Icona
-                    Image(systemName: isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                        .font(.system(size: 72, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .frame(width: 120, height: 120)
+            
+            // Pulsante flottante principale
+            floatingRecordButton
+                .zIndex(1)
+        }
+        .onAppear {
+            startTimer()
+        }
+        .onDisappear {
+            stopTimer()
+        }
+        .onChange(of: isRecording) { _, newValue in
+            if newValue {
+                startTimer()
+            } else {
+                stopTimer()
             }
         }
+    }
+    
+    // MARK: - Floating Record Button
+    
+    private var floatingRecordButton: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                action()
+            }
+        }) {
+            ZStack {
+                // Sfondo principale con glassmorphism
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color(.systemBackground).opacity(0.95),
+                                Color(.systemGray6).opacity(0.8)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
+                    .overlay(
+                        // Contorno animato
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        isRecording ? Color.red.opacity(0.8) : Color.blue.opacity(0.8),
+                                        isRecording ? Color.orange.opacity(0.6) : Color.purple.opacity(0.6)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2
+                            )
+                            .scaleEffect(isRecording ? 1.1 : 1.0)
+                            .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: isRecording)
+                    )
+                    .shadow(
+                        color: isRecording ? Color.red.opacity(0.4) : Color.blue.opacity(0.4),
+                        radius: 15,
+                        x: 0,
+                        y: 8
+                    )
+                
+                // Icona principale
+                Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                    .scaleEffect(isPressed ? 0.9 : 1.0)
+                    .animation(.easeInOut(duration: 0.1), value: isPressed)
+            }
+        }
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = pressing
+            }
+        }, perform: {})
+    }
+    
+    // MARK: - Recording Timer View
+    
+    private var recordingTimerView: some View {
+        VStack(spacing: 8) {
+            // Timer principale
+            Text(formatDuration(recordingDuration))
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                .foregroundColor(.white)
+                .monospacedDigit()
+                .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+            
+            // Indicatore di stato
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(.red)
+                    .frame(width: 6, height: 6)
+                    .scaleEffect(isRecording ? 1.2 : 1.0)
+                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isRecording)
+                
+                Text("Registrazione")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white.opacity(0.9))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.black.opacity(0.7))
+                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+        )
+        .offset(y: 60) // Posizionato sotto il pulsante
+    }
+    
+    // MARK: - Timer Management
+    
+    private func startTimer() {
+        if isRecording {
+            recordingDuration = 0
+            timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                recordingDuration += 1
+            }
+        }
+    }
+    
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+        recordingDuration = 0
+    }
+    
+    // MARK: - Format Duration
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }

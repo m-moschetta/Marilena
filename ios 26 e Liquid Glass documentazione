@@ -1,0 +1,310 @@
+La Rivoluzione del Liquid Glass: Un'Analisi Approfondita del Nuovo Paradigma di Design Apple in iOS 26Introduzione: Storia di due "Liquid Glass"L'affermazione è corretta: il Liquid Glass esiste ed è stato presentato con la beta di iOS 26.1 Tuttavia, questa semplice constatazione apre le porte a un mondo di complessità tecnologica, filosofia di design e implicazioni strategiche che meritano un'analisi approfondita. Prima di addentrarsi nelle complessità del nuovo linguaggio di design di Apple, è imperativo fare chiarezza su un'ambiguità fondamentale che ha generato una notevole confusione sia tra i consumatori che nei motori di ricerca. Esistono, infatti, due concetti distinti che condividono il nome "Liquid Glass".Da un lato, esiste un prodotto commerciale preesistente, una categoria di protezioni per schermi basata su una tecnologia di nano-rivestimento.3 Questo "Liquid Glass" è una sostanza fisica, una soluzione liquida di biossido di silicio (SiO2​) che viene applicata direttamente sullo schermo di un dispositivo. Attraverso un processo di polimerizzazione, crea uno strato invisibile, a livello molecolare, che aumenta la durezza del vetro originale, proteggendolo da graffi e urti e conferendogli proprietà idrofobiche e oleofobiche.3 È una tecnologia hardware, un accessorio fisico venduto da numerose aziende come cellhelmet e LUVVITT.4Dall'altro lato, e fulcro di questo rapporto, c'è il "Liquid Glass" di Apple. Questo non è un prodotto fisico, ma un linguaggio di design software, un'estetica dell'interfaccia utente (UI) introdotta con iOS 26 e destinata a unificare l'intero ecosistema di prodotti Apple.9 Il Liquid Glass di Apple è un costrutto puramente digitale, basato su rendering in tempo reale, shader avanzati e accelerazione hardware per creare un'interfaccia che simula le proprietà ottiche del vetro e la fluidità di un liquido.9 È una tecnologia software, il cuore della più grande revisione visiva di Apple da oltre un decennio.La scelta di Apple di adottare un nome già esistente per un prodotto tecnologico correlato (sebbene distinto) è una mossa strategica degna di nota. Suggerisce un tentativo deliberato di ridefinire il termine nell'immaginario collettivo, sfruttando l'enorme peso del proprio marchio per associare "Liquid Glass" in modo indissolubile alla propria esperienza software. Questa decisione, tuttavia, crea una confusione a breve termine che rende indispensabile una chiara distinzione. La tabella seguente delinea le differenze fondamentali tra i due concetti.Tabella 1: Distinzione tra i Concetti di "Liquid Glass"CaratteristicaLiquid Glass di Apple (UI Software)Liquid Glass Commerciale (Rivestimento Hardware)NaturaLinguaggio di design digitale e paradigma di interfaccia utente.Rivestimento fisico a base di nano-particelle.Tecnologia di BaseRendering in tempo reale, shader grafici, accelerazione GPU.Biossido di silicio (SiO2​), processo sol-gel.ScopoCreare un'interfaccia utente dinamica, stratificata e contestuale.Proteggere uno schermo fisico da graffi, urti e impronte.ApplicazioneDistribuito tramite aggiornamento software (iOS 26 e successivi).Applicato fisicamente come un liquido che polimerizza sullo schermo.Caratteristiche ChiaveTraslucido, rifrattivo, adattivo, mutevole, animato.Duro (fino a 9H), idrofobico, oleofobico, strato invisibile.Risolta questa ambiguità, è possibile affermare con certezza la tesi di questo rapporto: il Liquid Glass di Apple non è un semplice abbellimento estetico. Rappresenta il più significativo e strategico cambiamento nella filosofia di design dell'azienda dall'abbandono dello scheumorfismo in favore del design piatto con iOS 7.10 È un tentativo deliberato di armonizzare l'hardware e il software, di unificare un ecosistema di prodotti sempre più vasto e di gettare le basi per la prossima decade di interazione uomo-macchina, un'ambizione resa possibile solo dalla profonda integrazione verticale di Apple su hardware, software e silicio personalizzato.9La Nuova Estetica: Decostruire la Filosofia di Design di ApplePer comprendere appieno la portata del Liquid Glass, è necessario analizzarlo non come una raccolta di effetti visivi, ma come una filosofia di design coerente con principi ben definiti. Questa nuova estetica segna un'evoluzione calcolata, allontanandosi dalla purezza astratta del design piatto per reintrodurre concetti di materialità, profondità e fisica, senza però ricadere nelle metafore letterali dello scheumorfismo.Principi FondamentaliIl Liquid Glass si fonda su tre pilastri concettuali che lavorano in sinergia per creare un'esperienza coesa.Materialità e Luce: Apple descrive il Liquid Glass come un "meta-materiale digitale".13 L'idea centrale è quella di simulare le proprietà ottiche del vetro combinate con la fluidità di un liquido.9 Gli elementi dell'interfaccia non sono più superfici colorate e opache, ma oggetti traslucidi che interagiscono con la luce in modo realistico. Essi riflettono e rifrangono il contenuto sottostante, producendo riflessi speculari (specular highlights) che si muovono dinamicamente in risposta al movimento del dispositivo e alle condizioni di luce ambientale.9 Questo approccio basato sulla fisica della luce conferisce all'interfaccia una tangibilità e una profondità che erano andate perdute nell'era del design piatto.Fluidità e Dinamismo: L'aggettivo "liquido" è la chiave per comprendere l'aspetto interattivo del design. Gli elementi dell'interfaccia utente non sono più statici; essi "mutano" (morph), "si flettono" (flex) e "si trasformano" (transform) in base al contesto e all'interazione dell'utente.9 Una barra delle schede non scompare bruscamente quando si scorre, ma si restringe fluidamente per lasciare spazio al contenuto.9 Un menù non appare dal nulla, ma sembra "sbocciare" dal pulsante che lo ha generato.15 I numeri dell'orologio sulla schermata di blocco si adattano e si spostano per fare spazio a una notifica o per avvolgere il soggetto di una foto.11 Questa fluidità crea transizioni più naturali e meno stridenti, migliorando la coerenza visiva e riducendo il carico cognitivo.Gerarchia e Messa a Fuoco: Il design introduce un chiaro "livello funzionale" di controlli che "galleggia" sopra il contenuto dell'applicazione.9 Questo strato di vetro, che ospita pulsanti, barre di navigazione e altri controlli, può arretrare visivamente per portare in primo piano il contenuto (come nel caso delle barre delle schede che si restringono) o avanzare quando è richiesta un'interazione, stabilendo così una gerarchia visiva inequivocabile.10 L'obiettivo è duplice: rendere i controlli immediatamente disponibili quando servono e farli scomparire elegantemente quando non sono necessari, garantendo che la messa a fuoco sia sempre sul contenuto dell'utente.Un'Evoluzione CalcolataIl Liquid Glass non nasce nel vuoto. Apple stessa ha dichiarato che il nuovo linguaggio di design è esplicitamente influenzato da elementi della sua storia.10 Si possono rintracciare la tridimensionalità e la lucentezza dell'interfaccia Aqua di macOS, la sfocatura gaussiana in tempo reale introdotta con iOS 7, la fluidità delle animazioni dell'iPhone X e la natura adattiva della Dynamic Island.10Tuttavia, l'influenza più profonda e strategica proviene da visionOS, il sistema operativo di Apple Vision Pro.9 Il Liquid Glass adatta i concetti di profondità, stratificazione e interazione con la luce, nati per un'interfaccia di calcolo spaziale 3D, e li traduce per gli schermi 2D tradizionali. Questa mossa non è casuale: crea un ponte stilistico e concettuale tra la nuova frontiera del computing spaziale di Apple e i suoi prodotti più consolidati, abituando gradualmente gli utenti a un nuovo paradigma di interazione e garantendo una coerenza estetica senza precedenti in tutto l'ecosistema.Il Ruolo dell'HardwareÈ fondamentale sottolineare che questa rivoluzione del design è intrinsecamente legata ai progressi hardware di Apple. Il Liquid Glass, con i suoi effetti di rendering in tempo reale, shader complessi e animazioni fluide, è computazionalmente molto esigente.10 È reso possibile solo dalla potenza dei chip Apple Silicon, che ora equipaggiano l'intera gamma di prodotti, dall'Apple Watch all'iPhone, dall'iPad al Mac.9 Questa non è solo una scelta di design, ma una dimostrazione della forza derivante dall'integrazione verticale di Apple. L'azienda può permettersi di implementare un'interfaccia così complessa perché controlla l'hardware, il software e il silicio. Questo crea un vantaggio competitivo significativo: mentre i concorrenti devono progettare per un vasto e frammentato ecosistema di hardware con capacità variabili, Apple può ottimizzare il suo design per un set noto e potente di processori, rendendo il design stesso un elemento di differenziazione difficilmente replicabile.Analisi ComparativaIl posizionamento del Liquid Glass diventa ancora più chiaro se confrontato con altri linguaggi di design.vs. Design Piatto (iOS 7-18): Il Liquid Glass rappresenta un allontanamento deliberato dalla purezza, a volte sterile, del design piatto, un'estetica fortemente associata all'ex capo del design di Apple, Jony Ive.10 Il design piatto è stato spesso criticato per la sua mancanza di "affordance", ovvero di indizi visivi che suggeriscono come un elemento può essere utilizzato (ad esempio, un pulsante piatto può non sembrare cliccabile). Il Liquid Glass affronta questo problema reintroducendo profondità, texture e le proprietà fisiche dello scheumorfismo (come un materiale interagisce con la luce) senza tornare alle sue immagini letterali (come le texture di pelle o legno).12vs. Material Design di Google: Il contrasto con l'approccio di Google è netto. Mentre il Material Design si basa sulla metafora di un "foglio di carta digitale", con superfici tangibili, ombre definite e un'enfasi sulla fisica del movimento nel mondo reale, il Liquid Glass di Apple persegue un'estetica più eterea.16 Si concentra sulle qualità ottiche, sull'interazione con la luce e su una fluidità quasi magica, creando un'interfaccia che sembra meno un oggetto fisico e più un materiale energetico e reattivo.In sintesi, il Liquid Glass è la risposta strategica di Apple alle limitazioni percepite del design piatto. Utilizza i suoi vantaggi hardware per reintrodurre indizi visivi cruciali per la gerarchia e l'interattività, creando un'interfaccia che non è solo bella da vedere, ma anche, in teoria, più intuitiva da usare. È un design che solo Apple poteva realizzare su larga scala, trasformando l'interfaccia utente in una vetrina della sua supremazia tecnologica.Trasformazione a Livello di Sistema: il Liquid Glass in AzioneL'ambizione del Liquid Glass non si limita a un singolo dispositivo o sistema operativo. La sua implementazione rappresenta uno sforzo concertato per creare un'esperienza utente unificata e armoniosa attraverso l'intero ecosistema Apple.9 Questa coesione è sottolineata anche dal nuovo schema di denominazione, che allinea le versioni dei sistemi operativi (iOS 26, iPadOS 26, macOS Tahoe 26, watchOS 26, tvOS 26) sotto lo stesso numero, semplificando il tracciamento delle funzionalità per sviluppatori e utenti.2 Sebbene l'estetica sia condivisa, la sua manifestazione pratica è attentamente adattata alle peculiarità di ogni piattaforma.Esperienze di Sistema FondamentaliL'impatto del Liquid Glass è immediatamente visibile negli elementi più fondamentali dell'interfaccia, quelli con cui gli utenti interagiscono decine di volte al giorno.Schermata di Blocco e Home: La trasformazione inizia dalla prima schermata che un utente vede. La Dock, i widget e le icone delle app sulla schermata Home sono ora realizzati con strati multipli di Liquid Glass, che reagiscono al movimento del dispositivo con riflessi speculari, conferendo loro una profondità e una fisicità prima assenti.9 Viene introdotta una nuova modalità di visualizzazione, "All Clear", che rende le icone completamente trasparenti, come oggetti di vetro puro.10 Sulla schermata di blocco, l'orologio subisce una delle trasformazioni più eleganti: i numeri, realizzati in Liquid Glass, non sono più statici, ma si deformano e si riposizionano dinamicamente per "annidarsi" dietro i soggetti delle foto di sfondo, utilizzando una versione appositamente modificata del font San Francisco per regolare peso, larghezza e altezza di ogni singola cifra.9 Inoltre, con iOS 26 tornano gli sfondi dinamici, che cambiano colore e aspetto durante l'arco della giornata.21Controlli e Navigazione: I componenti base dell'interazione, come pulsanti, interruttori (toggle), cursori (slider) e menù, vengono completamente ripensati. Non sono più elementi statici, ma sono forgiati nel Liquid Glass e galleggiano come un livello funzionale distinto sopra il contenuto.9 La loro caratteristica principale è la capacità di mutare forma: si espandono per offrire più opzioni, si contraggono per ridurre l'ingombro e si trasformano fluidamente da uno stato all'altro.11 Questa natura "liquida" mira a creare un senso di "costanza dell'oggetto": l'utente percepisce un singolo elemento che si trasforma, piuttosto che un oggetto che scompare e un altro che appare, riducendo il carico cognitivo e rendendo l'interfaccia più prevedibile e organica.Barre delle Schede e Barre Laterali: La gestione della navigazione principale nelle app viene rivoluzionata. In iOS 26, le barre delle schede (Tab Bar) si restringono automaticamente quando l'utente scorre verso il basso, massimizzando lo spazio visivo per il contenuto. Non appena l'utente inverte la direzione di scorrimento, la barra si espande di nuovo fluidamente, mantenendo la navigazione sempre a portata di mano.9 Su iPadOS e macOS, dove lo spazio è maggiore, le barre laterali (Sidebar) diventano pannelli di vetro traslucido. Esse non si limitano a sfocare lo sfondo, ma lo rifrangono, distorcendo realisticamente il contenuto retrostante, e riflettono i colori dello sfondo del desktop e degli elementi circostanti, aiutando l'utente a mantenere sempre un senso del contesto spaziale.9Applicazioni Principali RidisegnateL'impatto di questa nuova filosofia si estende a tutte le applicazioni di sistema, che sono state ridisegnate per abbracciare i principi del Liquid Glass.Fotocamera e Foto: L'app Fotocamera riceve un'interfaccia semplificata, progettata per essere più intuitiva.9 L'app Foto, una delle più utilizzate, subisce un'importante riprogettazione che risponde direttamente alle critiche sulla complessità e il disordine dell'interfaccia di iOS 18. Viene reintrodotta una chiara barra dei menù in Liquid Glass nella parte inferiore dello schermo, rendendo la navigazione tra le sezioni (Libreria, Per te, Album) di nuovo semplice e immediata.1Safari: Il browser web di Apple adotta il nuovo stile facendo fluttuare la barra delle schede sopra la pagina web. Come in altre app, questa barra si restringe durante lo scorrimento per non interferire con la lettura.9Messaggi e Telefono: L'app Messaggi diventa più personalizzabile, consentendo agli utenti di aggiungere sfondi alle conversazioni e di creare sondaggi interattivi nelle chat di gruppo.14 L'app Telefono non solo riceve un aggiornamento visivo che sfrutta meglio gli schermi più grandi, ma introduce anche nuove funzionalità intelligenti come il "Call Screening" (che risponde automaticamente alle chiamate da numeri sconosciuti per chiedere chi sta chiamando) e l'"Hold Assist" (che rileva la musica d'attesa e avvisa l'utente quando un operatore torna in linea).14CarPlay: L'estetica del Liquid Glass si estende anche all'esperienza in auto. L'interfaccia di CarPlay viene aggiornata con notifiche di chiamata più compatte che non oscurano la mappa, la possibilità di usare le reazioni "Tapback" in Messaggi, e l'introduzione dei widget e delle Attività in tempo reale (Live Activities) direttamente sullo schermo del veicolo.14In definitiva, la trasformazione operata dal Liquid Glass è pervasiva. Non si tratta di un semplice strato di vernice, ma di una profonda reingegnerizzazione dell'interazione a tutti i livelli del sistema operativo. L'obiettivo è chiaro: creare un'esperienza più fluida, contestuale e visivamente ricca, in cui l'interfaccia non è un ostacolo, ma un partner dinamico che si adatta alle esigenze dell'utente.Per i Costruttori: Guida per Sviluppatori all'Implementazione del Liquid GlassL'introduzione di un nuovo e pervasivo linguaggio di design come il Liquid Glass rappresenta una sfida e un'opportunità significative per la comunità degli sviluppatori. Apple, consapevole di ciò, ha fornito una serie di strumenti, API e linee guida per facilitare la transizione. Questa sezione funge da guida tecnica consolidata, sintetizzando la documentazione ufficiale, i tutorial e le sessioni della WWDC per fornire un quadro completo su come adottare il Liquid Glass nelle applicazioni, sia nuove che esistenti. Il messaggio di fondo di Apple è chiaro: l'adozione del nuovo stile è fortemente incoraggiata, e la via più semplice per farlo passa attraverso l'uso dei componenti di sistema standard e dei framework moderni, in particolare SwiftUI.Concetti Fondamentali per l'AdozionePrima di immergersi nel codice, è essenziale comprendere i principi guida per l'adozione del Liquid Glass.Il Cambio di Mentalità: Gli sviluppatori devono abbandonare il modello mentale del design piatto, basato su livelli opachi e statici. Il nuovo paradigma richiede di pensare in termini di strati sovrapposti: uno sfondo (Background), uno strato di vetro (Glass), uno strato solido per i contenuti critici (Solid) e uno strato dinamico per gli elementi interattivi (Dynamic).25 L'obiettivo è creare profondità e permettere al contenuto di "brillare" attraverso l'interfaccia di controllo.26Adozione Automatica: La buona notizia per molti sviluppatori è che la semplice ricompilazione di un'app con l'SDK di Xcode 26 applicherà automaticamente l'estetica del Liquid Glass a tutti i componenti di sistema standard di SwiftUI, UIKit e AppKit. Pulsanti, cursori, barre di navigazione e barre delle schede esistenti erediteranno il nuovo look senza richiedere modifiche al codice.26 Questo fornisce un aggiornamento di base istantaneo, garantendo che anche le app non modificate non sembrino immediatamente obsolete.La "Scialuppa di Salvataggio" Temporanea: Riconoscendo che le app complesse con molte interfacce personalizzate potrebbero richiedere tempo per l'adattamento, Apple ha fornito un meccanismo di opt-out temporaneo. Aggiungendo la chiave UIDesignRequiresCompatibility con valore true al file Info.plist dell'app, è possibile forzare l'applicazione a mantenere l'aspetto dell'interfaccia utente precedente (stile iOS 18) anche quando viene eseguita su iOS 26.28 È fondamentale, tuttavia, comprendere che questa è una misura transitoria. Apple ha dichiarato che questa opzione sarà rimossa con il rilascio di Xcode 27 l'anno successivo, stabilendo di fatto una scadenza per l'adozione completa del nuovo design.28Linee Guida e Best Practice: Le Human Interface Guidelines (HIG) di Apple sono state aggiornate con principi specifici per il Liquid Glass. Le raccomandazioni chiave includono: dare priorità al contenuto, usare il colore con parsimonia nei controlli per non distrarre, evitare l'affollamento visivo e, soprattutto, rimuovere sfondi personalizzati (colori, gradienti, effetti di sfocatura) da barre di navigazione, barre delle schede e altri controlli standard, poiché questi interferirebbero con gli effetti di vetro forniti dal sistema.25Approfondimento sull'Implementazione in SwiftUISwiftUI, essendo il framework UI moderno e preferito da Apple, riceve il set più ricco e potente di strumenti per lavorare con il Liquid Glass.Applicare l'Effetto: Il modificatore centrale è .glassEffect(). Può essere applicato a qualsiasi vista per conferirle l'aspetto del vetro. Questo modificatore di base può essere configurato in vari modi: specificando una forma diversa dal Capsule predefinito (ad esempio, .rect(cornerRadius: 16)), aggiungendo una tinta di colore con .tint(.purple) e rendendo l'elemento reattivo al tocco con riflessi e animazioni tramite .interactive().31Prestazioni e Fusione con GlassEffectContainer: Quando più elementi con effetto vetro sono presenti e vicini tra loro, Apple raccomanda vivamente di avvolgerli in un GlassEffectContainer. Questo contenitore ha due scopi cruciali: ottimizza le prestazioni di rendering raggruppando gli effetti e, cosa più importante dal punto di vista visivo, permette agli elementi di "fondersi" e "mutare" l'uno nell'altro in modo fluido, creando l'estetica "liquida" che dà il nome al design.31Transizioni e Raggruppamenti Avanzati:glassEffectID: Per creare animazioni di trasformazione complesse (ad esempio, un singolo pulsante che si espande in un gruppo di pulsanti), è necessario utilizzare il modificatore .glassEffectID(_:in:). Associando un ID univoco (all'interno di un @Namespace) a ciascun elemento di vetro, si permette a SwiftUI di tracciare questi elementi attraverso i cambiamenti di stato della vista e di animare la loro trasformazione in modo intelligente.33glassEffectUnion: Questo modificatore consente di unire le geometrie di più viste separate in un'unica forma di vetro coesa. È particolarmente utile per layout complessi o dinamici in cui si desidera che elementi logicamente collegati condividano un unico sfondo di vetro.31matchedTransitionSource e .navigationTransition(.zoom(...)): Questa coppia di modificatori viene utilizzata per creare le nuove transizioni di tipo "morphing" per le viste modali (sheet). Applicando il primo al pulsante di origine e il secondo alla vista modale, si ottiene un'animazione in cui la sheet sembra emergere fluidamente dal pulsante che l'ha attivata, rafforzando la connessione visiva tra l'azione e il risultato.38Componenti Specifici: TabView ora supporta un nuovo ruolo, .search, per una delle sue Tab. Questo separa visivamente il pulsante di ricerca dagli altri, replicando l'aspetto visto in molte app di sistema.39NavigationSplitView introduce il modificatore .backgroundExtensionEffect(), che permette al contenuto principale di estendersi visivamente dietro la barra laterale, creando un effetto a tutto schermo immersivo.40Modernizzare con UIKitPer le vaste codebase esistenti in UIKit, Apple fornisce API per adottare il Liquid Glass senza una riscrittura completa.Applicare Effetti a Viste Personalizzate: L'approccio principale consiste nell'utilizzare UIVisualEffectView in combinazione con la nuova classe UIGlassEffect. Questo effetto può essere applicato o rimosso all'interno di un blocco di animazione per creare una transizione di "materializzazione".27Aggiornare i Controlli Standard: I pulsanti (UIButton) possono essere aggiornati al nuovo stile semplicemente impostando la loro configuration su .glass() o .prominentGlass().42Navigazione e Barre degli Strumenti: UINavigationBar e UIToolbar adottano automaticamente l'aspetto del vetro. Gli sviluppatori possono usare UIBarButtonItem.flexibleSpace per controllare il raggruppamento degli elementi.27 Una nuova proprietà, largeSubtitleView, su UINavigationItem consente di inserire viste personalizzate sotto il titolo grande, come visto nell'app Mail.27Viste a Schede e Divise: UITabBarController ottiene una nuova proprietà, tabBarMinimizeBehavior, per replicare l'effetto di restringimento durante lo scorrimento.42 Nelle UISplitViewController, il contenuto può estendersi dietro la barra laterale utilizzando la nuova vista UIBackgroundExtensionView.27Best Practice per AppKit su macOS TahoeAnche le app per Mac beneficiano di una profonda integrazione con il nuovo design.Armonia tra Finestra e Barra degli Strumenti: Il nuovo design di macOS presenta finestre con angoli più arrotondati, progettati per essere concentrici con le barre degli strumenti in vetro.44 Gli sviluppatori possono usare NSToolbarItemGroup per personalizzare il raggruppamento automatico dei controlli nella barra degli strumenti.44Barre Laterali e Contenuto: Come su iPadOS, gli sviluppatori dovrebbero rimuovere le vecchie NSVisualEffectView dalle barre laterali per permettere al nuovo effetto di sistema di trasparire. NSBackgroundExtensionView è lo strumento da utilizzare per creare l'effetto di contenuto a tutto schermo dietro le barre laterali fluttuanti.44Effetti sul Bordo dello Scorrimento: Il sistema applica automaticamente un effetto visivo (Scroll Edge Effect) dove il contenuto in scorrimento incontra un elemento di vetro per garantire la leggibilità. È importante rimuovere qualsiasi effetto di sfondo personalizzato che possa interferire.44La Nuova Iconografia delle AppUn cambiamento fondamentale riguarda le icone delle app, che non sono più immagini statiche.L'Approccio a Strati: Le icone devono ora essere composte da più strati semplici, sovrapposti e semitrasparenti.10 Il sistema utilizza questi strati per generare dinamicamente effetti di luce e riflessi quando il dispositivo viene mosso.Icon Composer: Apple fornisce un nuovo strumento, Icon Composer, fornito con Xcode 26. Questo è lo strumento obbligatorio per assemblare le nuove icone. Permette agli sviluppatori di importare i singoli livelli, regolarne l'opacità e visualizzare in anteprima come l'icona risponderà dinamicamente agli effetti di sistema.16La transizione al Liquid Glass è un chiaro segnale da parte di Apple. L'azienda sta spingendo l'intero ecosistema verso un'estetica più moderna e dinamica, e sta usando questa transizione per incentivare fortemente l'adozione dei suoi framework e componenti più recenti. Per gli sviluppatori, la strada è tracciata: adattarsi non è solo una questione estetica, ma una necessità competitiva.Tabella 2: Riferimento Rapido alle API Chiave del Liquid GlassFrameworkAPI / ModificatoreScopoSwiftUI.glassEffect()Applica l'effetto Liquid Glass di base a una vista.SwiftUIGlassEffectContainerContenitore per ottimizzare le prestazioni e permettere la fusione di più effetti di vetro.SwiftUI.glassEffectID()Assegna un ID per animazioni di trasformazione complesse tra viste di vetro.SwiftUI.backgroundExtensionEffect()Estende il contenuto visivamente dietro barre laterali e ispettori.SwiftUITab(role:.search)Crea una scheda di ricerca separata visivamente nella barra delle schede.UIKitUIGlassEffectLa classe UIVisualEffect per applicare l'effetto vetro a viste personalizzate.UIKitUIButton.Configuration.glass()Configurazione per dare a un pulsante l'aspetto del Liquid Glass.UIKittabBarMinimizeBehaviorProprietà su UITabBarController per abilitare il restringimento durante lo scorrimento.UIKitUIBackgroundExtensionViewVista per estendere il contenuto dietro le barre laterali su iPad.AppKitNSToolbarItemGroupControlla il raggruppamento degli elementi nella barra degli strumenti di macOS.AppKitNSBackgroundExtensionViewVista per estendere il contenuto dietro le barre laterali su Mac.StrumentiIcon ComposerNuova applicazione per creare le icone delle app a più strati richieste dal nuovo design.Una Lucentezza Controversa: Accoglienza Critica e il Dibattito sull'AccessibilitàL'introduzione del Liquid Glass ha generato un'ondata di reazioni tanto intense quanto polarizzate. Se da un lato molti utenti e designer hanno lodato l'ambizione estetica e l'impressionante prodezza tecnica degli effetti 10, dall'altro un coro di critiche si è levato da parte di esperti di accessibilità e di una fetta significativa di utenti, sollevando seri dubbi sulla sua usabilità pratica. Questa sezione analizza la natura controversa del nuovo design, esaminando il conflitto fondamentale tra la sua estetica e i principi di un design inclusivo.Un Design PolarizzanteIl Liquid Glass è stato accolto con recensioni contrastanti. I sostenitori ne ammirano la fluidità, la profondità e il modo in cui l'interfaccia sembra "viva", reagendo al tocco e al movimento.11 Tuttavia, altri lo trovano visivamente troppo carico, distraente e inutilmente complesso, criticando in particolare la tendenza a scomporre elementi unificati, come le barre degli strumenti, in una serie di "bolle" fluttuanti separate, percepite come un vezzo stilistico passeggero.10Il Conflitto Centrale con l'AccessibilitàLe critiche più severe e fondate riguardano l'impatto del Liquid Glass sull'accessibilità. I principi stessi su cui si basa il design — traslucenza, riflessi e movimento — entrano in diretto conflitto con le esigenze di molti utenti con disabilità visive, cognitive o motorie.Basso Contrasto: La natura traslucida e rifrattiva del vetro è la causa principale di un problema pervasivo: il basso rapporto di contrasto. Quando testo o icone si sovrappongono a uno sfondo complesso o a un'immagine, l'effetto di sfocatura e trasparenza può rendere quasi impossibile la lettura, specialmente in condizioni di luce intensa o per utenti con bassa visione.10 Un'analisi condotta durante la fase beta ha misurato rapporti di contrasto fino a 1.5:1 in alcune aree dell'interfaccia, un valore drasticamente inferiore al minimo di 4.5:1 raccomandato dalle Linee Guida per l'Accessibilità dei Contenuti Web (WCAG).49 Questa non è una svista, ma una conseguenza diretta della scelta di design.Rumore Visivo e Carico Cognitivo: I continui riflessi speculari, i bagliori e le animazioni di trasformazione, sebbene esteticamente piacevoli per alcuni, creano un notevole "rumore visivo". Questo può essere estremamente distraente e opprimente per utenti con sensibilità cognitive o sensoriali, come quelli nello spettro autistico o con disturbi dell'attenzione.49 Inoltre, la fusione dei confini tra contenuto e controlli rende difficile distinguere a colpo d'occhio cosa sia interattivo e cosa sia decorativo. Questa ambiguità aumenta il carico cognitivo per tutti gli utenti, costringendoli a uno sforzo mentale maggiore per decifrare l'interfaccia.17Le Misure di Mitigazione di AppleApple, da tempo attenta all'accessibilità, ha previsto delle opzioni di sistema per mitigare questi problemi. Tuttavia, la natura di queste soluzioni è al centro del dibattito.Riduci Trasparenza: Questa impostazione, presente da tempo in iOS, rende gli effetti di vetro più opachi e "satinati", aumentando la leggibilità del testo e delle icone soprastanti.49Aumenta Contrasto: Questa opzione forza gli elementi dell'interfaccia ad assumere colori a contrasto più elevato (tipicamente bianco o nero puro) e aggiunge bordi per delinearli meglio.49Riduci Movimento: Questa impostazione disabilita o semplifica le animazioni fluide e le transizioni di trasformazione, che possono causare chinetosi (mal di movimento) in alcuni utenti.49Critica delle Misure di MitigazioneSebbene queste impostazioni siano essenziali e benvenute, la critica fondamentale è che esse agiscono come soluzioni reattive a un design che presenta problemi di accessibilità per impostazione predefinita. L'onere viene trasferito all'utente, che deve essere consapevole del problema, sapere dove trovare l'impostazione e attivarla per ottenere un'interfaccia utilizzabile. Questo approccio contraddice i principi del design inclusivo, secondo cui l'accessibilità dovrebbe essere integrata nel prodotto fin dall'inizio, e non essere un'opzione da attivare per "correggere" un'esperienza di base difettosa.49Il Ciclo di Iterazione della BetaÈ interessante notare come Apple stessa sembri essere consapevole di questo delicato equilibrio. Durante il ciclo di sviluppo delle beta di iOS 26, l'intensità degli effetti del Liquid Glass è stata oggetto di continue modifiche. La beta 3, ad esempio, ha notevolmente attenuato la trasparenza e la distorsione, rendendo l'effetto più simile a un vetro smerigliato. Questa modifica è stata però annullata con la beta 4, che ha ripristinato gli effetti più pronunciati delle prime versioni.21 Questo andirivieni suggerisce un dibattito interno a Apple su come bilanciare la visione estetica originale con le preoccupazioni pratiche di leggibilità e usabilità.In conclusione, il lancio del Liquid Glass segna un momento di forte tensione per Apple. La sua reputazione, costruita su decenni di design intuitivo e "che funziona e basta", viene messa alla prova dalle sue stesse ambizioni estetiche. L'azienda ha deliberatamente scelto di lanciare un'interfaccia con noti compromessi di accessibilità, affidandosi a impostazioni secondarie per renderla fruibile da tutti. Questa scelta solleva una domanda fondamentale sul futuro del design Apple: l'estetica sta prendendo il sopravvento sull'usabilità universale, uno dei pilastri del suo successo passato? Il dibattito è aperto e la risposta plasmerà l'esperienza di milioni di utenti negli anni a venire.Distribuzione e Compatibilità: il Lancio di iOS 26L'introduzione di un aggiornamento così fondamentale come iOS 26, con la sua rivoluzionaria interfaccia Liquid Glass, segue un preciso e consolidato calendario di rilascio da parte di Apple. Comprendere questa tempistica e, soprattutto, la compatibilità dei dispositivi è cruciale per utenti e sviluppatori che si preparano alla transizione. La decisione su quali dispositivi supporteranno il nuovo sistema operativo è particolarmente significativa, poiché rivela le esigenze hardware della nuova estetica e ne definisce di fatto il ciclo di vita.Cronologia di RilascioIl percorso di iOS 26 dal suo annuncio al rilascio pubblico segue un processo a più fasi, progettato per raccogliere feedback e risolvere i bug.Annuncio Ufficiale: iOS 26 e il design Liquid Glass sono stati presentati per la prima volta al mondo il 9 giugno 2025, durante il keynote di apertura della Worldwide Developers Conference (WWDC) di Apple.2Beta per Sviluppatori: Immediatamente dopo l'annuncio, il 9 giugno 2025, è stata rilasciata la prima beta per gli sviluppatori registrati. Le beta successive sono state distribuite a intervalli di circa due settimane durante i mesi di giugno e luglio, introducendo modifiche e affinamenti, in particolare all'implementazione del Liquid Glass.2Beta Pubblica: Per consentire a un pubblico più ampio di testare il nuovo sistema operativo, Apple ha previsto il rilascio della prima beta pubblica intorno al 23 luglio 2025. Questa versione, basata sulla quarta beta per sviluppatori, è generalmente più stabile e adatta a un uso quotidiano, sebbene ancora soggetta a bug.1Rilascio Pubblico Finale: La versione definitiva e stabile di iOS 26 è attesa per la metà di settembre 2025. Questo rilascio coincide tradizionalmente con il lancio della nuova generazione di iPhone, in questo caso la serie iPhone 17.2Compatibilità dei DispositiviLa decisione più impattante per gli utenti riguarda quali modelli di iPhone saranno in grado di eseguire iOS 26. Le esigenze computazionali del Liquid Glass hanno giocato un ruolo determinante in questa scelta.Supporto Interrotto: iOS 26 cessa il supporto per tutti i dispositivi dotati del chip A12 Bionic. Questo significa che i seguenti modelli, molto popolari al loro tempo, non riceveranno l'aggiornamento e il loro ultimo sistema operativo rimarrà iOS 18:iPhone XSiPhone XS MaxiPhone XR 1Questa decisione, sebbene in linea con il ciclo di vita di 5-6 anni che Apple garantisce tipicamente ai suoi dispositivi, è degna di nota. Il chip A12 Bionic è stato un processore estremamente potente, il primo a 7nm del settore consumer. La sua esclusione suggerisce che i requisiti grafici del Liquid Glass, con il suo rendering in tempo reale e gli effetti di shader, rappresentano una nuova e più esigente soglia di prestazioni. L'interfaccia utente stessa, e non solo le nuove funzionalità, diventa un fattore primario nel determinare l'obsolescenza dell'hardware. Questo lega indissolubilmente l'estetica del software al ciclo di aggiornamento dell'hardware, creando un nuovo e potente incentivo per gli utenti con dispositivi più vecchi, ma ancora performanti, a passare a un modello più recente.La tabella seguente fornisce un riepilogo chiaro e definitivo della compatibilità dei dispositivi con iOS 26.Tabella 3: Compatibilità dei Dispositivi con iOS 26Dispositivi SupportatiDispositivi Non Supportati (Fine del supporto con iOS 18)Serie iPhone 17 (prevista)iPhone XSSerie iPhone 16iPhone XS MaxSerie iPhone 15iPhone XRSerie iPhone 14iPhone XSerie iPhone 13iPhone 8 e 8 PlusSerie iPhone 12Tutti i modelli precedentiSerie iPhone 11iPhone SE (3ª generazione)iPhone SE (2ª generazione)Conclusione: il Futuro è Fluido e TrasparenteL'analisi approfondita del Liquid Glass rivela una verità molto più complessa di quella contenuta nell'affermazione iniziale. Sebbene sia corretto che il Liquid Glass sia reale e sia stato introdotto con la beta di iOS 26, questa constatazione è solo il punto di partenza di una narrazione che intreccia ambizione tecnologica, strategia di ecosistema e un profondo dibattito sul futuro dell'interazione uomo-macchina. Il Liquid Glass non è un semplice restyling; è una dichiarazione d'intenti, un momento cruciale che definisce la traiettoria di Apple per il prossimo decennio.Questo rapporto ha dimostrato che il Liquid Glass è, prima di tutto, una manifestazione della supremazia di Apple nell'integrazione verticale. È un'interfaccia utente computazionalmente esigente che l'azienda può implementare su vasta scala solo perché controlla ogni aspetto della catena, dal silicio personalizzato al software e all'hardware. Questa capacità trasforma il design stesso in un vantaggio competitivo, un'estetica che i concorrenti, operando in un ecosistema frammentato, non possono replicare facilmente. È una mossa strategica che mira a unificare l'intero portafoglio di prodotti sotto un'unica, coerente filosofia di design, rendendo il passaggio tra iPhone, iPad, Mac e Vision Pro un'esperienza più fluida e intuitiva che mai.Tuttavia, questa ambizione estetica non è priva di costi. La controversia sull'accessibilità è forse l'aspetto più critico e rivelatore del Liquid Glass. Scegliendo un design che, per sua natura, compromette la leggibilità e aumenta il carico cognitivo per una parte significativa degli utenti, Apple ha innescato un dibattito fondamentale sul proprio DNA. La tensione tra la ricerca della bellezza e la garanzia di un'usabilità universale è palpabile. L'affidarsi a impostazioni di accessibilità reattive, piuttosto che a un design intrinsecamente inclusivo, segna un potenziale cambiamento di priorità che sfida la storica reputazione di Apple di creare prodotti che "funzionano e basta" per tutti.Per gli sviluppatori, il messaggio è inequivocabile. Il Liquid Glass è l'incentivo più forte mai creato da Apple per spingere la comunità verso l'adozione dei suoi framework moderni, in particolare SwiftUI. La facilità con cui i componenti standard ereditano il nuovo look, contrapposta alla complessità dell'implementazione su interfacce personalizzate, crea un percorso di minor resistenza che allinea gli interessi degli sviluppatori con gli obiettivi strategici di Apple. Le app che non si adatteranno rischiano di apparire rapidamente obsolete, creando una pressione competitiva per abbracciare il nuovo paradigma.In definitiva, il Liquid Glass è il linguaggio visivo che traghetterà Apple nella sua prossima era. Funge da ponte tra le interfacce 2D a cui siamo abituati e il mondo tridimensionale e spaziale inaugurato da visionOS, abituando gli utenti a concetti di profondità, luce e materialità digitale. Prepara il terreno per future innovazioni hardware, come il vociferato iPhone "Glasswing" completamente in vetro 12, dove la distinzione tra software e hardware diventerà ancora più labile.Il futuro che Apple immagina è fluido, trasparente e dinamico. Il Liquid Glass è la prima, audace pennellata su questa nuova tela. Resta da vedere se, nelle iterazioni future, questa visione saprà conciliare la sua abbagliante bellezza con la promessa fondamentale di una tecnologia che sia veramente per tutti.
+
+IndiceSwiftUIApplicare l'Effetto di BaseConfigurare l'Effetto (Forma, Tinta, Interattività)Stili per i PulsantiContenitori per Prestazioni e Fusione (GlassEffectContainer)Animazioni di Trasformazione (Morphing) con glassEffectIDUnire Geometrie con glassEffectUnionTransizioni per Viste Modali (Sheet)Barra delle Schede con Ruolo di RicercaEstendere lo Sfondo dietro le Barre LateraliUIKitApplicare l'Effetto a Viste PersonalizzateConfigurare i PulsantiComportamento di Minimizzazione della Barra delle SchedeEstendere lo Sfondo dietro le Barre Laterali (iPad)Personalizzare la Barra di NavigazioneAppKit (macOS)Estendere lo Sfondo dietro le Barre LateraliRaggruppare Elementi nella Barra degli StrumentiOpt-Out TemporaneoDisattivare il Liquid Glass (Soluzione Transitoria)1. SwiftUIApplicare l'Effetto di BaseIl modo più semplice per applicare l'effetto Liquid Glass a qualsiasi vista è usare il modificatore .glassEffect(). Per impostazione predefinita, utilizza una forma a capsula.1Swiftimport SwiftUI
+
+struct BasicGlassEffectView: View {
+    var body: some View {
+        Text("Hello, Liquid Glass!")
+           .font(.title)
+           .padding()
+           .glassEffect() // Applica l'effetto di base
+    }
+}
+Configurare l'Effetto (Forma, Tinta, Interattività)L'effetto può essere personalizzato per cambiare la forma, aggiungere un colore e renderlo interattivo, in modo che reagisca al tocco.4Swiftimport SwiftUI
+
+struct ConfiguredGlassEffectView: View {
+    var body: some View {
+        VStack(spacing: 30) {
+            // Cambiare la forma in un rettangolo con angoli arrotondati
+            Text("Forma Personalizzata")
+               .padding()
+               .glassEffect(in:.rect(cornerRadius: 16.0))
+
+            // Aggiungere una tinta di colore e renderlo interattivo
+            Text("Tinta e Interattività")
+               .padding()
+               .glassEffect(.regular.tint(.purple).interactive())
+        }
+    }
+}
+Stili per i PulsantiPer i pulsanti, puoi usare il modificatore .glassEffect() o, più semplicemente, lo stile .buttonStyle(.glass).4Swiftimport SwiftUI
+
+struct GlassButtonView: View {
+    var body: some View {
+        VStack(spacing: 30) {
+            // Usando il modificatore.glassEffect()
+            Button("Premi Qui") {
+                // Azione del pulsante
+            }
+           .padding()
+           .background(Color.blue)
+           .foregroundColor(.white)
+           .clipShape(Capsule())
+           .glassEffect()
+
+            // Usando lo stile dedicato.buttonStyle()
+            Button("Stile Vetro") {
+                // Azione del pulsante
+            }
+           .buttonStyle(.glass)
+        }
+    }
+}
+Contenitori per Prestazioni e Fusione (GlassEffectContainer)Quando hai più elementi con effetto vetro vicini, avvolgili in un GlassEffectContainer per ottimizzare il rendering e consentire loro di fondersi visivamente in modo fluido.4Swiftimport SwiftUI
+
+struct GlassContainerView: View {
+    var body: some View {
+        // Il contenitore permette agli effetti di vetro di fondersi
+        GlassEffectContainer {
+            HStack {
+                Image(systemName: "star.fill")
+                   .font(.largeTitle)
+                   .padding()
+                   .glassEffect()
+
+                Image(systemName: "heart.fill")
+                   .font(.largeTitle)
+                   .padding()
+                   .glassEffect()
+            }
+        }
+    }
+}
+Animazioni di Trasformazione (Morphing) con glassEffectIDPer creare animazioni fluide in cui un elemento si trasforma in un altro, usa glassEffectID all'interno di un GlassEffectContainer. Questo richiede un @Namespace per tracciare gli elementi attraverso i cambiamenti di stato.2Swiftimport SwiftUI
+
+struct MorphingGlassView: View {
+    @State private var isExpanded = false
+    @Namespace private var animationNamespace
+
+    var body: some View {
+        GlassEffectContainer {
+            if isExpanded {
+                // Stato espanso: tre pulsanti separati
+                HStack {
+                    Button(action: {}) { Image(systemName: "pencil") }
+                       .glassEffectID("item1", in: animationNamespace)
+
+                    Button(action: {}) { Image(systemName: "eraser") }
+                       .glassEffectID("item2", in: animationNamespace)
+
+                    Button(action: {}) { Image(systemName: "trash") }
+                       .glassEffectID("item3", in: animationNamespace)
+                }
+               .buttonStyle(.glass)
+            } else {
+                // Stato compatto: un singolo pulsante
+                Button("Apri") {
+                    // Azione
+                }
+               .glassEffectID("item1", in: animationNamespace)
+               .buttonStyle(.glass)
+            }
+        }
+       .onTapGesture {
+            withAnimation(.spring()) {
+                isExpanded.toggle()
+            }
+        }
+    }
+}
+Unire Geometrie con glassEffectUnionUsa .glassEffectUnion per unire più viste separate in un'unica forma di vetro, anche se non sono nello stesso contenitore di layout.4Swiftimport SwiftUI
+
+struct UnionGlassView: View {
+    @Namespace private var unionNamespace
+
+    var body: some View {
+        GlassEffectContainer {
+            VStack {
+                Text("Elemento Superiore")
+                   .padding()
+                   .glassEffectUnion(id: "unifiedShape", namespace: unionNamespace)
+
+                Spacer().frame(height: 50)
+
+                Text("Elemento Inferiore")
+                   .padding()
+                   .glassEffectUnion(id: "unifiedShape", namespace: unionNamespace)
+            }
+        }
+    }
+}
+Transizioni per Viste Modali (Sheet)Per creare una transizione in cui una vista modale (sheet) sembra "sbocciare" dal pulsante che l'ha generata, combina matchedTransitionSource e navigationTransition.6Swiftimport SwiftUI
+
+struct MorphingSheetView: View {
+    @State private var showSheet = false
+    @Namespace private var transition
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                // Contenuto principale
+            }
+           .toolbar {
+                ToolbarItem(placement:.bottomBar) {
+                    Button("Mostra Dettagli") {
+                        showSheet = true
+                    }
+                   .buttonStyle(.glass)
+                   .matchedTransitionSource(id: "detailsButton", in: transition)
+                }
+            }
+           .sheet(isPresented: $showSheet) {
+                Text("Questa è la vista modale.")
+                   .presentationDetents([.medium,.large])
+                   .navigationTransition(.zoom(sourceID: "detailsButton", in: transition))
+            }
+        }
+    }
+}
+Barra delle Schede con Ruolo di RicercaPer replicare la barra delle schede di sistema con un pulsante di ricerca separato, assegna il ruolo .search a una delle Tab.7Swiftimport SwiftUI
+
+struct SearchTabView: View {
+    @State private var searchText = ""
+
+    var body: some View {
+        TabView {
+            Text("Prima Scheda")
+               .tabItem { Label("Home", systemImage: "house") }
+
+            Text("Seconda Scheda")
+               .tabItem { Label("Preferiti", systemImage: "star") }
+
+            // La scheda di ricerca viene separata visivamente
+            NavigationStack {
+                Text("Contenuto della ricerca qui")
+            }
+           .tabItem { Label("Cerca", systemImage: "magnifyingglass") }
+           .tab(role:.search)
+        }
+       .searchable(text: $searchText)
+    }
+}
+Estendere lo Sfondo dietro le Barre LateraliPer creare un effetto immersivo in cui il contenuto si estende visivamente dietro una barra laterale, usa .backgroundExtensionEffect().9Swiftimport SwiftUI
+
+struct BackgroundExtensionView: View {
+    var body: some View {
+        NavigationSplitView {
+            List {
+                Text("Barra Laterale")
+            }
+        } detail: {
+            ZStack {
+                Image("sfondo_panoramico")
+                   .resizable()
+                   .scaledToFill()
+                   .edgesIgnoringSafeArea(.all)
+                    // Questo modificatore estende l'immagine dietro la barra laterale
+                   .backgroundExtensionEffect()
+
+                Text("Contenuto Principale")
+                   .font(.largeTitle)
+                   .foregroundStyle(.white)
+            }
+        }
+    }
+}
+2. UIKitApplicare l'Effetto a Viste PersonalizzateIn UIKit, l'effetto si applica usando UIVisualEffectView con la nuova classe UIGlassEffect. L'effetto può essere animato.11Swiftimport UIKit
+
+class CustomGlassViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        let customView = UIView(frame: CGRect(x: 50, y: 100, width: 200, height: 100))
+        customView.backgroundColor =.systemPurple
+        view.addSubview(customView)
+
+        let effectView = UIVisualEffectView()
+        effectView.frame = customView.bounds
+        customView.addSubview(effectView)
+
+        // Applica l'effetto vetro con un'animazione
+        let glassEffect = UIGlassEffect()
+        UIView.animate(withDuration: 0.5) {
+            effectView.effect = glassEffect
+        }
+    }
+}
+Configurare i PulsantiPer aggiornare un UIButton al nuovo stile, imposta la sua configuration su .glass() o .prominentGlass().11Swiftimport UIKit
+
+func createGlassButton() -> UIButton {
+    var config = UIButton.Configuration.glass()
+    config.title = "Pulsante di Vetro"
+    config.image = UIImage(systemName: "star")
+    config.imagePadding = 8
+
+    let button = UIButton(configuration: config)
+    return button
+}
+
+func createProminentGlassButton() -> UIButton {
+    // Lo stile prominente ha uno sfondo più evidente
+    var config = UIButton.Configuration.prominentGlass()
+    config.title = "Pulsante Prominente"
+    config.baseBackgroundColor =.systemIndigo
+
+    let button = UIButton(configuration: config)
+    return button
+}
+Comportamento di Minimizzazione della Barra delle SchedePer far sì che la UITabBar si restringa durante lo scorrimento, imposta la proprietà tabBarMinimizeBehavior sul UITabBarController.11Swiftimport UIKit
+
+class MinimizingTabBarController: UITabBarController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        // La barra delle schede si minimizzerà quando l'utente scorre verso il basso
+        self.tabBarMinimizeBehavior =.onScrollDown
+    }
+}
+Estendere lo Sfondo dietro le Barre Laterali (iPad)Su iPad, per estendere il contenuto dietro una barra laterale in una UISplitViewController, usa la nuova vista UIBackgroundExtensionView.13Swiftimport UIKit
+
+func setupBackgroundExtension(in splitViewController: UISplitViewController) {
+    guard let detailViewController = splitViewController.viewController(for:.secondary) else { return }
+
+    let backgroundImageView = UIImageView(image: UIImage(named: "sfondo_panoramico"))
+    backgroundImageView.contentMode =.scaleAspectFill
+
+    // La UIBackgroundExtensionView gestisce il posizionamento e l'effetto di sfocatura
+    let extensionView = UIBackgroundExtensionView(contentView: backgroundImageView)
+    extensionView.frame = detailViewController.view.bounds
+    extensionView.autoresizingMask =
+
+    detailViewController.view.insertSubview(extensionView, at: 0)
+}
+Personalizzare la Barra di NavigazioneUINavigationItem ora ha una proprietà largeSubtitleView per inserire viste personalizzate sotto il titolo grande, come nell'app Mail.13Swiftimport UIKit
+
+func setupNavigationSubtitle(for navigationItem: UINavigationItem) {
+    let subtitleButton = UIButton(type:.system)
+    subtitleButton.setTitle("Filtro Attivo", for:.normal)
+    subtitleButton.setImage(UIImage(systemName: "line.3.horizontal.decrease.circle"), for:.normal)
+    
+    navigationItem.largeSubtitleView = subtitleButton
+}
+3. AppKit (macOS)Estendere lo Sfondo dietro le Barre LateraliSimilmente a UIKit, AppKit usa NSBackgroundExtensionView per estendere il contenuto dietro una barra laterale fluttuante.14Swiftimport AppKit
+
+func setupMacBackgroundExtension(in splitViewItem: NSSplitViewItem) {
+    let backgroundImageView = NSImageView(image: NSImage(named: "sfondo_panoramico")!)
+    backgroundImageView.imageScaling =.scaleAxesIndependently
+
+    let extensionView = NSBackgroundExtensionView(contentView: backgroundImageView)
+    extensionView.frame = splitViewItem.viewController.view.bounds
+    extensionView.autoresizingMask = [.width,.height]
+
+    splitViewItem.viewController.view.addSubview(extensionView, positioned:.below, relativeTo: nil)
+}
+Raggruppare Elementi nella Barra degli StrumentiPer controllare il raggruppamento degli elementi in una NSToolbar, usa NSToolbarItemGroup.14Swiftimport AppKit
+
+func createToolbarItemGroup() -> NSToolbarItemGroup {
+    let item1 = NSToolbarItem(itemIdentifier:.init("item1"))
+    item1.image = NSImage(systemSymbolName: "star", accessibilityDescription: "Preferito")
+
+    let item2 = NSToolbarItem(itemIdentifier:.init("item2"))
+    item2.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Elimina")
+
+    // Questi due elementi condivideranno uno sfondo di vetro
+    let group = NSToolbarItemGroup(itemIdentifier:.init("actionGroup"))
+    group.subitems = [item1, item2]
+
+    return group
+}
+4. Opt-Out TemporaneoDisattivare il Liquid Glass (Soluzione Transitoria)Se hai bisogno di più tempo per adattare la tua app, puoi disattivare temporaneamente il Liquid Glass aggiungendo una chiave al tuo file Info.plist. Ricorda che questa opzione sarà rimossa in Xcode 27.15File: Info.plistXML<key>UIDesignRequiresCompatibility</key>
+<true/>

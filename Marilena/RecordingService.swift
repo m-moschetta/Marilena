@@ -7,11 +7,13 @@ import Combine
 class RecordingService: NSObject, ObservableObject {
     @Published var recordingState: RecordingState = .idle
     @Published var isPermissionGranted = false
+    @Published var currentAudioLevel: Float = 0.0
     
     private var audioRecorder: AVAudioRecorder?
     private var audioSession: AVAudioSession?
     private var locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
+    private var audioLevelTimer: Timer?
     
     private let context: NSManagedObjectContext
     private let documentsDirectory: URL
@@ -23,6 +25,33 @@ class RecordingService: NSObject, ObservableObject {
         print("✅ RecordingService inizializzato")
         setupLocationManager()
         checkPermissions()
+    }
+    
+    // MARK: - Audio Level Monitoring
+    
+    private func startAudioLevelMonitoring() {
+        audioLevelTimer?.invalidate()
+        audioLevelTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.updateAudioLevel()
+        }
+    }
+    
+    private func stopAudioLevelMonitoring() {
+        audioLevelTimer?.invalidate()
+        audioLevelTimer = nil
+        currentAudioLevel = 0.0
+    }
+    
+    private func updateAudioLevel() {
+        guard let recorder = audioRecorder, recorder.isRecording else { return }
+        
+        recorder.updateMeters()
+        let averagePower = recorder.averagePower(forChannel: 0)
+        
+        // Converti da dB a valore normalizzato (0.0 - 1.0)
+        // Il range tipico è da -160 dB (silenzio) a 0 dB (massimo)
+        let normalizedLevel = max(0.0, (averagePower + 160.0) / 160.0)
+        currentAudioLevel = Float(normalizedLevel)
     }
     
     // MARK: - Public Methods
@@ -88,6 +117,7 @@ class RecordingService: NSObject, ObservableObject {
             
             if success {
                 recordingState = .recording
+                startAudioLevelMonitoring() // Avvia il timer per il monitoraggio del livello audio
                 print("✅ Recording started successfully")
             } else {
                 print("❌ Failed to start recording")
@@ -111,12 +141,13 @@ class RecordingService: NSObject, ObservableObject {
             return
         }
         
-        recordingState = .processing
-        
         let duration = recorder.currentTime
         print("⏱️ Recording duration: \(duration) seconds")
         
         recorder.stop()
+        recordingState = .processing
+        stopAudioLevelMonitoring() // Ferma il timer del livello audio
+        
         print("⏹️ Recorder stopped")
         
         // Wait a bit for file to be written
