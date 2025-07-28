@@ -34,20 +34,53 @@ struct RecordingsListView: View {
     
     var body: some View {
         ZStack {
-            // Contenuto principale che scorre sotto i filtri
-            VStack(spacing: 0) {
-                // Spazio per i filtri (fisso in alto)
-                Spacer()
-                    .frame(height: getHeaderHeight())
-                
-                // Lista registrazioni che scorre sotto i filtri
-                recordingsListView
-            }
-            
-            // Header con filtri (fisso in alto)
-            VStack {
-                headerView
-                Spacer()
+            // Contenuto principale (stesso pattern di ChatsListView)
+            NavigationStack {
+                VStack(spacing: 0) {
+                    List {
+                        // Filtri come Section header
+                        Section {
+                            // Spazio vuoto per i filtri
+                        } header: {
+                            filtersHeaderView
+                        }
+                        
+                        // Registrazioni
+                        if filteredRecordings.isEmpty {
+                            Section {
+                                emptyStateView
+                            }
+                        } else {
+                            ForEach(filteredRecordings, id: \.objectID) { recording in
+                                MinimalRecordingRowView(
+                                    recording: recording,
+                                    audioPlayer: audioPlayer,
+                                    transcriptionService: transcriptionService
+                                ) {
+                                    selectedRecording = recording
+                                } onDelete: {
+                                    recordingToDelete = recording
+                                    showingDeleteAlert = true
+                                } onRename: {
+                                    startEditingName(for: recording)
+                                }
+                            }
+                            .onDelete(perform: deleteRecordings)
+                        }
+                        
+                        // Spazio extra per permettere scroll sotto il pulsante flottante
+                        if !filteredRecordings.isEmpty && !hideRecordButton {
+                            Spacer()
+                                .frame(height: 120)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .environment(\.defaultMinListRowHeight, 60)
+                    .refreshable {
+                        // Aggiorna dati se necessario
+                    }
+                }
+                .searchable(text: $searchText, prompt: "Cerca registrazioni...")
             }
             
             // Bottone centrale glassmorphism compatibile iOS 18+ (solo se non nascosto)
@@ -110,11 +143,11 @@ struct RecordingsListView: View {
         }
     }
     
-    // MARK: - Header View
+    // MARK: - Filters Header View
     
-    private var headerView: some View {
-        VStack(spacing: 16) {
-            // Filtri semplificati
+    private var filtersHeaderView: some View {
+        VStack(spacing: 8) {
+            // Filtri per tipo di registrazione
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(RecordingFilter.allCases, id: \.self) { filter in
@@ -129,60 +162,46 @@ struct RecordingsListView: View {
                 }
                 .padding(.horizontal)
             }
-            
-            // Barra di ricerca minimale
-            if !searchText.isEmpty || selectedFilter != .all {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    
-                    TextField("Cerca registrazioni...", text: $searchText)
-                        .textFieldStyle(.plain)
-                    
-                    if !searchText.isEmpty {
-                        Button {
-                            searchText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                .padding(.horizontal)
-            }
         }
-        .padding(.top)
+        .padding(.top, 8)
     }
     
-    // MARK: - Recordings List
+    // MARK: - Empty State View
     
-    private var recordingsListView: some View {
-        List {
-            ForEach(filteredRecordings, id: \.objectID) { recording in
-                MinimalRecordingRowView(
-                    recording: recording,
-                    audioPlayer: audioPlayer,
-                    transcriptionService: transcriptionService
-                ) {
-                    selectedRecording = recording
-                } onDelete: {
-                    recordingToDelete = recording
-                    showingDeleteAlert = true
-                } onRename: {
-                    startEditingName(for: recording)
-                }
+    private var emptyStateView: some View {
+        VStack(spacing: 24) {
+            // Icona moderna con gradiente
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.blue, .purple, .pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
+                    .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                
+                Image(systemName: "waveform")
+                    .font(.system(size: 36, weight: .medium))
+                    .foregroundColor(.white)
             }
-            .onDelete(perform: deleteRecordings)
+            
+            VStack(spacing: 12) {
+                Text("Nessuna registrazione")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.primary)
+                
+                Text("Inizia a registrare per vedere le tue registrazioni qui!")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(nil)
+            }
         }
-        .listStyle(.plain)
-        .refreshable {
-            // Aggiorna dati se necessario
-        }
-        .ignoresSafeArea(.container, edges: .top)
+        .padding(.horizontal, 32)
+        .padding(.vertical, 40)
     }
     
     // MARK: - Computed Properties
@@ -219,17 +238,6 @@ struct RecordingsListView: View {
     }
     
     // MARK: - Helper Methods
-    
-    private func getHeaderHeight() -> CGFloat {
-        var height: CGFloat = 60 // Altezza base per i filtri
-        
-        // Aggiungi spazio per la barra di ricerca se visibile
-        if !searchText.isEmpty || selectedFilter != .all {
-            height += 50
-        }
-        
-        return height
-    }
     
     private func getFilterCount(_ filter: RecordingFilter) -> Int {
         switch filter {
