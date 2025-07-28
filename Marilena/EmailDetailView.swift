@@ -864,28 +864,28 @@ struct ComposeEmailView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
+            VStack(spacing: 0) {
             // Header iOS 26 style
-            VStack(spacing: 16) {
-                HStack {
-                    Text("A:")
-                        .font(.headline)
+                VStack(spacing: 16) {
+                    HStack {
+                        Text("A:")
+                            .font(.headline)
                         .foregroundStyle(.secondary)
-                    TextField("Email destinatario", text: $to)
-                        .textFieldStyle(.roundedBorder)
+                        TextField("Email destinatario", text: $to)
+                            .textFieldStyle(.roundedBorder)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
-                }
-                
-                HStack {
-                    Text("Oggetto:")
-                        .font(.headline)
+                    }
+                    
+                    HStack {
+                        Text("Oggetto:")
+                            .font(.headline)
                         .foregroundStyle(.secondary)
-                    TextField("Oggetto email", text: $subject)
-                        .textFieldStyle(.roundedBorder)
+                        TextField("Oggetto email", text: $subject)
+                            .textFieldStyle(.roundedBorder)
+                    }
                 }
-            }
-            .padding()
+                .padding()
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
             .liquidGlass(.subtle)
             .padding()
@@ -893,19 +893,19 @@ struct ComposeEmailView: View {
             // Body editor - iOS 26 style
             VStack(alignment: .leading, spacing: 8) {
                 Text("Messaggio:")
-                    .font(.headline)
+                        .font(.headline)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal)
-                
-                TextEditor(text: $emailBody)
+                        .padding(.horizontal)
+                    
+                    TextEditor(text: $emailBody)
                     .padding(8)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                     .liquidGlass(.subtle)
                     .frame(minHeight: 200)
             }
-            .padding(.horizontal)
-            
-            Spacer()
+                        .padding(.horizontal)
+                
+                Spacer()
             
             // Error message
             if let errorMessage = errorMessage {
@@ -918,31 +918,31 @@ struct ComposeEmailView: View {
             }
         }
         .navigationTitle(replyTo != nil ? "Rispondi" : "Nuovo Messaggio")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Annulla") {
-                    dismiss()
-                }
+            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Annulla") {
+                            dismiss()
+                        }
                 .foregroundStyle(.blue)
-            }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if isSending {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                        .foregroundStyle(.blue)
-                } else {
-                    Button("Invia") {
-                        showingSendSheet = true
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(to.isEmpty || subject.isEmpty || emailBody.isEmpty)
+                    
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        if isSending {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        .foregroundStyle(.blue)
+                        } else {
+                            Button("Invia") {
+                                showingSendSheet = true
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(to.isEmpty || subject.isEmpty || emailBody.isEmpty)
                     .foregroundStyle(.white)
                     .background(.blue, in: RoundedRectangle(cornerRadius: 8))
                     .liquidGlass(.prominent)
                 }
-            }
+                }
         }
         .onAppear {
             if let preFilledDraft = preFilledDraft {

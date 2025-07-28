@@ -158,6 +158,12 @@ struct ChatsListView: View {
                 }
                 .onDelete(perform: deleteChats)
             }
+            
+            // Spazio extra per permettere scroll sotto il pulsante flottante
+            if !filteredChats.isEmpty {
+                Spacer()
+                    .frame(height: 120)
+            }
         }
         .listStyle(.plain)
         .navigationDestination(for: ChatMarilena.self) { chat in
@@ -172,7 +178,6 @@ struct ChatsListView: View {
         .refreshable {
             // Refresh automatico tramite FetchRequest
         }
-        .padding(.bottom, 80) // Spazio per il pulsante flottante
     }
     
     // MARK: - Computed Properties
