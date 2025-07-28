@@ -941,7 +941,7 @@ struct ComposeEmailView: View {
                     .foregroundStyle(.white)
                     .background(.blue, in: RoundedRectangle(cornerRadius: 8))
                     .liquidGlass(.prominent)
-                }
+                    }
                 }
         }
         .onAppear {

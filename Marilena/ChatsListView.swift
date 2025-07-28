@@ -25,16 +25,19 @@ struct ChatsListView: View {
     
     var body: some View {
         ZStack {
-            // Lista chat che scorre anche sotto i filtri
-            chatsListView
-                .padding(.top, 120) // Spazio per i filtri sopra
+            // Contenuto principale che scorre sotto i filtri
+            VStack(spacing: 0) {
+                // Spazio per i filtri (fisso in alto)
+                Spacer()
+                    .frame(height: getHeaderHeight())
+                
+                // Lista chat che scorre sotto i filtri
+                chatsListView
+            }
             
-            // Header con filtri sovrapposto
+            // Header con filtri (fisso in alto)
             VStack {
                 headerView
-                    .background(.ultraThinMaterial)
-                    .liquidGlass(.subtle)
-                
                 Spacer()
             }
             
@@ -119,7 +122,7 @@ struct ChatsListView: View {
                 .padding(.horizontal)
             }
         }
-        .padding(.top, 8) // Padding per status bar
+        .padding(.top, 4) // Padding minimo
     }
     
     // MARK: - Chats List
@@ -175,6 +178,7 @@ struct ChatsListView: View {
         .refreshable {
             // Refresh automatico tramite FetchRequest
         }
+        .ignoresSafeArea(.container, edges: .top)
     }
     
     // MARK: - Computed Properties
@@ -212,6 +216,17 @@ struct ChatsListView: View {
     }
     
     // MARK: - Helper Methods
+    
+    private func getHeaderHeight() -> CGFloat {
+        var height: CGFloat = 60 // Altezza base per i filtri
+        
+        // Aggiungi spazio per la barra di ricerca se visibile
+        if !searchText.isEmpty || selectedFilter != .all {
+            height += 50
+        }
+        
+        return height
+    }
     
     private func getFilterCount(_ filter: ChatFilter) -> Int {
         let activeChats = chats.filter { !($0.isArchived || $0.isMarkedAsDeleted) }

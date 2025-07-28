@@ -34,17 +34,22 @@ struct RecordingsListView: View {
     
     var body: some View {
         ZStack {
+            // Contenuto principale che scorre sotto i filtri
             VStack(spacing: 0) {
-                // Header minimale
-                headerView
-                
-                // Spazio tra filtri e lista
+                // Spazio per i filtri (fisso in alto)
                 Spacer()
-                    .frame(height: 16)
+                    .frame(height: getHeaderHeight())
                 
-                // Lista registrazioni semplificata
+                // Lista registrazioni che scorre sotto i filtri
                 recordingsListView
             }
+            
+            // Header con filtri (fisso in alto)
+            VStack {
+                headerView
+                Spacer()
+            }
+            
             // Bottone centrale glassmorphism compatibile iOS 18+ (solo se non nascosto)
             if !hideRecordButton {
                 VStack {
@@ -177,6 +182,7 @@ struct RecordingsListView: View {
         .refreshable {
             // Aggiorna dati se necessario
         }
+        .ignoresSafeArea(.container, edges: .top)
     }
     
     // MARK: - Computed Properties
@@ -213,6 +219,17 @@ struct RecordingsListView: View {
     }
     
     // MARK: - Helper Methods
+    
+    private func getHeaderHeight() -> CGFloat {
+        var height: CGFloat = 60 // Altezza base per i filtri
+        
+        // Aggiungi spazio per la barra di ricerca se visibile
+        if !searchText.isEmpty || selectedFilter != .all {
+            height += 50
+        }
+        
+        return height
+    }
     
     private func getFilterCount(_ filter: RecordingFilter) -> Int {
         switch filter {

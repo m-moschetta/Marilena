@@ -78,59 +78,51 @@ public struct EmailListView: View {
     
     public var body: some View {
         NavigationStack {
-            ZStack {
-                // Contenuto email che scorre anche sotto la navigation bar
+            VStack(spacing: 0) {
                 if emailService.isAuthenticated {
                     modernEmailListContent
-                        .padding(.top, 100) // Spazio per navigation bar e searchable
                 } else {
                     loginContent
                 }
-                
-                // Navigation bar sovrapposta
-                VStack {
-                    HStack {
-                        Menu {
-                            Button("Account: \(emailService.currentAccount?.email ?? "Non connesso")") { }
-                            Button("Disconnetti") {
-                                emailService.disconnect()
-                            }
-                            Divider()
-                            Button("🧪 Test: Simula Nuova Email") {
-                                Task {
-                                    await emailService.simulateNewEmail()
-                                }
-                            }
-                            .foregroundStyle(.orange)
-                        } label: {
-                            Text(emailService.currentAccount?.email ?? "Email")
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.primary)
+            }
+            .navigationTitle(emailService.currentAccount?.email ?? "Email")
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $searchText, prompt: "Cerca email...")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Menu {
+                        Button("Account: \(emailService.currentAccount?.email ?? "Non connesso")") { }
+                        Button("Disconnetti") {
+                            emailService.disconnect()
                         }
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            showingComposeSheet = true
-                            hapticFeedback.impactOccurred()
-                        }) {
-                            Image(systemName: "square.and.pencil.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(.blue)
-                                .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, value: false)
+                        Divider()
+                        Button("🧪 Test: Simula Nuova Email") {
+                            Task {
+                                await emailService.simulateNewEmail()
+                            }
                         }
+                        .foregroundStyle(.orange)
+                    } label: {
+                        Image(systemName: "gear.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .symbolRenderingMode(.hierarchical)
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    .background(.ultraThinMaterial)
-                    .liquidGlass(.subtle)
-                    
-                    Spacer()
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingComposeSheet = true
+                        hapticFeedback.impactOccurred()
+                    }) {
+                        Image(systemName: "square.and.pencil.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .symbolRenderingMode(.hierarchical)
+                            .symbolEffect(.bounce, value: false)
+                    }
                 }
             }
-            .searchable(text: $searchText, prompt: "Cerca email...")
         }
         .sheet(isPresented: $showingComposeSheet) {
             ComposeEmailView()
