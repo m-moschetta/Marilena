@@ -24,31 +24,35 @@ struct ChatsListView: View {
     @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header con filtri
-            headerView
+        ZStack {
+            VStack(spacing: 0) {
+                // Header con filtri - senza padding superiore
+                headerView
+                
+                // Lista chat
+                chatsListView
+            }
             
-            // Spazio tra filtri e lista
-            Spacer()
-                .frame(height: 16)
-            
-            // Lista chat
-            chatsListView
+            // Pulsante flottante in basso
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: createNewChat) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 56))
+                            .foregroundStyle(.white)
+                            .background(.blue, in: Circle())
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 100) // Sopra la tab bar
+                }
+            }
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Chat")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: createNewChat) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.blue)
-                        .symbolRenderingMode(.hierarchical)
-                        .symbolEffect(.bounce, value: false)
-                }
-            }
-        }
         .alert("Nuova Chat Mail", isPresented: $showingNewChatAlert) {
             Button("OK") { }
         } message: {
@@ -70,8 +74,8 @@ struct ChatsListView: View {
     // MARK: - Header View
     
     private var headerView: some View {
-        VStack(spacing: 16) {
-            // Filtri per tipo di chat
+        VStack(spacing: 8) {
+            // Filtri per tipo di chat - senza padding superiore
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(ChatFilter.allCases, id: \.self) { filter in
@@ -87,7 +91,7 @@ struct ChatsListView: View {
                 .padding(.horizontal)
             }
             
-            // Barra di ricerca
+            // Barra di ricerca - solo se necessaria
             if !searchText.isEmpty || selectedFilter != .all {
                 HStack {
                     Image(systemName: "magnifyingglass")
@@ -106,13 +110,13 @@ struct ChatsListView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 8)
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
         }
-        .padding(.top)
+        .padding(.top, 4) // Padding minimo
     }
     
     // MARK: - Chats List
@@ -168,6 +172,7 @@ struct ChatsListView: View {
         .refreshable {
             // Refresh automatico tramite FetchRequest
         }
+        .padding(.bottom, 80) // Spazio per il pulsante flottante
     }
     
     // MARK: - Computed Properties
