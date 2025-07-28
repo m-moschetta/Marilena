@@ -438,7 +438,7 @@ struct ChatRowView: View {
                     Spacer()
                     
                     if let data = getChatDisplayDate() {
-                        Text(data, style: .relative)
+                        Text(formatTime(data))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -568,6 +568,13 @@ struct ChatRowView: View {
         
         // Fallback alla data di creazione della chat
         return chat.dataCreazione
+    }
+    
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
     }
 }
 
