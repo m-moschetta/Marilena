@@ -24,25 +24,89 @@ struct ChatsListView: View {
     @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Header con filtri (come in EmailListView)
-                headerView
-                
-                // Lista chat (come in EmailListView)
-                chatsListView
+        ZStack {
+            // Contenuto principale (stesso pattern di EmailListView)
+            NavigationStack {
+                VStack(spacing: 0) {
+                    List {
+                        // Filtri come Section header
+                        Section {
+                            // Spazio vuoto per i filtri
+                        } header: {
+                            filtersHeaderView
+                        }
+                        
+                        // Chat
+                        if filteredChats.isEmpty {
+                            Section {
+                                emptyStateView
+                            }
+                        } else {
+                            ForEach(filteredChats, id: \.objectID) { chat in
+                                NavigationLink(value: chat) {
+                                    ChatRowView(chat: chat)
+                                }
+                                .buttonStyle(.plain)
+                                // Swipe Actions per Chat
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    // Archive
+                                    Button {
+                                        archiveChat(chat)
+                                    } label: {
+                                        Label("Archivia", systemImage: "archivebox.fill")
+                                    }
+                                    .tint(.green)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    // Delete
+                                    Button(role: .destructive) {
+                                        deleteChat(chat)
+                                    } label: {
+                                        Label("Elimina", systemImage: "trash.fill")
+                                    }
+                                }
+                            }
+                            .onDelete(perform: deleteChats)
+                        }
+                        
+                        // Spazio extra per permettere scroll sotto il pulsante flottante
+                        if !filteredChats.isEmpty {
+                            Spacer()
+                                .frame(height: 120)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .environment(\.defaultMinListRowHeight, 60)
+                    .navigationDestination(for: ChatMarilena.self) { chat in
+                        if chat.tipo == "email" {
+                            EmailChatView(chat: chat)
+                        } else {
+                            let adapter = ModuleAdapter(context: viewContext)
+                            adapter.createModularChatView(for: chat)
+                                .environment(\.managedObjectContext, viewContext)
+                        }
+                    }
+                    .refreshable {
+                        // Refresh automatico tramite FetchRequest
+                    }
+                }
+                .searchable(text: $searchText, prompt: "Cerca chat...")
             }
-            .navigationTitle("Chat")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Cerca chat...")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+            
+            // Pulsante flottante in basso
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
                     Button(action: createNewChat) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                            .symbolRenderingMode(.hierarchical)
+                            .font(.system(size: 56))
+                            .foregroundStyle(.white)
+                            .background(.blue, in: Circle())
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 80) // Sopra la tab bar
                 }
             }
         }
@@ -65,11 +129,11 @@ struct ChatsListView: View {
         }
     }
     
-    // MARK: - Header View
+    // MARK: - Filters Header View
     
-    private var headerView: some View {
+    private var filtersHeaderView: some View {
         VStack(spacing: 8) {
-            // Filtri per tipo di chat - senza padding superiore
+            // Filtri per tipo di chat
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(ChatFilter.allCases, id: \.self) { filter in
@@ -84,89 +148,11 @@ struct ChatsListView: View {
                 }
                 .padding(.horizontal)
             }
-            
-            // Barra di ricerca - solo se necessaria
-            if !searchText.isEmpty || selectedFilter != .all {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    
-                    TextField("Cerca chat...", text: $searchText)
-                        .textFieldStyle(.plain)
-                    
-                    if !searchText.isEmpty {
-                        Button {
-                            searchText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                .padding(.horizontal)
-            }
         }
-        .padding(.top, 4) // Padding minimo
+        .padding(.top, 8)
     }
     
-    // MARK: - Chats List
-    
-    private var chatsListView: some View {
-        List {
-            if filteredChats.isEmpty {
-                emptyStateView
-            } else {
-                ForEach(filteredChats, id: \.objectID) { chat in
-                    NavigationLink(value: chat) {
-                        ChatRowView(chat: chat)
-                    }
-                    .buttonStyle(.plain)
-                        // Swipe Actions per Chat
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            // Archive
-                            Button {
-                                archiveChat(chat)
-                            } label: {
-                                Label("Archivia", systemImage: "archivebox.fill")
-                            }
-                            .tint(.green)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            // Delete
-                            Button(role: .destructive) {
-                                deleteChat(chat)
-                            } label: {
-                                Label("Elimina", systemImage: "trash.fill")
-                            }
-                        }
-                }
-                .onDelete(perform: deleteChats)
-            }
-            
-            // Spazio extra per permettere scroll sotto il pulsante flottante
-            if !filteredChats.isEmpty {
-                Spacer()
-                    .frame(height: 120)
-            }
-        }
-        .listStyle(.plain)
-        .navigationDestination(for: ChatMarilena.self) { chat in
-            if chat.tipo == "email" {
-                EmailChatView(chat: chat)
-            } else {
-                let adapter = ModuleAdapter(context: viewContext)
-                adapter.createModularChatView(for: chat)
-                    .environment(\.managedObjectContext, viewContext)
-            }
-        }
-        .refreshable {
-            // Refresh automatico tramite FetchRequest
-        }
-    }
+
     
     // MARK: - Computed Properties
     
@@ -203,8 +189,6 @@ struct ChatsListView: View {
     }
     
     // MARK: - Helper Methods
-    
-
     
     private func getFilterCount(_ filter: ChatFilter) -> Int {
         let activeChats = chats.filter { !($0.isArchived || $0.isMarkedAsDeleted) }
@@ -254,20 +238,20 @@ struct ChatsListView: View {
     }
     
     private func createNewChat() {
-        let newChat = ChatMarilena(context: viewContext)
-        newChat.id = UUID()
-        newChat.dataCreazione = Date()
-        newChat.titolo = "Nuova Chat"
+            let newChat = ChatMarilena(context: viewContext)
+            newChat.id = UUID()
+            newChat.dataCreazione = Date()
+            newChat.titolo = "Nuova Chat"
         newChat.tipo = "general"
-        
-        // Associa al profilo utente
-        if let profilo = profiloService.ottieniProfiloUtente(in: viewContext) {
-            newChat.profilo = profilo
-        }
-        
-        do {
-            try viewContext.save()
-        } catch {
+            
+            // Associa al profilo utente
+            if let profilo = profiloService.ottieniProfiloUtente(in: viewContext) {
+                newChat.profilo = profilo
+            }
+            
+            do {
+                try viewContext.save()
+            } catch {
             print("❌ ChatsListView: Errore creazione chat: \(error)")
         }
     }
@@ -277,10 +261,10 @@ struct ChatsListView: View {
             let chat = filteredChats[index]
             viewContext.delete(chat)
         }
-        
-        do {
-            try viewContext.save()
-        } catch {
+            
+            do {
+                try viewContext.save()
+            } catch {
             print("❌ ChatsListView: Errore eliminazione chat: \(error)")
         }
     }
@@ -427,26 +411,26 @@ struct ChatRowView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(chat.titolo ?? "Chat senza titolo")
-                        .font(.headline)
+            HStack {
+                Text(chat.titolo ?? "Chat senza titolo")
+                    .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
-                    
-                    Spacer()
-                    
-                    if let data = getChatDisplayDate() {
+                
+                Spacer()
+                
+                if let data = getChatDisplayDate() {
                         Text(formatTime(data))
-                            .font(.caption)
+                        .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                }
-                
-                if let ultimoMessaggio = getUltimoMessaggio() {
-                    Text(ultimoMessaggio)
+            }
+            
+            if let ultimoMessaggio = getUltimoMessaggio() {
+                Text(ultimoMessaggio)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                    .lineLimit(2)
                 } else {
                     Text(chat.tipo == "email" ? "Nessuna email" : "Nessun messaggio")
                         .font(.subheadline)
@@ -484,8 +468,8 @@ struct ChatRowView: View {
                         .padding(.vertical, 2)
                         .background(.blue.opacity(0.1), in: Capsule())
                     }
-                    
-                    Spacer()
+                
+                Spacer()
                 }
             }
         }
