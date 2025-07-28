@@ -125,16 +125,10 @@ struct ChatsListView: View {
                 emptyStateView
             } else {
                 ForEach(filteredChats, id: \.objectID) { chat in
-                    ChatRowView(chat: chat)
-                        .onTapGesture {
-                            selectedChat = chat
-                        }
-                        .background(
-                            NavigationLink(value: chat) {
-                                EmptyView()
-                            }
-                            .opacity(0)
-                        )
+                    NavigationLink(value: chat) {
+                        ChatRowView(chat: chat)
+                    }
+                    .buttonStyle(.plain)
                         // Swipe Actions per Chat
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             // Archive
