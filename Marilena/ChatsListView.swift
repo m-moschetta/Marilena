@@ -51,8 +51,6 @@ struct ChatsListView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Chat")
-        .navigationBarTitleDisplayMode(.large)
         .alert("Nuova Chat Mail", isPresented: $showingNewChatAlert) {
             Button("OK") { }
         } message: {
