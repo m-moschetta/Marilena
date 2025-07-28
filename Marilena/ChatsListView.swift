@@ -20,6 +20,7 @@ struct ChatsListView: View {
     @State private var newChatAlertMessage = ""
     @State private var searchText = ""
     @State private var selectedFilter: ChatFilter = .all
+    @State private var isChatOpen = false
     
     @State private var cancellables = Set<AnyCancellable>()
     
@@ -93,25 +94,27 @@ struct ChatsListView: View {
                 .searchable(text: $searchText, prompt: "Cerca chat...")
             }
             
-            // Pulsante flottante in basso
-            VStack {
-                Spacer()
-                HStack {
+            // Pulsante flottante in basso (solo se non c'è una chat aperta)
+            if !isChatOpen {
+                VStack {
                     Spacer()
-                    Button(action: createNewChat) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial, in: Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(.white.opacity(0.3), lineWidth: 1)
-                            )
-                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    HStack {
+                        Spacer()
+                        Button(action: createNewChat) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(.ultraThinMaterial, in: Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(.white.opacity(0.3), lineWidth: 1)
+                                )
+                                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 100) // Sopra la tab bar
                     }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 100) // Sopra la tab bar
                 }
             }
         }
@@ -127,6 +130,16 @@ struct ChatsListView: View {
                 DispatchQueue.main.async {
                     handleNewEmailChat(chat: chat, email: email)
                 }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chatOpened)) { _ in
+            DispatchQueue.main.async {
+                isChatOpen = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chatClosed)) { _ in
+            DispatchQueue.main.async {
+                isChatOpen = false
             }
         }
         .onAppear {

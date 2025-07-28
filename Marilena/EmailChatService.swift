@@ -573,4 +573,6 @@ public enum EmailChatError: Error, LocalizedError {
 extension Notification.Name {
     static let newEmailReceived = Notification.Name("newEmailReceived")
     static let emailChatCreated = Notification.Name("emailChatCreated")
+    static let chatOpened = Notification.Name("chatOpened")
+    static let chatClosed = Notification.Name("chatClosed")
 } 

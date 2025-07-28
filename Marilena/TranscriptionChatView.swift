@@ -23,6 +23,12 @@ struct TranscriptionChatView: View {
         .background(Color(.systemGroupedBackground))
         .onAppear {
             chatService.loadMessages()
+            // Notifica che una chat è stata aperta
+            NotificationCenter.default.post(name: .chatOpened, object: nil)
+        }
+        .onDisappear {
+            // Notifica che la chat è stata chiusa
+            NotificationCenter.default.post(name: .chatClosed, object: nil)
         }
     }
     

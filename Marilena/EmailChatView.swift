@@ -87,6 +87,12 @@ public struct EmailChatView: View {
         }
         .onAppear {
             analyzeThread()
+            // Notifica che una chat è stata aperta
+            NotificationCenter.default.post(name: .chatOpened, object: nil)
+        }
+        .onDisappear {
+            // Notifica che la chat è stata chiusa
+            NotificationCenter.default.post(name: .chatClosed, object: nil)
         }
         .sheet(isPresented: $showingThreadAnalysis) {
             EmailThreadAnalysisView(analysis: threadAnalysis)
