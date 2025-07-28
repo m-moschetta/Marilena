@@ -24,37 +24,25 @@ struct ChatsListView: View {
     @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
-        ZStack {
-            // Contenuto principale che scorre sotto i filtri
+        NavigationStack {
             VStack(spacing: 0) {
-                // Spazio per i filtri (fisso in alto)
-                Spacer()
-                    .frame(height: getHeaderHeight())
+                // Header con filtri (come in EmailListView)
+                headerView
                 
-                // Lista chat che scorre sotto i filtri
+                // Lista chat (come in EmailListView)
                 chatsListView
             }
-            
-            // Header con filtri (fisso in alto)
-            VStack {
-                headerView
-                Spacer()
-            }
-            
-            // Pulsante flottante in basso
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
+            .navigationTitle("Chat")
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $searchText, prompt: "Cerca chat...")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: createNewChat) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 56))
-                            .foregroundStyle(.white)
-                            .background(.blue, in: Circle())
-                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .symbolRenderingMode(.hierarchical)
                     }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 80) // Sopra la tab bar
                 }
             }
         }
@@ -178,7 +166,6 @@ struct ChatsListView: View {
         .refreshable {
             // Refresh automatico tramite FetchRequest
         }
-        .ignoresSafeArea(.container, edges: .top)
     }
     
     // MARK: - Computed Properties
@@ -217,16 +204,7 @@ struct ChatsListView: View {
     
     // MARK: - Helper Methods
     
-    private func getHeaderHeight() -> CGFloat {
-        var height: CGFloat = 60 // Altezza base per i filtri
-        
-        // Aggiungi spazio per la barra di ricerca se visibile
-        if !searchText.isEmpty || selectedFilter != .all {
-            height += 50
-        }
-        
-        return height
-    }
+
     
     private func getFilterCount(_ filter: ChatFilter) -> Int {
         let activeChats = chats.filter { !($0.isArchived || $0.isMarkedAsDeleted) }
