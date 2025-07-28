@@ -3,7 +3,7 @@ import CoreData
 import Combine
 
 // MARK: - Chats List View
-// Vista principale per la gestione delle chat con sezioni separate per email e AI
+// Vista principale per la gestione delle chat con filtri per tipo
 
 struct ChatsListView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -18,56 +18,194 @@ struct ChatsListView: View {
     @State private var showingSettings = false
     @State private var showingNewChatAlert = false
     @State private var newChatAlertMessage = ""
+    @State private var searchText = ""
+    @State private var selectedFilter: ChatFilter = .all
     
     @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Header con titolo e pulsante nuovo
-                headerView
-                
-                // Lista delle chat
-                if chats.isEmpty {
-                    emptyStateView
-                } else {
-                    chatsList
+        VStack(spacing: 0) {
+            // Header con filtri
+            headerView
+            
+            // Spazio tra filtri e lista
+            Spacer()
+                .frame(height: 16)
+            
+            // Lista chat
+            chatsListView
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Chat")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: createNewChat) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                        .symbolRenderingMode(.hierarchical)
+                        .symbolEffect(.bounce, value: false)
                 }
             }
-            .background(Color(UIColor.systemBackground))
-            .navigationTitle("Chat")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: createNewChat) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                            .symbolRenderingMode(.hierarchical)
-                            .symbolEffect(.bounce, value: false)
-                    }
+        }
+        .alert("Nuova Chat Mail", isPresented: $showingNewChatAlert) {
+            Button("OK") { }
+        } message: {
+            Text(newChatAlertMessage)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .emailChatCreated)) { notification in
+            if let chat = notification.object as? ChatMarilena,
+               let email = notification.userInfo?["email"] as? EmailMessage {
+                DispatchQueue.main.async {
+                    handleNewEmailChat(chat: chat, email: email)
                 }
             }
-            .alert("Nuova Chat Mail", isPresented: $showingNewChatAlert) {
-                Button("OK") { }
-            } message: {
-                Text(newChatAlertMessage)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .emailChatCreated)) { notification in
-                if let chat = notification.object as? ChatMarilena,
-                   let email = notification.userInfo?["email"] as? EmailMessage {
-                    DispatchQueue.main.async {
-                        handleNewEmailChat(chat: chat, email: email)
-                    }
-                }
-            }
-            .onAppear {
-                setupEmailChatObserver()
-            }
+        }
+        .onAppear {
+            setupEmailChatObserver()
         }
     }
     
-    // MARK: - Helper Functions
+    // MARK: - Header View
+    
+    private var headerView: some View {
+        VStack(spacing: 16) {
+            // Filtri per tipo di chat
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(ChatFilter.allCases, id: \.self) { filter in
+                        FilterChip(
+                            title: filter.title,
+                            isSelected: selectedFilter == filter,
+                            count: getFilterCount(filter)
+                        ) {
+                            selectedFilter = filter
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+            
+            // Barra di ricerca
+            if !searchText.isEmpty || selectedFilter != .all {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Cerca chat...", text: $searchText)
+                        .textFieldStyle(.plain)
+                    
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+            }
+        }
+        .padding(.top)
+    }
+    
+    // MARK: - Chats List
+    
+    private var chatsListView: some View {
+        List {
+            if filteredChats.isEmpty {
+                emptyStateView
+            } else {
+                ForEach(filteredChats, id: \.objectID) { chat in
+                    ChatRowView(chat: chat)
+                        .onTapGesture {
+                            selectedChat = chat
+                        }
+                        .background(
+                            NavigationLink(value: chat) {
+                                EmptyView()
+                            }
+                            .opacity(0)
+                        )
+                }
+                .onDelete(perform: deleteChats)
+            }
+        }
+        .listStyle(.plain)
+        .navigationDestination(for: ChatMarilena.self) { chat in
+            if chat.tipo == "email" {
+                EmailChatView(chat: chat)
+            } else {
+                let adapter = ModuleAdapter(context: viewContext)
+                adapter.createModularChatView(for: chat)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+        }
+        .refreshable {
+            // Refresh automatico tramite FetchRequest
+        }
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var filteredChats: [ChatMarilena] {
+        var filtered = Array(chats)
+        
+        // Applica filtro di categoria
+        switch selectedFilter {
+        case .all:
+            break
+        case .email:
+            filtered = filtered.filter { $0.tipo == "email" }
+        case .transcription:
+            filtered = filtered.filter { $0.tipo == "transcription" }
+        case .ai:
+            filtered = filtered.filter { $0.tipo != "email" && $0.tipo != "transcription" }
+        }
+        
+        // Applica ricerca testuale
+        if !searchText.isEmpty {
+            filtered = filtered.filter { chat in
+                let titleMatch = chat.titolo?.localizedCaseInsensitiveContains(searchText) ?? false
+                let messageMatch = getLastMessage(chat)?.localizedCaseInsensitiveContains(searchText) ?? false
+                return titleMatch || messageMatch
+            }
+        }
+        
+        return filtered
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getFilterCount(_ filter: ChatFilter) -> Int {
+        switch filter {
+        case .all:
+            return chats.count
+        case .email:
+            return chats.filter { $0.tipo == "email" }.count
+        case .transcription:
+            return chats.filter { $0.tipo == "transcription" }.count
+        case .ai:
+            return chats.filter { $0.tipo != "email" && $0.tipo != "transcription" }.count
+        }
+    }
+    
+    private func getLastMessage(_ chat: ChatMarilena) -> String? {
+        guard let messaggi = chat.messaggi?.allObjects as? [MessaggioMarilena],
+              !messaggi.isEmpty else { return nil }
+        
+        let messaggiOrdinati = messaggi.sorted { 
+            ($0.dataCreazione ?? Date()) > ($1.dataCreazione ?? Date()) 
+        }
+        
+        return messaggiOrdinati.first?.contenuto
+    }
     
     private func setupEmailChatObserver() {
         let publisher = NotificationCenter.default.publisher(for: .emailChatCreated)
@@ -111,7 +249,7 @@ struct ChatsListView: View {
     
     private func deleteChats(offsets: IndexSet) {
         for index in offsets {
-            let chat = chats[index]
+            let chat = filteredChats[index]
             viewContext.delete(chat)
         }
         
@@ -123,117 +261,6 @@ struct ChatsListView: View {
     }
     
     // MARK: - UI Components
-    
-    private var headerView: some View {
-        HStack {
-            Text("Chat")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.top)
-    }
-    
-    private var chatsList: some View {
-        List {
-            // Sezione Chat Mail
-            Section(header: 
-                HStack {
-                    Image(systemName: "envelope.circle.fill")
-                        .foregroundStyle(.blue)
-                    Text("Chat Mail")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                }
-            ) {
-                let emailChats = chats.filter { $0.tipo == "email" }
-                if emailChats.isEmpty {
-                    HStack {
-                        Image(systemName: "envelope.badge")
-                            .foregroundStyle(.secondary)
-                            .font(.title2)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Nessuna Chat Mail")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Text("Le chat mail verranno create automaticamente quando arriveranno nuove email")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
-                } else {
-                    ForEach(emailChats) { chat in
-                        ChatRowView(chat: chat)
-                            .onTapGesture {
-                                selectedChat = chat
-                            }
-                            .background(
-                                NavigationLink(value: chat) {
-                                    EmptyView()
-                                }
-                                .opacity(0)
-                            )
-                    }
-                }
-            }
-            
-            // Sezione Chat AI classiche
-            Section(header: 
-                HStack {
-                    Image(systemName: "brain.head.profile")
-                        .foregroundStyle(.purple)
-                    Text("Chat AI")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                }
-            ) {
-                let aiChats = chats.filter { $0.tipo != "email" }
-                if aiChats.isEmpty {
-                    HStack {
-                        Image(systemName: "message.circle")
-                            .foregroundStyle(.secondary)
-                            .font(.title2)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Nessuna Chat AI")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Text("Crea la tua prima chat per iniziare a conversare con l'AI")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
-                } else {
-                    ForEach(aiChats) { chat in
-                        ChatRowView(chat: chat)
-                            .onTapGesture {
-                                selectedChat = chat
-                            }
-                    }
-                    .onDelete(perform: deleteChats)
-                }
-            }
-        }
-        .navigationDestination(for: ChatMarilena.self) { chat in
-            if chat.tipo == "email" {
-                EmailChatView(chat: chat)
-            } else {
-                let adapter = ModuleAdapter(context: viewContext)
-                adapter.createModularChatView(for: chat)
-                    .environment(\.managedObjectContext, viewContext)
-            }
-        }
-        .refreshable {
-            // Refresh automatico tramite FetchRequest
-        }
-    }
     
     private var emptyStateView: some View {
         VStack(spacing: 20) {
@@ -260,6 +287,24 @@ struct ChatsListView: View {
             }
         }
         .padding()
+    }
+}
+
+// MARK: - Chat Filter
+
+enum ChatFilter: CaseIterable {
+    case all
+    case email
+    case transcription
+    case ai
+    
+    var title: String {
+        switch self {
+        case .all: return "Tutte"
+        case .email: return "Email"
+        case .transcription: return "Trascrizioni"
+        case .ai: return "AI"
+        }
     }
 }
 
@@ -497,6 +542,39 @@ struct NewChatView: View {
         } catch {
             print("Errore creazione chat: \(error)")
         }
+    }
+}
+
+// MARK: - Filter Chip
+
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let count: Int
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(isSelected ? Color.white.opacity(0.3) : Color.primary.opacity(0.2))
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color.accentColor : Color(.systemGray5))
+            .foregroundColor(isSelected ? .white : .primary)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 
