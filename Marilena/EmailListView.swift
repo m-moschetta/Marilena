@@ -217,6 +217,7 @@ public struct EmailListView: View {
             }
         }
         .listStyle(.plain)
+        .environment(\.defaultMinListRowHeight, 60)
         .refreshable {
             if let account = emailService.currentAccount {
                 await emailService.loadEmails(for: account)
@@ -417,7 +418,7 @@ private struct ModernEmailRowView: View {
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 6)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         .liquidGlass(.subtle)
         .contentShape(Rectangle())
