@@ -117,6 +117,11 @@ public class EmailService: ObservableObject {
             self.currentAccount = account
             self.isAuthenticated = true
             
+            // Notifica nuove email ricevute
+            for email in messages where email.emailType == .received {
+                NotificationCenter.default.post(name: .newEmailReceived, object: email)
+            }
+            
             // Salva in cache
             await cacheService.cacheEmails(messages, for: account.email)
             
@@ -995,6 +1000,29 @@ public class EmailService: ObservableObject {
         return try await Task.detached {
             try await operation()
         }.value
+    }
+    
+    /// Test: Simula l'arrivo di nuove email per testare la creazione automatica delle chat
+    public func simulateNewEmail() async {
+        let testEmail = EmailMessage(
+            id: "test_\(UUID().uuidString)",
+            from: "test@example.com",
+            to: ["user@example.com"],
+            subject: "Test Email - Chat Mail",
+            body: "Questo è un test per verificare la creazione automatica delle chat mail.",
+            date: Date(),
+            isRead: false,
+            hasAttachments: false,
+            emailType: .received
+        )
+        
+        // Aggiungi alla lista delle email
+        emails.insert(testEmail, at: 0)
+        
+        // Notifica la nuova email
+        NotificationCenter.default.post(name: .newEmailReceived, object: testEmail)
+        
+        print("🧪 EmailService: Email di test inviata - \(testEmail.from)")
     }
 }
 

@@ -70,26 +70,35 @@ public struct EmailListView: View {
             .searchable(text: $searchText, prompt: "Cerca email...")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if emailService.isAuthenticated {
-                        Button {
-                            showingEmailSettings = true
-                        } label: {
-                            Image(systemName: "gear")
-                                .foregroundStyle(.blue.gradient)
-                                .symbolRenderingMode(.hierarchical)
+                    Menu {
+                        Button("Account: \(emailService.currentAccount?.email ?? "Non connesso")") { }
+                        Button("Disconnetti") {
+                            emailService.disconnect()
                         }
+                        Divider()
+                        Button("Test: Simula Nuova Email") {
+                            Task {
+                                await emailService.simulateNewEmail()
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "gear.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .symbolRenderingMode(.hierarchical)
                     }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if emailService.isAuthenticated {
-                        Button {
-                            showingComposeSheet = true
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                                .foregroundStyle(.blue.gradient)
-                                .symbolRenderingMode(.hierarchical)
-                        }
+                    Button(action: {
+                        showingComposeSheet = true
+                        hapticFeedback.impactOccurred()
+                    }) {
+                        Image(systemName: "square.and.pencil.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .symbolRenderingMode(.hierarchical)
+                            .symbolEffect(.bounce, value: false)
                     }
                 }
             }

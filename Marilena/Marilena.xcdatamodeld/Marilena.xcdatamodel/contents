@@ -2,13 +2,18 @@
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23511" systemVersion="24B83" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
     <entity name="ChatMarilena" representedClassName="ChatMarilena" syncable="YES" codeGenerationType="class">
         <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="emailSender" optional="YES" attributeType="String"/>
+        <attribute name="emailSubject" optional="YES" attributeType="String"/>
+        <attribute name="emailThreadId" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastEmailDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="recordingId" optional="YES" attributeType="String"/>
         <attribute name="titolo" optional="YES" attributeType="String"/>
         <attribute name="tipo" optional="YES" attributeType="String" defaultValueString="general"/>
         <relationship name="messaggi" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MessaggioMarilena" inverseName="chat" inverseEntity="MessaggioMarilena"/>
         <relationship name="profilo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ProfiloUtente" inverseName="chats" inverseEntity="ProfiloUtente"/>
         <relationship name="registrazioni" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="RegistrazioneAudio" inverseName="chat" inverseEntity="RegistrazioneAudio"/>
+        <relationship name="emailThread" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="EmailThread" inverseName="chat" inverseEntity="EmailThread"/>
     </entity>
     <entity name="CronologiaContesto" representedClassName="CronologiaContesto" syncable="YES" codeGenerationType="class">
         <attribute name="contenuto" optional="YES" attributeType="String"/>
@@ -23,6 +28,8 @@
     <entity name="MessaggioMarilena" representedClassName="MessaggioMarilena" syncable="YES" codeGenerationType="class">
         <attribute name="contenuto" optional="YES" attributeType="String"/>
         <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="emailId" optional="YES" attributeType="String"/>
+        <attribute name="emailResponseType" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isUser" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="tipo" optional="YES" attributeType="String" defaultValueString="user"/>
@@ -77,6 +84,7 @@
         <attribute name="subject" optional="YES" attributeType="String"/>
         <attribute name="to" optional="YES" attributeType="String"/>
         <relationship name="actions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="EmailAction" inverseName="email" inverseEntity="EmailAction"/>
+        <relationship name="thread" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="EmailThread" inverseName="emails" inverseEntity="EmailThread"/>
     </entity>
     <entity name="DraftEmail" representedClassName="DraftEmail" syncable="YES" codeGenerationType="class">
         <attribute name="accountId" optional="YES" attributeType="String"/>
@@ -98,6 +106,18 @@
         <attribute name="syncStatus" optional="YES" attributeType="String" defaultValueString="pending"/>
         <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="email" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CachedEmail" inverseName="actions" inverseEntity="CachedEmail"/>
+    </entity>
+    <entity name="EmailThread" representedClassName="EmailThread" syncable="YES" codeGenerationType="class">
+        <attribute name="accountId" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastEmailDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="sender" optional="YES" attributeType="String"/>
+        <attribute name="subject" optional="YES" attributeType="String"/>
+        <attribute name="threadId" optional="YES" attributeType="String"/>
+        <attribute name="totalEmails" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="chat" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ChatMarilena" inverseName="emailThread" inverseEntity="ChatMarilena"/>
+        <relationship name="emails" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CachedEmail" inverseName="thread" inverseEntity="CachedEmail"/>
     </entity>
     <entity name="Trascrizione" representedClassName="Trascrizione" syncable="YES" codeGenerationType="class">
         <attribute name="accuratezza" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>

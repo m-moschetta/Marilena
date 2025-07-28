@@ -1,5 +1,9 @@
 import SwiftUI
 import CoreData
+import Combine
+
+// MARK: - Chats List View
+// Vista principale per la gestione delle chat con sezioni separate per email e AI
 
 struct ChatsListView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -10,131 +14,196 @@ struct ChatsListView: View {
         animation: .default
     ) private var chats: FetchedResults<ChatMarilena>
     
-    @State private var showingNewChatSheet = false
     @State private var selectedChat: ChatMarilena?
     @State private var showingSettings = false
+    @State private var showingNewChatAlert = false
+    @State private var newChatAlertMessage = ""
+    
+    @State private var cancellables = Set<AnyCancellable>()
     
     var body: some View {
         NavigationStack {
-            VStack {
+            VStack(spacing: 0) {
+                // Header con titolo e pulsante nuovo
+                headerView
+                
+                // Lista delle chat
                 if chats.isEmpty {
                     emptyStateView
                 } else {
                     chatsList
                 }
             }
-            .navigationTitle("Chat AI")
+            .background(Color(UIColor.systemBackground))
+            .navigationTitle("Chat")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: createNewChat) {
-                        Image(systemName: "plus")
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                            .symbolRenderingMode(.hierarchical)
+                            .symbolEffect(.bounce, value: false)
                     }
                 }
-                
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gear")
+            }
+            .alert("Nuova Chat Mail", isPresented: $showingNewChatAlert) {
+                Button("OK") { }
+            } message: {
+                Text(newChatAlertMessage)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .emailChatCreated)) { notification in
+                if let chat = notification.object as? ChatMarilena,
+                   let email = notification.userInfo?["email"] as? EmailMessage {
+                    DispatchQueue.main.async {
+                        handleNewEmailChat(chat: chat, email: email)
                     }
                 }
             }
-            .sheet(isPresented: $showingNewChatSheet) {
-                NewChatView()
-                    .environment(\.managedObjectContext, viewContext)
+            .onAppear {
+                setupEmailChatObserver()
             }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func setupEmailChatObserver() {
+        let publisher = NotificationCenter.default.publisher(for: .emailChatCreated)
+        let cancellable = publisher.sink { notification in
+            if let chat = notification.object as? ChatMarilena,
+               let email = notification.userInfo?["email"] as? EmailMessage {
+                DispatchQueue.main.async {
+                    self.handleNewEmailChat(chat: chat, email: email)
+                }
             }
-            .navigationDestination(item: $selectedChat) { chat in
+        }
+        cancellables.insert(cancellable)
+    }
+    
+    private func handleNewEmailChat(chat: ChatMarilena, email: EmailMessage) {
+        // Mostra notifica
+        newChatAlertMessage = "Nuova chat mail creata automaticamente per \(email.from)"
+        showingNewChatAlert = true
+        
+        print("✅ ChatsListView: Chat mail creata per \(email.from)")
+    }
+    
+    private func createNewChat() {
+        let newChat = ChatMarilena(context: viewContext)
+        newChat.id = UUID()
+        newChat.dataCreazione = Date()
+        newChat.titolo = "Nuova Chat"
+        newChat.tipo = "general"
+        
+        // Associa al profilo utente
+        if let profilo = profiloService.ottieniProfiloUtente(in: viewContext) {
+            newChat.profilo = profilo
+        }
+        
+        do {
+            try viewContext.save()
+        } catch {
+            print("❌ ChatsListView: Errore creazione chat: \(error)")
+        }
+    }
+    
+    private func deleteChats(offsets: IndexSet) {
+        for index in offsets {
+            let chat = chats[index]
+            viewContext.delete(chat)
+        }
+        
+        do {
+            try viewContext.save()
+        } catch {
+            print("❌ ChatsListView: Errore eliminazione chat: \(error)")
+        }
+    }
+    
+    // MARK: - UI Components
+    
+    private var headerView: some View {
+        HStack {
+            Text("Chat")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.top)
+    }
+    
+    private var chatsList: some View {
+        List {
+            // Sezione Chat Mail
+            Section(header: Text("Chat Mail")) {
+                ForEach(chats.filter { $0.tipo == "email" }) { chat in
+                    ChatRowView(chat: chat)
+                        .onTapGesture {
+                            selectedChat = chat
+                        }
+                        .background(
+                            NavigationLink(value: chat) {
+                                EmptyView()
+                            }
+                            .opacity(0)
+                        )
+                }
+            }
+            
+            // Sezione Chat AI classiche
+            Section(header: Text("Chat AI")) {
+                ForEach(chats.filter { $0.tipo != "email" }) { chat in
+                    ChatRowView(chat: chat)
+                        .onTapGesture {
+                            selectedChat = chat
+                        }
+                }
+                .onDelete(perform: deleteChats)
+            }
+        }
+        .navigationDestination(for: ChatMarilena.self) { chat in
+            if chat.tipo == "email" {
+                EmailChatView(chat: chat)
+            } else {
                 let adapter = ModuleAdapter(context: viewContext)
                 adapter.createModularChatView(for: chat)
                     .environment(\.managedObjectContext, viewContext)
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenChatInMainList"))) { notification in
-                if let chat = notification.object as? ChatMarilena {
-                    selectedChat = chat
-                }
-            }
+        }
+        .refreshable {
+            // Refresh automatico tramite FetchRequest
         }
     }
     
     private var emptyStateView: some View {
         VStack(spacing: 20) {
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.blue.opacity(0.6))
+            Image(systemName: "message.circle")
+                .font(.system(size: 60))
+                .foregroundStyle(.secondary)
             
-            VStack(spacing: 8) {
-                Text("Benvenuto in Marilena AI")
-                    .font(.title.weight(.bold))
-                    .foregroundColor(.primary)
-                
-                Text("La tua assistente AI personale pronta ad aiutarti")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+            Text("Nessuna Chat")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Crea la tua prima chat per iniziare a conversare con l'AI")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
             
             Button(action: createNewChat) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Inizia Nuova Conversazione")
-                }
-                .font(.headline)
-                .foregroundColor(.white)
-                .padding()
-                .background(Color.blue)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                Label("Nuova Chat", systemImage: "plus.circle.fill")
+                    .font(.headline)
+                    .padding()
+                    .background(.blue, in: RoundedRectangle(cornerRadius: 12))
+                    .foregroundStyle(.white)
             }
         }
         .padding()
-    }
-    
-    private var chatsList: some View {
-        List {
-            ForEach(chats) { chat in
-                ChatRowView(chat: chat)
-                    .onTapGesture {
-                        selectedChat = chat
-                    }
-            }
-            .onDelete(perform: deleteChats)
-        }
-        .refreshable {
-            // Refresh logic if needed
-        }
-    }
-    
-    private func createNewChat() {
-        withAnimation {
-            let newChat = ChatMarilena(context: viewContext)
-            newChat.id = UUID()
-            newChat.dataCreazione = Date()
-            newChat.titolo = "Nuova Chat"
-            
-            // Associa al profilo utente
-            if let profilo = profiloService.ottieniProfiloUtente(in: viewContext) {
-                newChat.profilo = profilo
-            }
-            
-            do {
-                try viewContext.save()
-                selectedChat = newChat
-            } catch {
-                print("Errore creazione chat: \(error)")
-            }
-        }
-    }
-    
-    private func deleteChats(offsets: IndexSet) {
-        withAnimation {
-            offsets.map { chats[$0] }.forEach(viewContext.delete)
-            
-            do {
-                try viewContext.save()
-            } catch {
-                print("Errore eliminazione chat: \(error)")
-            }
-        }
     }
 }
 
