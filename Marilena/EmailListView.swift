@@ -1,8 +1,8 @@
 import SwiftUI
 import Combine
 
-// MARK: - Email List View
-// Vista principale per la lista delle email con integrazione AI
+// MARK: - iOS 26 Enhanced Email List View
+// Vista principale modernizzata per iOS 26 con Liquid Glass e SwipeActions native
 
 public struct EmailListView: View {
     @StateObject private var emailService = EmailService()
@@ -12,10 +12,32 @@ public struct EmailListView: View {
     @State private var showingEmailDetail = false
     @State private var showingLogin = false
     @State private var searchText = ""
+    @State private var showingFilters = false
     @State private var selectedCategory: EmailCategory?
+    @State private var useAppleMailStyle = true
     @State private var showingEmailSettings = false
     
-    // MARK: - Computed Properties
+    // iOS 26 States
+    @State private var showingComposeSheet = false
+    @State private var hapticFeedback = UIImpactFeedbackGenerator(style: .medium)
+    
+    // MARK: - Helper Functions
+    private func destinationView(for email: EmailMessage) -> some View {
+        Group {
+            if useAppleMailStyle {
+                AppleMailDetailView(
+                    email: email,
+                    emailService: emailService,
+                    aiService: aiService
+                )
+            } else {
+                EmailDetailView(
+                    email: email,
+                    aiService: aiService
+                )
+            }
+        }
+    }
     
     private var filteredEmails: [EmailMessage] {
         var emails = emailService.emails
@@ -29,11 +51,6 @@ public struct EmailListView: View {
             }
         }
         
-        // Filtra per categoria (se implementato)
-        if selectedCategory != nil {
-            // TODO: Implementare filtro per categoria
-        }
-        
         return emails
     }
     
@@ -43,7 +60,7 @@ public struct EmailListView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 if emailService.isAuthenticated {
-                    emailListContent
+                    modernEmailListContent
                 } else {
                     loginContent
                 }
@@ -52,20 +69,33 @@ public struct EmailListView: View {
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Cerca email...")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if emailService.isAuthenticated {
+                        Button {
+                            showingEmailSettings = true
+                        } label: {
+                            Image(systemName: "gear")
+                                .foregroundStyle(.blue.gradient)
+                                .symbolRenderingMode(.hierarchical)
+                        }
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if emailService.isAuthenticated {
-                        Button("Impostazioni") {
-                            showingEmailSettings = true
+                        Button {
+                            showingComposeSheet = true
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .foregroundStyle(.blue.gradient)
+                                .symbolRenderingMode(.hierarchical)
                         }
-                        .foregroundColor(.blue)
                     }
                 }
             }
-            .navigationDestination(isPresented: $showingEmailDetail) {
-                if let email = selectedEmail {
-                    EmailDetailView(email: email, aiService: aiService)
-                }
-            }
+        }
+        .sheet(isPresented: $showingComposeSheet) {
+            ComposeEmailView()
         }
         .sheet(isPresented: $showingEmailSettings) {
             EmailSettingsView()
@@ -85,31 +115,76 @@ public struct EmailListView: View {
         }
     }
     
-    // MARK: - Email List Content
+    // MARK: - Modern Email List Content (iOS 26)
     
-    private var emailListContent: some View {
-        VStack(spacing: 0) {
-            // Email list - iOS 26 style
-            emailList
-        }
-    }
-    
-
-    
-    private var emailList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(filteredEmails) { email in
-                    EmailRowView(email: email) {
-                        selectedEmail = email
-                        showingEmailDetail = true
+    private var modernEmailListContent: some View {
+        List {
+            ForEach(filteredEmails) { email in
+                NavigationLink(destination: destinationView(for: email)) {
+                    ModernEmailRowView(email: email)
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                // iOS 26 SwipeActions
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    // Mark as Read/Unread
+                    Button {
+                        Task {
+                            await toggleReadStatus(for: email)
+                        }
+                    } label: {
+                        Label(
+                            email.isRead ? "Non letta" : "Letta", 
+                            systemImage: email.isRead ? "envelope.badge" : "envelope.open"
+                        )
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 1)
+                    .tint(.blue)
+                    
+                    // Pin Email
+                    Button {
+                        pinEmail(email)
+                    } label: {
+                        Label("Pin", systemImage: "pin.fill")
+                    }
+                    .tint(.orange)
+                    
+                    // Archive
+                    Button {
+                        archiveEmail(email)
+                    } label: {
+                        Label("Archivia", systemImage: "archivebox.fill")
+                    }
+                    .tint(.green)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    // Delete
+                    Button(role: .destructive) {
+                        Task {
+                            await deleteEmail(email)
+                        }
+                    } label: {
+                        Label("Elimina", systemImage: "trash.fill")
+                    }
+                    
+                    // Forward
+                    Button {
+                        forwardEmail(email)
+                    } label: {
+                        Label("Inoltra", systemImage: "arrowshape.turn.up.right.fill")
+                    }
+                    .tint(.indigo)
+                    
+                    // Reply
+                    Button {
+                        replyToEmail(email)
+                    } label: {
+                        Label("Rispondi", systemImage: "arrowshape.turn.up.left.fill")
+                    }
+                    .tint(.blue)
                 }
             }
-            .padding(.top, 8)
         }
+        .listStyle(.plain)
         .refreshable {
             if let account = emailService.currentAccount {
                 await emailService.loadEmails(for: account)
@@ -120,320 +195,220 @@ public struct EmailListView: View {
                 VStack(spacing: 16) {
                     ProgressView()
                         .scaleEffect(1.2)
+                        .foregroundStyle(.blue)
                     Text("Caricamento email...")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.systemBackground))
+                .background(.ultraThinMaterial)
+                .liquidGlass(.subtle)
             }
             
             if filteredEmails.isEmpty && !emailService.isLoading {
                 VStack(spacing: 16) {
                     Image(systemName: "envelope.open")
                         .font(.system(size: 50))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
+                        .symbolRenderingMode(.hierarchical)
                     
                     Text("Nessuna email trovata")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     
                     Text("Le tue email appariranno qui")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
     
+    // MARK: - SwipeAction Functions
+    
+    private func toggleReadStatus(for email: EmailMessage) async {
+        hapticFeedback.impactOccurred()
+        await emailService.markEmailAsRead(email.id)
+    }
+    
+    private func pinEmail(_ email: EmailMessage) {
+        hapticFeedback.impactOccurred()
+        // TODO: Implementare pin functionality
+        print("📌 Pin email: \(email.subject)")
+    }
+    
+    private func archiveEmail(_ email: EmailMessage) {
+        hapticFeedback.impactOccurred()
+        // TODO: Implementare archive functionality
+        print("📦 Archive email: \(email.subject)")
+    }
+    
+    private func deleteEmail(_ email: EmailMessage) async {
+        let impact = UIImpactFeedbackGenerator(style: .heavy)
+        impact.impactOccurred()
+        
+        do {
+            try await emailService.deleteEmail(email.id)
+        } catch {
+            print("❌ Error deleting email: \(error)")
+        }
+    }
+    
+    private func forwardEmail(_ email: EmailMessage) {
+        hapticFeedback.impactOccurred()
+        // TODO: Show compose sheet with forward data
+        print("↪️ Forward email: \(email.subject)")
+    }
+    
+    private func replyToEmail(_ email: EmailMessage) {
+        hapticFeedback.impactOccurred()
+        // TODO: Show compose sheet with reply data
+        print("↩️ Reply to email: \(email.subject)")
+    }
+    
     // MARK: - Login Content
     
     private var loginContent: some View {
-        VStack(spacing: 0) {
-            // Header con icona e titolo
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue.opacity(0.1))
-                        .frame(width: 120, height: 120)
-                    
-                    Image(systemName: "envelope.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
-                }
+        VStack(spacing: 30) {
+            // Icon iOS 26 style
+            Image(systemName: "envelope.circle.fill")
+                .font(.system(size: 80))
+                .foregroundStyle(.blue)
+                .symbolRenderingMode(.multicolor)
+            
+            VStack(spacing: 12) {
+                Text("Accedi alla tua Email")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.primary)
                 
-                VStack(spacing: 8) {
-                    Text("Connetti il tuo account email")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("Accedi al tuo account per iniziare a gestire le email con l'aiuto dell'AI")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                }
+                Text("Connetti il tuo account email per iniziare")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .padding(.top, 40)
-            .padding(.horizontal, 24)
             
-            Spacer()
-            
-            // Pulsanti di connessione
             VStack(spacing: 16) {
-                // Pulsante Gmail
+                // Google Login - iOS 26 style
                 Button {
                     Task {
                         await emailService.authenticateWithGoogle()
                     }
                 } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "envelope.circle.fill")
+                    HStack {
+                        Image(systemName: "envelope.circle")
                             .font(.title2)
-                        Text("Connetti Gmail")
+                        Text("Accedi con Google")
                             .font(.headline)
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .opacity(0.7)
                     }
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.blue)
-                            .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                    )
-                    .foregroundColor(.white)
+                    .padding()
+                    .background(.blue, in: RoundedRectangle(cornerRadius: 12))
+                    .liquidGlass(.prominent)
                 }
-                .disabled(emailService.isLoading)
-                .scaleEffect(emailService.isLoading ? 0.95 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: emailService.isLoading)
                 
-                // Pulsante Outlook
+                // Microsoft Login - iOS 26 style
                 Button {
                     Task {
                         await emailService.authenticateWithMicrosoft()
                     }
                 } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "envelope.badge.fill")
+                    HStack {
+                        Image(systemName: "envelope.circle")
                             .font(.title2)
-                        Text("Connetti Outlook")
+                        Text("Accedi con Microsoft")
                             .font(.headline)
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .opacity(0.7)
                     }
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.orange)
-                            .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
-                    )
-                    .foregroundColor(.white)
-                }
-                .disabled(emailService.isLoading)
-                .scaleEffect(emailService.isLoading ? 0.95 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: emailService.isLoading)
-            }
-            .padding(.horizontal, 24)
-            
-            // Indicatore di caricamento
-            if emailService.isLoading {
-                VStack(spacing: 12) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Connessione in corso...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.top, 20)
-            }
-            
-            Spacer()
-            
-            // Footer con informazioni
-            VStack(spacing: 8) {
-                Text("Le tue email sono protette e sicure")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                HStack(spacing: 16) {
-                    Label("Crittografia", systemImage: "lock.shield")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    Label("Privacy", systemImage: "eye.slash")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    .padding()
+                    .background(.indigo, in: RoundedRectangle(cornerRadius: 12))
+                    .liquidGlass(.prominent)
                 }
             }
-            .padding(.bottom, 40)
+            .padding(.horizontal)
         }
-        .background(
-            LinearGradient(
-                colors: [Color(.systemBackground), Color(.systemBackground).opacity(0.8)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.ultraThinMaterial)
+        .liquidGlass(.subtle)
     }
 }
 
-// MARK: - Email Row View
-
-public struct EmailRowView: View {
+// MARK: - Modern Email Row View (iOS 26)
+private struct ModernEmailRowView: View {
     let email: EmailMessage
-    let onTap: () -> Void
     
-    @State private var category: EmailCategory?
-    @State private var urgency: EmailUrgency = .normal
-    
-    public var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                // Unread indicator - iOS 26 style
-                VStack {
-                    if !email.isRead {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 10, height: 10)
-                    }
-                    Spacer()
-                }
-                .frame(width: 10)
-                
-                // Main content
-                VStack(alignment: .leading, spacing: 6) {
-                    // Sender and date
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(email.from)
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                            
-                            Text(email.subject)
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text(formatDate(email.date))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            // Urgency indicator
-                            if urgency != .normal {
-                                Image(systemName: urgencyIcon)
-                                    .font(.caption)
-                                    .foregroundColor(urgencyColor)
-                            }
-                        }
-                    }
-                    
-                    // Email preview
-                    Text(email.body)
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Read indicator - iOS 26 style
+            Circle()
+                .fill(email.isRead ? Color.clear : .blue)
+                .frame(width: 10, height: 10)
+                .padding(.top, 5)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    // Email type indicator with SF Symbols 7
+                    Image(systemName: email.emailType.icon)
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
+                        .foregroundStyle(email.emailType.color)
+                        .symbolRenderingMode(.hierarchical)
                     
-                    // Category tag
-                    if let category = category {
-                        HStack {
-                            Text(category.displayName)
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(category.color.opacity(0.15))
-                                )
-                                .foregroundColor(category.color)
-                            
-                            Spacer()
-                        }
-                    }
+                    Text(email.emailType == .sent ? "A: \(email.to.first ?? "")" : email.from)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                    
+                    Text(formatDate(email.date))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                
+                Text(email.subject)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                
+                Text(email.body.stripHTML())
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.08), radius: 3, x: 0, y: 2)
-            )
-
+            
+            Spacer()
         }
-        .buttonStyle(PlainButtonStyle())
-        .onAppear {
-            analyzeEmail()
-        }
-    }
-    
-    private func analyzeEmail() {
-        // Analizza l'email per categoria e urgenza
-        Task {
-            // TODO: Implementare analisi AI per categoria e urgenza
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .liquidGlass(.subtle)
+        .contentShape(Rectangle())
     }
     
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        let now = Date()
-        let calendar = Calendar.current
+        formatter.locale = Locale(identifier: "it_IT")
         
-        if calendar.isDate(date, inSameDayAs: now) {
-            formatter.dateFormat = "HH:mm"
-        } else if calendar.isDate(date, equalTo: calendar.date(byAdding: .day, value: -1, to: now)!, toGranularity: .day) {
+        if Calendar.current.isDateInToday(date) {
+            formatter.timeStyle = .short
+        } else if Calendar.current.isDateInYesterday(date) {
             return "Ieri"
         } else {
-            formatter.dateFormat = "dd/MM"
+            formatter.dateStyle = .short
         }
         
         return formatter.string(from: date)
     }
-    
-    private var urgencyIcon: String {
-        switch urgency {
-        case .high:
-            return "exclamationmark.triangle.fill"
-        case .medium:
-            return "exclamationmark.circle.fill"
-        case .low:
-            return "checkmark.circle.fill"
-        case .normal:
-            return "circle.fill"
-        }
-    }
-    
-    private var urgencyColor: Color {
-        switch urgency {
-        case .high:
-            return .red
-        case .medium:
-            return .orange
-        case .low:
-            return .green
-        case .normal:
-            return .secondary
-        }
-    }
 }
 
-// MARK: - Email Detail View
-// La definizione di EmailDetailView è stata spostata in EmailDetailView.swift 
+// MARK: - String Extension for HTML Stripping
+extension String {
+    func stripHTML() -> String {
+        return self.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+    }
+} 

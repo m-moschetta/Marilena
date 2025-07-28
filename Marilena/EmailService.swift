@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import Security
 import AuthenticationServices
+import SwiftUI // Added for Color
 
 // MARK: - Email Service
 // Servizio principale per la gestione delle email con autenticazione OAuth e sincronizzazione IMAP
@@ -370,6 +371,93 @@ public class EmailService: ObservableObject {
         try await sendEmailDirectly(to: to, subject: subject, body: body, account: account)
         
         print("📧 EmailService: ===== FINE INVIO EMAIL =====")
+    }
+    
+    // MARK: - Delete Email
+    
+    /// Cancella un'email sia dal server che dalla cache locale
+    public func deleteEmail(_ emailId: String) async throws {
+        guard isAuthenticated, let account = currentAccount else {
+            throw EmailError.notAuthenticated
+        }
+        
+        print("🗑️ EmailService: Eliminazione email ID: \(emailId)")
+        
+        // Rimuovi dalla lista locale immediatamente per UI reattiva
+        await MainActor.run {
+            self.emails.removeAll { $0.id == emailId }
+        }
+        
+        // Rimuovi dalla cache CoreData
+        await cacheService.deleteEmail(emailId)
+        
+        // Rimuovi dal server
+        switch account.provider {
+        case .google:
+            try await deleteEmailFromGmail(emailId, account: account)
+        case .microsoft:
+            try await deleteEmailFromMicrosoft(emailId, account: account)
+        }
+        
+        print("✅ EmailService: Email eliminata con successo")
+    }
+    
+    private func deleteEmailFromGmail(_ emailId: String, account: EmailAccount) async throws {
+        let url = URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/messages/\(emailId)/trash")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw EmailError.deleteFailed
+        }
+    }
+    
+    private func deleteEmailFromMicrosoft(_ emailId: String, account: EmailAccount) async throws {
+        let url = URL(string: "https://graph.microsoft.com/v1.0/me/messages/\(emailId)")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 204 else {
+            throw EmailError.deleteFailed
+        }
+    }
+    
+    // MARK: - Forward Email
+    
+    /// Prepara un'email per l'inoltro
+    public func prepareForwardEmail(_ email: EmailMessage) -> (subject: String, body: String) {
+        let forwardSubject = "Fwd: \(email.subject)"
+        
+        let forwardBody = """
+        <br><br>
+        ---------- Messaggio inoltrato ----------<br>
+        Da: \(email.from)<br>
+        Data: \(formatDate(email.date))<br>
+        Oggetto: \(email.subject)<br>
+        A: \(email.to.joined(separator: ", "))<br>
+        <br>
+        \(email.body)
+        """
+        
+        return (subject: forwardSubject, body: forwardBody)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "it_IT")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
     
     private func sendEmailWithGmail(to: String, subject: String, body: String, account: EmailAccount) async throws {
@@ -957,6 +1045,7 @@ public struct EmailMessage: Identifiable, Codable {
     public let date: Date
     public let isRead: Bool
     public let hasAttachments: Bool
+    public let emailType: EmailType
     
     public init(
         id: String,
@@ -966,7 +1055,8 @@ public struct EmailMessage: Identifiable, Codable {
         body: String,
         date: Date,
         isRead: Bool = false,
-        hasAttachments: Bool = false
+        hasAttachments: Bool = false,
+        emailType: EmailType = .received
     ) {
         self.id = id
         self.from = from
@@ -976,6 +1066,33 @@ public struct EmailMessage: Identifiable, Codable {
         self.date = date
         self.isRead = isRead
         self.hasAttachments = hasAttachments
+        self.emailType = emailType
+    }
+}
+
+public enum EmailType: String, Codable, CaseIterable {
+    case received = "received"
+    case sent = "sent"
+    
+    var displayName: String {
+        switch self {
+        case .received: return "Ricevuta"
+        case .sent: return "Inviata"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .received: return "envelope"
+        case .sent: return "envelope.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .received: return .blue
+        case .sent: return .green
+        }
     }
 }
 
@@ -1023,6 +1140,7 @@ public enum EmailError: LocalizedError {
     case permissionDenied
     case invalidEmailAddress
     case serverError // Aggiunto per l'errore di marcatura email
+    case deleteFailed // Aggiunto per l'errore di eliminazione email
     
     public var errorDescription: String? {
         switch self {
@@ -1046,6 +1164,8 @@ public enum EmailError: LocalizedError {
             return "Indirizzo email non valido. Verifica il destinatario."
         case .serverError:
             return "Errore nella comunicazione con il server per marcare l'email come letta."
+        case .deleteFailed:
+            return "Eliminazione email non riuscita."
         }
     }
 } 

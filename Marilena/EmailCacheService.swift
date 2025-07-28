@@ -110,6 +110,27 @@ public class EmailCacheService: ObservableObject {
         }
     }
     
+    // MARK: - Delete Email
+    
+    func deleteEmail(_ emailId: String) async {
+        guard let context = persistenceController?.container.viewContext else { return }
+        
+        let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", emailId)
+        
+        do {
+            let emails = try context.fetch(fetchRequest)
+            for email in emails {
+                context.delete(email)
+            }
+            
+            try context.save()
+            print("🗑️ EmailCacheService: Email \(emailId) rimossa dalla cache")
+        } catch {
+            print("❌ EmailCacheService: Errore eliminazione email dalla cache: \(error)")
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func loadCachedEmails() {
@@ -137,7 +158,8 @@ public class EmailCacheService: ObservableObject {
                     body: body,
                     date: date,
                     isRead: cachedEmail.isRead,
-                    hasAttachments: cachedEmail.hasAttachments
+                    hasAttachments: cachedEmail.hasAttachments,
+                    emailType: EmailType(rawValue: cachedEmail.emailType ?? "received") ?? .received
                 )
             } ?? []
             
@@ -152,14 +174,16 @@ public class EmailCacheService: ObservableObject {
     }
     
     private func saveEmailToCache(_ email: EmailMessage, accountId: String, in context: NSManagedObjectContext?) async {
+        guard let context = context else { return }
+        
         // Verifica se l'email esiste già
         let request: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@ AND accountId == %@", email.id, accountId)
         
         do {
-            let existingEmails = try context?.fetch(request)
+            let existingEmails = try context.fetch(request)
             
-            if let existingEmail = existingEmails?.first {
+            if let existingEmail = existingEmails.first {
                 // Aggiorna email esistente
                 existingEmail.from = email.from
                 existingEmail.to = email.to.joined(separator: ",")
@@ -168,10 +192,11 @@ public class EmailCacheService: ObservableObject {
                 existingEmail.date = email.date
                 existingEmail.isRead = email.isRead
                 existingEmail.hasAttachments = email.hasAttachments
+                existingEmail.emailType = email.emailType.rawValue
                 existingEmail.lastUpdated = Date()
             } else {
                 // Crea nuova email in cache
-                let cachedEmail = CachedEmail(context: context ?? NSManagedObjectContext())
+                let cachedEmail = CachedEmail(context: context)
                 cachedEmail.id = email.id
                 cachedEmail.from = email.from
                 cachedEmail.to = email.to.joined(separator: ",")
@@ -180,6 +205,7 @@ public class EmailCacheService: ObservableObject {
                 cachedEmail.date = email.date
                 cachedEmail.isRead = email.isRead
                 cachedEmail.hasAttachments = email.hasAttachments
+                cachedEmail.emailType = email.emailType.rawValue
                 cachedEmail.accountId = accountId
                 cachedEmail.createdAt = Date()
                 cachedEmail.lastUpdated = Date()

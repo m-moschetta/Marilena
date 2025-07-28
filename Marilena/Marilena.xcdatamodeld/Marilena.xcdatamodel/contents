@@ -65,13 +65,39 @@
         <attribute name="body" optional="YES" attributeType="String"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="emailType" optional="YES" attributeType="String" defaultValueString="received"/>
         <attribute name="from" optional="YES" attributeType="String"/>
         <attribute name="hasAttachments" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="isArchived" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isPinned" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="isRead" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="lastUpdated" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="priority" optional="YES" attributeType="String" defaultValueString="normal"/>
         <attribute name="subject" optional="YES" attributeType="String"/>
         <attribute name="to" optional="YES" attributeType="String"/>
+        <relationship name="actions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="EmailAction" inverseName="email" inverseEntity="EmailAction"/>
+    </entity>
+    <entity name="DraftEmail" representedClassName="DraftEmail" syncable="YES" codeGenerationType="class">
+        <attribute name="accountId" optional="YES" attributeType="String"/>
+        <attribute name="attachments" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer" customClassName="[String]"/>
+        <attribute name="body" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isAutoSaved" optional="YES" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="lastUpdated" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="recipients" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer" customClassName="[String]"/>
+        <attribute name="replyToEmailId" optional="YES" attributeType="String"/>
+        <attribute name="subject" optional="YES" attributeType="String"/>
+        <attribute name="syncStatus" optional="YES" attributeType="String" defaultValueString="pending"/>
+        <attribute name="type" optional="YES" attributeType="String" defaultValueString="new"/>
+    </entity>
+    <entity name="EmailAction" representedClassName="EmailAction" syncable="YES" codeGenerationType="class">
+        <attribute name="actionType" optional="YES" attributeType="String"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="syncStatus" optional="YES" attributeType="String" defaultValueString="pending"/>
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="email" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CachedEmail" inverseName="actions" inverseEntity="CachedEmail"/>
     </entity>
     <entity name="Trascrizione" representedClassName="Trascrizione" syncable="YES" codeGenerationType="class">
         <attribute name="accuratezza" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>

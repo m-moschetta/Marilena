@@ -74,6 +74,35 @@ public class EmailAIService: ObservableObject {
         return drafts
     }
     
+    /// Genera una risposta personalizzata basata su un prompt specifico
+    public func generateCustomResponse(for email: EmailMessage, basedOn draft: EmailDraft?, withPrompt customPrompt: String) async -> EmailDraft? {
+        isGenerating = true
+        error = nil
+        
+        do {
+            let prompt = createCustomResponsePrompt(for: email, basedOn: draft, withPrompt: customPrompt)
+            let response = try await sendToAI(prompt: prompt)
+            
+            let customDraft = EmailDraft(
+                id: UUID(),
+                originalEmail: email,
+                content: response,
+                generatedAt: Date(),
+                context: "Risposta personalizzata: \(customPrompt)"
+            )
+            
+            generatedDrafts.append(customDraft)
+            isGenerating = false
+            
+            return customDraft
+            
+        } catch {
+            self.error = error.localizedDescription
+            isGenerating = false
+            return nil
+        }
+    }
+    
     /// Analizza il tono e il contenuto di un'email
     public func analyzeEmail(_ email: EmailMessage) async -> EmailAnalysis? {
         do {
@@ -177,6 +206,35 @@ public class EmailAIService: ObservableObject {
             .replacingOccurrences(of: "{MITtente}", with: email.from)
             .replacingOccurrences(of: "{Oggetto}", with: email.subject)
             .replacingOccurrences(of: "{Corpo}", with: email.body)
+    }
+    
+    private func createCustomResponsePrompt(for email: EmailMessage, basedOn draft: EmailDraft?, withPrompt customPrompt: String) -> String {
+        let basePrompt = """
+        Genera una risposta email personalizzata seguendo queste istruzioni specifiche:
+        
+        ISTRUZIONI PERSONALIZZATE:
+        \(customPrompt)
+        
+        CONTESTO EMAIL ORIGINALE:
+        Mittente: {MITtente}
+        Oggetto: {Oggetto}
+        Data: {Data}
+        Corpo: {Corpo}
+        
+        BOZZA DI RIFERIMENTO (se disponibile):
+        {BOZZA_RIFERIMENTO}
+        
+        Genera una risposta email professionale e appropriata che segua esattamente le istruzioni personalizzate fornite.
+        """
+        
+        let draftContent = draft?.content ?? "Nessuna bozza di riferimento disponibile"
+        
+        return basePrompt
+            .replacingOccurrences(of: "{MITtente}", with: email.from)
+            .replacingOccurrences(of: "{Oggetto}", with: email.subject)
+            .replacingOccurrences(of: "{Data}", with: formatDate(email.date))
+            .replacingOccurrences(of: "{Corpo}", with: email.body)
+            .replacingOccurrences(of: "{BOZZA_RIFERIMENTO}", with: draftContent)
     }
     
     private func sendToAI(prompt: String) async throws -> String {
@@ -310,6 +368,7 @@ public struct EmailAnalysis {
     public var mainTopics: [String] = []
     public var explicitRequests: [String] = []
     public var implicitRequests: [String] = []
+    public var category: EmailCategory = .other
 }
 
 public enum EmailCategory: String, CaseIterable {
@@ -340,7 +399,7 @@ public enum EmailCategory: String, CaseIterable {
         }
     }
     
-    public var iconName: String {
+    public var icon: String {
         switch self {
         case .work:
             return "briefcase.fill"
@@ -349,13 +408,13 @@ public enum EmailCategory: String, CaseIterable {
         case .commercial:
             return "cart.fill"
         case .technical:
-            return "wrench.fill"
+            return "gear"
         case .social:
             return "person.2.fill"
         case .spam:
-            return "exclamationmark.triangle.fill"
+            return "xmark.octagon.fill"
         case .other:
-            return "questionmark.circle.fill"
+            return "folder.fill"
         }
     }
     
@@ -408,6 +467,19 @@ public enum EmailUrgency: String, CaseIterable {
             return "orange"
         case .high:
             return "red"
+        }
+    }
+    
+    public var icon: String {
+        switch self {
+        case .low:
+            return "arrow.down.circle"
+        case .normal:
+            return "circle"
+        case .medium:
+            return "exclamationmark.circle"
+        case .high:
+            return "exclamationmark.2"
         }
     }
 }
