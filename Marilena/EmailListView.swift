@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import CoreData
 
 // MARK: - iOS 26 Enhanced Email List View
 // Vista principale modernizzata per iOS 26 con Liquid Glass e SwipeActions native
@@ -41,6 +42,25 @@ public struct EmailListView: View {
     
     private var filteredEmails: [EmailMessage] {
         var emails = emailService.emails
+        
+        // Escludi email archiviate e eliminate
+        emails = emails.filter { email in
+            // Controlla nella cache CoreData se l'email è archiviata o eliminata
+            let context = PersistenceController.shared.container.viewContext
+            let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "id == %@", email.id)
+            
+            do {
+                let cachedEmails = try context.fetch(fetchRequest)
+                if let cachedEmail = cachedEmails.first {
+                    return !(cachedEmail.isArchived || cachedEmail.isMarkedAsDeleted)
+                }
+            } catch {
+                print("❌ EmailListView: Errore controllo stato email: \(error)")
+            }
+            
+            return true // Se non trovata nella cache, mostra l'email
+        }
         
         // Filtra per ricerca
         if !searchText.isEmpty {
@@ -160,7 +180,9 @@ public struct EmailListView: View {
                     
                     // Archive
                     Button {
-                        archiveEmail(email)
+                        Task {
+                            await archiveEmail(email)
+                        }
                     } label: {
                         Label("Archivia", systemImage: "archivebox.fill")
                     }
@@ -248,10 +270,11 @@ public struct EmailListView: View {
         print("📌 Pin email: \(email.subject)")
     }
     
-    private func archiveEmail(_ email: EmailMessage) {
+    private func archiveEmail(_ email: EmailMessage) async {
         hapticFeedback.impactOccurred()
         // TODO: Implementare archive functionality
         print("📦 Archive email: \(email.subject)")
+        await emailService.archiveEmail(email.id)
     }
     
     private func deleteEmail(_ email: EmailMessage) async {

@@ -75,7 +75,7 @@ struct ChatsListView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(ChatFilter.allCases, id: \.self) { filter in
-                        FilterChip(
+                        ChatFilterChip(
                             title: filter.title,
                             isSelected: selectedFilter == filter,
                             count: getFilterCount(filter)
@@ -133,6 +133,24 @@ struct ChatsListView: View {
                             }
                             .opacity(0)
                         )
+                        // Swipe Actions per Chat
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            // Archive
+                            Button {
+                                archiveChat(chat)
+                            } label: {
+                                Label("Archivia", systemImage: "archivebox.fill")
+                            }
+                            .tint(.green)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            // Delete
+                            Button(role: .destructive) {
+                                deleteChat(chat)
+                            } label: {
+                                Label("Elimina", systemImage: "trash.fill")
+                            }
+                        }
                 }
                 .onDelete(perform: deleteChats)
             }
@@ -156,6 +174,11 @@ struct ChatsListView: View {
     
     private var filteredChats: [ChatMarilena] {
         var filtered = Array(chats)
+        
+        // Escludi chat archiviate e eliminate
+        filtered = filtered.filter { chat in
+            !(chat.isArchived || chat.isMarkedAsDeleted)
+        }
         
         // Applica filtro di categoria
         switch selectedFilter {
@@ -184,15 +207,17 @@ struct ChatsListView: View {
     // MARK: - Helper Methods
     
     private func getFilterCount(_ filter: ChatFilter) -> Int {
+        let activeChats = chats.filter { !($0.isArchived || $0.isMarkedAsDeleted) }
+        
         switch filter {
         case .all:
-            return chats.count
+            return activeChats.count
         case .email:
-            return chats.filter { $0.tipo == "email" }.count
+            return activeChats.filter { $0.tipo == "email" }.count
         case .transcription:
-            return chats.filter { $0.tipo == "transcription" }.count
+            return activeChats.filter { $0.tipo == "transcription" }.count
         case .ai:
-            return chats.filter { $0.tipo != "email" && $0.tipo != "transcription" }.count
+            return activeChats.filter { $0.tipo != "email" && $0.tipo != "transcription" }.count
         }
     }
     
@@ -257,6 +282,82 @@ struct ChatsListView: View {
             try viewContext.save()
         } catch {
             print("❌ ChatsListView: Errore eliminazione chat: \(error)")
+        }
+    }
+    
+    // MARK: - Swipe Actions Functions
+    
+    private func archiveChat(_ chat: ChatMarilena) {
+        print("📦 ChatsListView: Archiviazione chat: \(chat.titolo ?? "Senza titolo")")
+        
+        // Archivia la chat
+        chat.isArchived = true
+        
+        // Se è una chat email, archivia anche l'email corrispondente
+        if chat.tipo == "email", let emailSender = chat.emailSender {
+            archiveCorrespondingEmail(sender: emailSender)
+        }
+        
+        do {
+            try viewContext.save()
+            print("✅ ChatsListView: Chat archiviata con successo")
+        } catch {
+            print("❌ ChatsListView: Errore archiviazione chat: \(error)")
+        }
+    }
+    
+    private func deleteChat(_ chat: ChatMarilena) {
+        print("🗑️ ChatsListView: Eliminazione chat: \(chat.titolo ?? "Senza titolo")")
+        
+        // Se è una chat email, elimina anche l'email corrispondente
+        if chat.tipo == "email", let emailSender = chat.emailSender {
+            deleteCorrespondingEmail(sender: emailSender)
+        }
+        
+        // Elimina la chat
+        viewContext.delete(chat)
+        
+        do {
+            try viewContext.save()
+            print("✅ ChatsListView: Chat eliminata con successo")
+        } catch {
+            print("❌ ChatsListView: Errore eliminazione chat: \(error)")
+        }
+    }
+    
+    private func archiveCorrespondingEmail(sender: String) {
+        print("📦 ChatsListView: Archiviazione email per sender: \(sender)")
+        
+        // Cerca l'email corrispondente nella cache
+        let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "from == %@ AND isArchived == NO", sender)
+        
+        do {
+            let emails = try viewContext.fetch(fetchRequest)
+            for email in emails {
+                email.isArchived = true
+                print("📦 ChatsListView: Email archiviata: \(email.subject ?? "Senza oggetto")")
+            }
+        } catch {
+            print("❌ ChatsListView: Errore ricerca email per archiviazione: \(error)")
+        }
+    }
+    
+    private func deleteCorrespondingEmail(sender: String) {
+        print("🗑️ ChatsListView: Eliminazione email per sender: \(sender)")
+        
+        // Cerca l'email corrispondente nella cache
+        let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "from == %@ AND isMarkedAsDeleted == NO", sender)
+        
+        do {
+            let emails = try viewContext.fetch(fetchRequest)
+            for email in emails {
+                email.isMarkedAsDeleted = true
+                print("🗑️ ChatsListView: Email eliminata: \(email.subject ?? "Senza oggetto")")
+            }
+        } catch {
+            print("❌ ChatsListView: Errore ricerca email per eliminazione: \(error)")
         }
     }
     
@@ -547,7 +648,7 @@ struct NewChatView: View {
 
 // MARK: - Filter Chip
 
-struct FilterChip: View {
+struct ChatFilterChip: View {
     let title: String
     let isSelected: Bool
     let count: Int

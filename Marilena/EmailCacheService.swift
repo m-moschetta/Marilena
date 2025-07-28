@@ -121,13 +121,34 @@ public class EmailCacheService: ObservableObject {
         do {
             let emails = try context.fetch(fetchRequest)
             for email in emails {
-                context.delete(email)
+                email.isMarkedAsDeleted = true
             }
             
             try context.save()
-            print("🗑️ EmailCacheService: Email \(emailId) rimossa dalla cache")
+            print("🗑️ EmailCacheService: Email \(emailId) marcata come eliminata")
         } catch {
             print("❌ EmailCacheService: Errore eliminazione email dalla cache: \(error)")
+        }
+    }
+    
+    // MARK: - Archive Email
+    
+    func archiveEmail(_ emailId: String) async {
+        guard let context = persistenceController?.container.viewContext else { return }
+        
+        let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", emailId)
+        
+        do {
+            let emails = try context.fetch(fetchRequest)
+            for email in emails {
+                email.isArchived = true
+            }
+            
+            try context.save()
+            print("📦 EmailCacheService: Email \(emailId) archiviata")
+        } catch {
+            print("❌ EmailCacheService: Errore archiviazione email nella cache: \(error)")
         }
     }
     

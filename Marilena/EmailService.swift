@@ -3,6 +3,7 @@ import Combine
 import Security
 import AuthenticationServices
 import SwiftUI // Added for Color
+import CoreData
 
 // MARK: - Email Service
 // Servizio principale per la gestione delle email con autenticazione OAuth e sincronizzazione IMAP
@@ -405,6 +406,59 @@ public class EmailService: ObservableObject {
         }
         
         print("✅ EmailService: Email eliminata con successo")
+    }
+    
+    // MARK: - Archive Email
+    
+    /// Archivia un'email e sincronizza con le chat corrispondenti
+    public func archiveEmail(_ emailId: String) async {
+        print("📦 EmailService: Archiviazione email ID: \(emailId)")
+        
+        // Archivia nella cache CoreData
+        await cacheService.archiveEmail(emailId)
+        
+        // Rimuovi dalla lista locale per UI reattiva
+        await MainActor.run {
+            self.emails.removeAll { $0.id == emailId }
+        }
+        
+        // Sincronizza con le chat email corrispondenti
+        await archiveCorrespondingChat(emailId: emailId)
+        
+        print("✅ EmailService: Email archiviata con successo")
+    }
+    
+    private func archiveCorrespondingChat(emailId: String) async {
+        print("📦 EmailService: Ricerca chat corrispondente per email: \(emailId)")
+        
+        // Cerca l'email nella cache per ottenere il sender
+        let context = PersistenceController.shared.container.viewContext
+        let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@", emailId)
+        
+        do {
+            let emails = try context.fetch(fetchRequest)
+            if let email = emails.first, let sender = email.from {
+                print("📦 EmailService: Sender trovato: \(sender)")
+                
+                // Cerca la chat corrispondente
+                let chatFetchRequest: NSFetchRequest<ChatMarilena> = ChatMarilena.fetchRequest()
+                chatFetchRequest.predicate = NSPredicate(format: "emailSender == %@ AND tipo == %@", sender, "email")
+                
+                let chats = try context.fetch(chatFetchRequest)
+                if let chat = chats.first {
+                    print("📦 EmailService: Chat trovata, archiviazione...")
+                    chat.isArchived = true
+                    
+                    try context.save()
+                    print("✅ EmailService: Chat archiviata con successo")
+                } else {
+                    print("📦 EmailService: Nessuna chat trovata per sender: \(sender)")
+                }
+            }
+        } catch {
+            print("❌ EmailService: Errore ricerca chat per archiviazione: \(error)")
+        }
     }
     
     private func deleteEmailFromGmail(_ emailId: String, account: EmailAccount) async throws {

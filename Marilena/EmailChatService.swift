@@ -212,8 +212,23 @@ public class EmailChatService: ObservableObject {
     }
     
     private func handleNewEmail(_ email: EmailMessage) async {
-        // Crea automaticamente una chat mail per email importanti
-        if shouldCreateEmailChat(for: email) {
+        print("📧 EmailChatService: Gestione nuova email da \(email.from)")
+        
+        // Verifica se esiste già una chat per questo mittente
+        if let existingChat = findExistingEmailChatSync(for: email.from) {
+            print("📧 EmailChatService: Chat esistente trovata per \(email.from), aggiornamento...")
+            await updateExistingEmailChat(existingChat, with: email)
+            
+            // Notifica l'aggiornamento della chat
+            NotificationCenter.default.post(
+                name: .emailChatCreated,
+                object: existingChat,
+                userInfo: ["email": email, "action": "updated"]
+            )
+            
+            print("✅ EmailChatService: Chat aggiornata per \(email.from)")
+        } else if shouldCreateEmailChat(for: email) {
+            // Crea automaticamente una chat mail per email nuove e importanti
             print("📧 EmailChatService: Nuova email ricevuta da \(email.from) - Creazione chat automatica...")
             
             if let chat = await createEmailChat(for: email) {
@@ -221,7 +236,7 @@ public class EmailChatService: ObservableObject {
                 NotificationCenter.default.post(
                     name: .emailChatCreated,
                     object: chat,
-                    userInfo: ["email": email]
+                    userInfo: ["email": email, "action": "created"]
                 )
                 
                 print("✅ EmailChatService: Chat mail creata automaticamente per \(email.from)")
@@ -234,10 +249,34 @@ public class EmailChatService: ObservableObject {
     }
     
     private func shouldCreateEmailChat(for email: EmailMessage) -> Bool {
-        // Logica per determinare se creare una chat mail
-        // Per ora, crea per tutte le email ricevute
-        // In futuro, potremmo aggiungere filtri più sofisticati
-        return email.emailType == .received
+        // Verifica che sia un'email ricevuta
+        guard email.emailType == .received else {
+            print("📧 EmailChatService: Email non ricevuta, skip creazione chat")
+            return false
+        }
+        
+        // Verifica che l'email non sia troppo vecchia (più di 1 ora)
+        let oneHourAgo = Date().addingTimeInterval(-3600)
+        guard email.date > oneHourAgo else {
+            print("📧 EmailChatService: Email troppo vecchia (\(email.date)), skip creazione chat")
+            return false
+        }
+        
+        // Verifica che non esista già una chat per questo mittente
+        let existingChat = findExistingEmailChatSync(for: email.from)
+        if existingChat != nil {
+            print("📧 EmailChatService: Chat già esistente per \(email.from), aggiorna invece di creare")
+            return false
+        }
+        
+        // Verifica che l'email non sia già stata processata
+        if isEmailAlreadyProcessed(email) {
+            print("📧 EmailChatService: Email già processata (\(email.id)), skip creazione chat")
+            return false
+        }
+        
+        print("📧 EmailChatService: Email qualificata per creazione chat: \(email.from)")
+        return true
     }
     
     private func findExistingEmailChat(for sender: String) async -> ChatMarilena? {
@@ -251,6 +290,34 @@ public class EmailChatService: ObservableObject {
         } catch {
             print("❌ EmailChatService: Errore ricerca chat esistente: \(error)")
             return nil
+        }
+    }
+    
+    private func findExistingEmailChatSync(for sender: String) -> ChatMarilena? {
+        let fetchRequest: NSFetchRequest<ChatMarilena> = ChatMarilena.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "emailSender == %@ AND tipo == %@", sender, "email")
+        fetchRequest.fetchLimit = 1
+        
+        do {
+            let chats = try context.fetch(fetchRequest)
+            return chats.first
+        } catch {
+            print("❌ EmailChatService: Errore ricerca chat esistente: \(error)")
+            return nil
+        }
+    }
+    
+    private func isEmailAlreadyProcessed(_ email: EmailMessage) -> Bool {
+        // Verifica se l'email è già stata processata controllando i messaggi esistenti
+        let fetchRequest: NSFetchRequest<MessaggioMarilena> = MessaggioMarilena.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "emailId == %@", email.id)
+        
+        do {
+            let messages = try context.fetch(fetchRequest)
+            return !messages.isEmpty
+        } catch {
+            print("❌ EmailChatService: Errore verifica email processata: \(error)")
+            return false
         }
     }
     
@@ -292,20 +359,36 @@ public class EmailChatService: ObservableObject {
     }
     
     private func analyzeEmailAndGenerateResponse(for email: EmailMessage, in chat: ChatMarilena) async {
-        // Analizza l'email
-        if let analysis = await aiService.analyzeEmail(email) {
-            // Genera suggerimento di risposta
-            let responseType = suggestResponseType(for: analysis)
+        print("🤖 EmailChatService: Avvio analisi AI per email da \(email.from)")
+        
+        do {
+            // Analizza l'email
+            let analysis = await aiService.analyzeEmail(email)
+            let summary = await aiService.summarizeEmail(email)
             
-            // Crea messaggio AI con suggerimento
+            // Genera suggerimento di risposta
+            let responseType = analysis != nil ? suggestResponseType(for: analysis!) : .custom
+            
+            // Crea messaggio AI con analisi
             let aiMessage = MessaggioMarilena(context: context)
             aiMessage.id = UUID()
             aiMessage.contenuto = """
             🤖 **Analisi AI**
             
-            **Categoria:** \(analysis.category.displayName)
-            **Urgenza:** \(analysis.urgency.displayName)
-            **Tono:** \(analysis.tone)
+            **Mittente:** \(email.from)
+            **Oggetto:** \(email.subject)
+            **Data:** \(formatDate(email.date))
+            
+            \(analysis != nil ? """
+            **Categoria:** \(analysis!.category.displayName)
+            **Urgenza:** \(analysis!.urgency.displayName)
+            **Tono:** \(analysis!.tone)
+            """ : "**Analisi:** Non disponibile")
+            
+            \(summary != nil ? """
+            **Riassunto:**
+            \(summary!)
+            """ : "")
             
             **Suggerimento:** \(responseType.displayName)
             
@@ -316,6 +399,32 @@ public class EmailChatService: ObservableObject {
             aiMessage.dataCreazione = Date()
             aiMessage.emailResponseType = responseType.rawValue
             aiMessage.chat = chat
+            
+            print("✅ EmailChatService: Analisi AI completata per \(email.from)")
+            
+        } catch {
+            print("❌ EmailChatService: Errore analisi AI per \(email.from): \(error)")
+            
+            // Crea messaggio di fallback
+            let fallbackMessage = MessaggioMarilena(context: context)
+            fallbackMessage.id = UUID()
+            fallbackMessage.contenuto = """
+            🤖 **Analisi AI**
+            
+            **Mittente:** \(email.from)
+            **Oggetto:** \(email.subject)
+            **Data:** \(formatDate(email.date))
+            
+            **Stato:** Analisi non disponibile
+            **Suggerimento:** Genera risposta personalizzata
+            
+            Clicca per generare una risposta personalizzata.
+            """
+            fallbackMessage.isUser = false
+            fallbackMessage.tipo = "ai_suggestion"
+            fallbackMessage.dataCreazione = Date()
+            fallbackMessage.emailResponseType = EmailResponseType.custom.rawValue
+            fallbackMessage.chat = chat
         }
     }
     
