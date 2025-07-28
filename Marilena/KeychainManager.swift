@@ -57,4 +57,18 @@ class KeychainManager {
         let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess
     }
+    
+    // MARK: - API Key Methods (Compatibilità con EmailService)
+    
+    func saveAPIKey(_ value: String, for key: String) -> Bool {
+        return save(key: key, value: value)
+    }
+    
+    func getAPIKey(for key: String) -> String? {
+        return load(key: key)
+    }
+    
+    func deleteAPIKey(for key: String) -> Bool {
+        return delete(key: key)
+    }
 }

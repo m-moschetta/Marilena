@@ -28,7 +28,7 @@ public struct ModularTranscriptionView: View {
         self.customConfiguration = configuration
         self.showSettings = showSettings
         
-        let config = configuration ?? ModularTranscriptionConfiguration()
+        let _ = configuration ?? ModularTranscriptionConfiguration()
         self._transcriptionService = StateObject(wrappedValue: ModularTranscriptionService())
     }
     

@@ -24,21 +24,25 @@ struct AnthropicRequest: Codable {
     }
 }
 
-@MainActor
 struct AnthropicResponse: Codable {
     let id: String
     let type: String
     let role: String
     let content: [AnthropicContent]
     let model: String
-    let stopReason: String?
-    let stopSequence: String?
+    let stop_reason: String?
+    let stop_sequence: String?
     let usage: AnthropicUsage
     
     enum CodingKeys: String, CodingKey {
-        case id, type, role, content, model, usage
-        case stopReason = "stop_reason"
-        case stopSequence = "stop_sequence"
+        case id
+        case type
+        case role
+        case content
+        case model
+        case stop_reason
+        case stop_sequence
+        case usage
     }
 }
 

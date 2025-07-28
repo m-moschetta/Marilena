@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 
 // MARK: - Email AI Service
 // Servizio AI per la generazione di bozze di risposta email
@@ -131,106 +132,83 @@ public class EmailAIService: ObservableObject {
     // MARK: - Private Methods
     
     private func createEmailPrompt(for email: EmailMessage, context: String) -> String {
-        return """
-        Sei un assistente email professionale e conciso. Il tuo compito è scrivere una bozza di risposta a questa email. Rispondi in italiano.
+        // Usa il prompt configurabile dalle impostazioni
+        let basePrompt = UserDefaults.standard.string(forKey: "email_prompt_draft") ?? PromptManager.emailDraftPrompt
         
-        \(context)
-        
-        ---
-        Email a cui rispondere:
-        Da: \(email.from)
-        Oggetto: \(email.subject)
-        Data: \(formatDate(email.date))
-        Corpo: \(email.body)
-        ---
-        
-        ISTRUZIONI:
-        1. Scrivi una risposta professionale e appropriata
-        2. Mantieni un tono cordiale ma professionale
-        3. Rispondi a tutti i punti sollevati nell'email originale
-        4. Sii conciso ma completo
-        5. Non includere saluti iniziali se non necessario
-        6. Usa un linguaggio chiaro e diretto
-        
-        BOZZA DI RISPOSTA:
-        """
+        return basePrompt
+            .replacingOccurrences(of: "{CONTESTO}", with: context)
+            .replacingOccurrences(of: "{MITtente}", with: email.from)
+            .replacingOccurrences(of: "{Oggetto}", with: email.subject)
+            .replacingOccurrences(of: "{Data}", with: formatDate(email.date))
+            .replacingOccurrences(of: "{Corpo}", with: email.body)
     }
     
     private func createAnalysisPrompt(for email: EmailMessage) -> String {
-        return """
-        Analizza questa email e fornisci un'analisi dettagliata.
+        let basePrompt = UserDefaults.standard.string(forKey: "email_prompt_analysis") ?? PromptManager.emailAnalysisPrompt
         
-        EMAIL:
-        Da: \(email.from)
-        Oggetto: \(email.subject)
-        Corpo: \(email.body)
-        
-        Fornisci un'analisi JSON con i seguenti campi:
-        - tono: (formale, informale, amichevole, professionale, urgente)
-        - sentiment: (positivo, negativo, neutro)
-        - argomenti_principali: [lista degli argomenti principali]
-        - richieste_esplicite: [eventuali richieste esplicite]
-        - richieste_implicite: [eventuali richieste implicite]
-        - urgenza: (bassa, media, alta)
-        - complessità: (semplice, media, complessa)
-        """
+        return basePrompt
+            .replacingOccurrences(of: "{MITtente}", with: email.from)
+            .replacingOccurrences(of: "{Oggetto}", with: email.subject)
+            .replacingOccurrences(of: "{Corpo}", with: email.body)
     }
     
     private func createCategorizationPrompt(for email: EmailMessage) -> String {
-        return """
-        Categorizza questa email in una delle seguenti categorie:
+        let basePrompt = UserDefaults.standard.string(forKey: "email_prompt_categorization") ?? PromptManager.emailCategorizationPrompt
         
-        - lavoro: email relative al lavoro
-        - personale: email personali
-        - commerciale: email commerciali/promozionali
-        - tecnico: email tecniche/supporto
-        - sociale: email sociali/inviti
-        - spam: email non desiderate
-        
-        EMAIL:
-        Da: \(email.from)
-        Oggetto: \(email.subject)
-        Corpo: \(email.body)
-        
-        Rispondi solo con la categoria.
-        """
+        return basePrompt
+            .replacingOccurrences(of: "{MITtente}", with: email.from)
+            .replacingOccurrences(of: "{Oggetto}", with: email.subject)
+            .replacingOccurrences(of: "{Corpo}", with: email.body)
     }
     
     private func createSummaryPrompt(for email: EmailMessage) -> String {
-        return """
-        Crea un riassunto conciso di questa email in 2-3 frasi.
+        let basePrompt = UserDefaults.standard.string(forKey: "email_prompt_summary") ?? PromptManager.emailSummaryPrompt
         
-        EMAIL:
-        Da: \(email.from)
-        Oggetto: \(email.subject)
-        Corpo: \(email.body)
-        
-        RIASSUNTO:
-        """
+        return basePrompt
+            .replacingOccurrences(of: "{MITtente}", with: email.from)
+            .replacingOccurrences(of: "{Oggetto}", with: email.subject)
+            .replacingOccurrences(of: "{Corpo}", with: email.body)
     }
     
     private func createUrgencyPrompt(for email: EmailMessage) -> String {
-        return """
-        Valuta l'urgenza di questa email. Rispondi solo con: bassa, media, alta.
+        let basePrompt = UserDefaults.standard.string(forKey: "email_prompt_urgency") ?? PromptManager.emailUrgencyPrompt
         
-        EMAIL:
-        Da: \(email.from)
-        Oggetto: \(email.subject)
-        Corpo: \(email.body)
-        """
+        return basePrompt
+            .replacingOccurrences(of: "{MITtente}", with: email.from)
+            .replacingOccurrences(of: "{Oggetto}", with: email.subject)
+            .replacingOccurrences(of: "{Corpo}", with: email.body)
     }
     
     private func sendToAI(prompt: String) async throws -> String {
         // Usa il provider AI configurato
         let provider = AIProviderManager.shared.getBestChatProvider()
         
-        switch provider?.provider {
-        case .openai:
-            return try await openAIService.sendMessage(prompt, model: selectedModel)
-        case .anthropic:
-            return try await anthropicService.sendMessage(prompt, model: "claude-3-5-sonnet-20240620")
-        default:
-            throw EmailAIError.noProviderConfigured
+        return try await withCheckedThrowingContinuation { continuation in
+            switch provider?.provider {
+            case .openai:
+                let message = OpenAIMessage(role: "user", content: prompt)
+                openAIService.sendMessage(messages: [message], model: selectedModel) { result in
+                    switch result {
+                    case .success(let response):
+                        continuation.resume(returning: response)
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+            case .anthropic:
+                let content = AnthropicContent(type: "text", text: prompt)
+                let message = AnthropicMessage(role: "user", content: [content])
+                anthropicService.sendMessage(messages: [message], model: "claude-3-5-sonnet-20240620", maxTokens: maxTokens, temperature: temperature) { result in
+                    switch result {
+                    case .success(let response):
+                        continuation.resume(returning: response)
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+            default:
+                continuation.resume(throwing: EmailAIError.noProviderConfigured)
+            }
         }
     }
     
@@ -378,6 +356,25 @@ public enum EmailCategory: String, CaseIterable {
             return "exclamationmark.triangle.fill"
         case .other:
             return "questionmark.circle.fill"
+        }
+    }
+    
+    public var color: Color {
+        switch self {
+        case .work:
+            return .blue
+        case .personal:
+            return .green
+        case .commercial:
+            return .orange
+        case .technical:
+            return .purple
+        case .social:
+            return .pink
+        case .spam:
+            return .red
+        case .other:
+            return .gray
         }
     }
 }

@@ -13,6 +13,7 @@ public struct EmailListView: View {
     @State private var showingLogin = false
     @State private var searchText = ""
     @State private var selectedCategory: EmailCategory?
+    @State private var showingEmailSettings = false
     
     // MARK: - Computed Properties
     
@@ -29,7 +30,7 @@ public struct EmailListView: View {
         }
         
         // Filtra per categoria (se implementato)
-        if let category = selectedCategory {
+        if selectedCategory != nil {
             // TODO: Implementare filtro per categoria
         }
         
@@ -39,30 +40,35 @@ public struct EmailListView: View {
     // MARK: - Body
     
     public var body: some View {
-        NavigationView {
-            VStack {
+        NavigationStack {
+            VStack(spacing: 0) {
                 if emailService.isAuthenticated {
                     emailListContent
                 } else {
                     loginContent
                 }
             }
-            .navigationTitle("Email")
+            .navigationTitle(emailService.currentAccount?.email ?? "Email")
+            .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Cerca email...")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if emailService.isAuthenticated {
-                        Button("Disconnetti") {
-                            emailService.disconnect()
+                        Button("Impostazioni") {
+                            showingEmailSettings = true
                         }
+                        .foregroundColor(.blue)
                     }
                 }
             }
-        }
-        .sheet(isPresented: $showingEmailDetail) {
-            if let email = selectedEmail {
-                EmailDetailView(email: email, aiService: aiService)
+            .navigationDestination(isPresented: $showingEmailDetail) {
+                if let email = selectedEmail {
+                    EmailDetailView(email: email, aiService: aiService)
+                }
             }
+        }
+        .sheet(isPresented: $showingEmailSettings) {
+            EmailSettingsView()
         }
         .alert("Errore", isPresented: .constant(emailService.error != nil)) {
             Button("OK") {
@@ -71,18 +77,38 @@ public struct EmailListView: View {
         } message: {
             Text(emailService.error ?? "")
         }
+        .onAppear {
+            // Ripristina l'autenticazione all'avvio
+            Task {
+                await emailService.restoreAuthentication()
+            }
+        }
     }
     
     // MARK: - Email List Content
     
     private var emailListContent: some View {
-        List {
-            ForEach(filteredEmails) { email in
-                EmailRowView(email: email) {
-                    selectedEmail = email
-                    showingEmailDetail = true
+        VStack(spacing: 0) {
+            // Email list - iOS 26 style
+            emailList
+        }
+    }
+    
+
+    
+    private var emailList: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(filteredEmails) { email in
+                    EmailRowView(email: email) {
+                        selectedEmail = email
+                        showingEmailDetail = true
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 1)
                 }
             }
+            .padding(.top, 8)
         }
         .refreshable {
             if let account = emailService.currentAccount {
@@ -91,9 +117,32 @@ public struct EmailListView: View {
         }
         .overlay {
             if emailService.isLoading {
-                ProgressView("Caricamento email...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(.systemBackground))
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Caricamento email...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.systemBackground))
+            }
+            
+            if filteredEmails.isEmpty && !emailService.isLoading {
+                VStack(spacing: 16) {
+                    Image(systemName: "envelope.open")
+                        .font(.system(size: 50))
+                        .foregroundColor(.secondary)
+                    
+                    Text("Nessuna email trovata")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Le tue email appariranno qui")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
@@ -101,64 +150,142 @@ public struct EmailListView: View {
     // MARK: - Login Content
     
     private var loginContent: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "envelope.circle.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.blue)
+        VStack(spacing: 0) {
+            // Header con icona e titolo
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 120, height: 120)
+                    
+                    Image(systemName: "envelope.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.blue)
+                }
+                
+                VStack(spacing: 8) {
+                    Text("Connetti il tuo account email")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Accedi al tuo account per iniziare a gestire le email con l'aiuto dell'AI")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                }
+            }
+            .padding(.top, 40)
+            .padding(.horizontal, 24)
             
-            Text("Connetti il tuo account email")
-                .font(.title2)
-                .fontWeight(.semibold)
+            Spacer()
             
-            Text("Accedi al tuo account per iniziare a gestire le email con l'aiuto dell'AI")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            VStack(spacing: 12) {
+            // Pulsanti di connessione
+            VStack(spacing: 16) {
+                // Pulsante Gmail
                 Button {
                     Task {
                         await emailService.authenticateWithGoogle()
                     }
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "envelope.circle.fill")
+                            .font(.title2)
                         Text("Connetti Gmail")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .opacity(0.7)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.blue)
+                            .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                    )
                     .foregroundColor(.white)
-                    .cornerRadius(10)
                 }
                 .disabled(emailService.isLoading)
+                .scaleEffect(emailService.isLoading ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: emailService.isLoading)
                 
+                // Pulsante Outlook
                 Button {
                     Task {
                         await emailService.authenticateWithMicrosoft()
                     }
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "envelope.badge.fill")
+                            .font(.title2)
                         Text("Connetti Outlook")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .opacity(0.7)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.orange)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.orange)
+                            .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 4)
+                    )
                     .foregroundColor(.white)
-                    .cornerRadius(10)
                 }
                 .disabled(emailService.isLoading)
+                .scaleEffect(emailService.isLoading ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.2), value: emailService.isLoading)
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 24)
             
+            // Indicatore di caricamento
             if emailService.isLoading {
-                ProgressView("Connessione in corso...")
-                    .padding()
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Connessione in corso...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 20)
             }
+            
+            Spacer()
+            
+            // Footer con informazioni
+            VStack(spacing: 8) {
+                Text("Le tue email sono protette e sicure")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 16) {
+                    Label("Crittografia", systemImage: "lock.shield")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    Label("Privacy", systemImage: "eye.slash")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.bottom, 40)
         }
-        .padding()
+        .background(
+            LinearGradient(
+                colors: [Color(.systemBackground), Color(.systemBackground).opacity(0.8)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 }
 
@@ -173,54 +300,84 @@ public struct EmailRowView: View {
     
     public var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(email.from)
-                            .font(.headline)
-                            .lineLimit(1)
+            HStack(spacing: 16) {
+                // Unread indicator - iOS 26 style
+                VStack {
+                    if !email.isRead {
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 10, height: 10)
+                    }
+                    Spacer()
+                }
+                .frame(width: 10)
+                
+                // Main content
+                VStack(alignment: .leading, spacing: 6) {
+                    // Sender and date
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(email.from)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            
+                            Text(email.subject)
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                                .lineLimit(2)
+                        }
                         
-                        Text(email.subject)
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                            .lineLimit(2)
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(formatDate(email.date))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            // Urgency indicator
+                            if urgency != .normal {
+                                Image(systemName: urgencyIcon)
+                                    .font(.caption)
+                                    .foregroundColor(urgencyColor)
+                            }
+                        }
                     }
                     
-                    Spacer()
+                    // Email preview
+                    Text(email.body)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
                     
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(formatDate(email.date))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        if !email.isRead {
-                            Circle()
-                                .fill(Color.blue)
-                                .frame(width: 8, height: 8)
+                    // Category tag
+                    if let category = category {
+                        HStack {
+                            Text(category.displayName)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(category.color.opacity(0.15))
+                                )
+                                .foregroundColor(category.color)
+                            
+                            Spacer()
                         }
                     }
                 }
-                
-                HStack {
-                    if let category = category {
-                        Label(category.displayName, systemImage: category.iconName)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.gray.opacity(0.2))
-                            .cornerRadius(8)
-                    }
-                    
-                    Spacer()
-                    
-                    if urgency != .normal {
-                        Label(urgency.displayName, systemImage: urgencyIcon)
-                            .font(.caption)
-                            .foregroundColor(urgencyColor)
-                    }
-                }
             }
-            .padding(.vertical, 4)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.08), radius: 3, x: 0, y: 2)
+            )
+
         }
         .buttonStyle(PlainButtonStyle())
         .onAppear {
@@ -279,288 +436,4 @@ public struct EmailRowView: View {
 }
 
 // MARK: - Email Detail View
-
-public struct EmailDetailView: View {
-    let email: EmailMessage
-    @ObservedObject var aiService: EmailAIService
-    
-    @State private var showingDraft = false
-    @State private var selectedDraft: EmailDraft?
-    @State private var analysis: EmailAnalysis?
-    @State private var summary: String?
-    
-    public var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header
-                    emailHeader
-                    
-                    // Content
-                    emailContent
-                    
-                    // AI Analysis
-                    if let analysis = analysis {
-                        aiAnalysisSection(analysis)
-                    }
-                    
-                    // AI Actions
-                    aiActionsSection
-                    
-                    // Generated Drafts
-                    if !aiService.generatedDrafts.isEmpty {
-                        draftsSection
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle("Email")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Chiudi") {
-                        // Dismiss
-                    }
-                }
-            }
-        }
-        .onAppear {
-            analyzeEmail()
-        }
-        .alert("Errore AI", isPresented: .constant(aiService.error != nil)) {
-            Button("OK") {
-                aiService.error = nil
-            }
-        } message: {
-            Text(aiService.error ?? "")
-        }
-    }
-    
-    // MARK: - Email Header
-    
-    private var emailHeader: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(email.subject)
-                .font(.title2)
-                .fontWeight(.semibold)
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Da:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(email.from)
-                        .font(.body)
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Data:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(formatDate(email.date))
-                        .font(.body)
-                }
-            }
-            
-            if !email.to.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("A:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(email.to.joined(separator: ", "))
-                        .font(.body)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-    
-    // MARK: - Email Content
-    
-    private var emailContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Contenuto")
-                .font(.headline)
-            
-            Text(email.body)
-                .font(.body)
-                .lineSpacing(4)
-        }
-    }
-    
-    // MARK: - AI Analysis Section
-    
-    private func aiAnalysisSection(_ analysis: EmailAnalysis) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Analisi AI")
-                .font(.headline)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Tono:")
-                    Spacer()
-                    Text(analysis.tone.capitalized)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("Sentiment:")
-                    Spacer()
-                    Text(analysis.sentiment.capitalized)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("Urgenza:")
-                    Spacer()
-                    Text(analysis.urgency.displayName)
-                        .foregroundColor(urgencyColor(analysis.urgency))
-                }
-            }
-            .font(.subheadline)
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-    
-    // MARK: - AI Actions Section
-    
-    private var aiActionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Azioni AI")
-                .font(.headline)
-            
-            VStack(spacing: 8) {
-                Button {
-                    generateDraft()
-                } label: {
-                    HStack {
-                        Image(systemName: "pencil.circle.fill")
-                        Text("Genera Bozza di Risposta")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                .disabled(aiService.isGenerating)
-                
-                Button {
-                    generateMultipleDrafts()
-                } label: {
-                    HStack {
-                        Image(systemName: "doc.on.doc.fill")
-                        Text("Genera Multiple Bozze")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                .disabled(aiService.isGenerating)
-                
-                if let summary = summary {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Riassunto")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        Text(summary)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Drafts Section
-    
-    private var draftsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Bozze Generate")
-                .font(.headline)
-            
-            ForEach(aiService.generatedDrafts) { draft in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(draft.content)
-                        .font(.body)
-                        .lineLimit(6)
-                    
-                    HStack {
-                        Button("Usa") {
-                            selectedDraft = draft
-                            showingDraft = true
-                        }
-                        .buttonStyle(.borderedProminent)
-                        
-                        Button("Modifica") {
-                            // TODO: Implementare modifica
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        Spacer()
-                        
-                        Text(formatDate(draft.generatedAt))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            }
-        }
-    }
-    
-    // MARK: - Helper Methods
-    
-    private func analyzeEmail() {
-        Task {
-            analysis = await aiService.analyzeEmail(email)
-            summary = await aiService.summarizeEmail(email)
-        }
-    }
-    
-    private func generateDraft() {
-        Task {
-            _ = await aiService.generateDraft(for: email)
-        }
-    }
-    
-    private func generateMultipleDrafts() {
-        Task {
-            _ = await aiService.generateMultipleDrafts(for: email, count: 3)
-        }
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.locale = Locale(identifier: "it_IT")
-        return formatter.string(from: date)
-    }
-    
-    private func urgencyColor(_ urgency: EmailUrgency) -> Color {
-        switch urgency {
-        case .high:
-            return .red
-        case .medium:
-            return .orange
-        case .low:
-            return .green
-        case .normal:
-            return .secondary
-        }
-    }
-} 
+// La definizione di EmailDetailView è stata spostata in EmailDetailView.swift 

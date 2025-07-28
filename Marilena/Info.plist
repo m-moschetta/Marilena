@@ -96,6 +96,14 @@
 				<string>marilena</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.marilena.email.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.marilena.email</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

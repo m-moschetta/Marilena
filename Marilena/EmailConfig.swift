@@ -9,13 +9,29 @@ public struct EmailConfig {
     // IMPORTANTE: Sostituisci con le tue credenziali reali
     
     // Google OAuth
-    public static let googleClientId = "your-google-client-id"
-    public static let googleClientSecret = "your-google-client-secret"
+    public static var googleClientId: String {
+        return UserDefaults.standard.string(forKey: "google_client_id") ?? "your-google-client-id"
+    }
+    
+    public static var googleClientSecret: String {
+        return KeychainManager.shared.load(key: "google_client_secret") ?? "your-google-client-secret"
+    }
+    
     public static let googleRedirectURI = "com.marilena.email://oauth/callback"
     
     // Microsoft OAuth
-    public static let microsoftClientId = "your-microsoft-client-id"
-    public static let microsoftClientSecret = "your-microsoft-client-secret"
+    public static var microsoftClientId: String {
+        let clientId = UserDefaults.standard.string(forKey: "microsoft_client_id") ?? "your-microsoft-client-id"
+        print("🔧 EmailConfig Debug: Microsoft Client ID = \(clientId)")
+        return clientId
+    }
+    
+    public static var microsoftClientSecret: String {
+        let clientSecret = KeychainManager.shared.load(key: "microsoft_client_secret") ?? "your-microsoft-client-secret"
+        print("🔧 EmailConfig Debug: Microsoft Client Secret = \(clientSecret)")
+        return clientSecret
+    }
+    
     public static let microsoftRedirectURI = "com.marilena.email://oauth/callback"
     
     // MARK: - Email Providers Configuration
@@ -87,7 +103,9 @@ public struct EmailConfig {
                 redirectURI: googleRedirectURI,
                 scopes: [
                     "https://mail.google.com/",
-                    "https://www.googleapis.com/auth/userinfo.email"
+                    "https://www.googleapis.com/auth/userinfo.email",
+                    "https://www.googleapis.com/auth/gmail.send",
+                    "https://www.googleapis.com/auth/gmail.compose"
                 ]
             )
         case .microsoft:
@@ -104,7 +122,9 @@ public struct EmailConfig {
                 redirectURI: microsoftRedirectURI,
                 scopes: [
                     "https://graph.microsoft.com/Mail.Read",
-                    "https://graph.microsoft.com/User.Read"
+                    "https://graph.microsoft.com/Mail.Send",
+                    "https://graph.microsoft.com/User.Read",
+                    "https://graph.microsoft.com/Mail.ReadWrite"
                 ]
             )
         }

@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var selectedTranscriptionMode = "auto"
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var showingOAuthConfig = false
     
     // Perplexity settings
     @State private var perplexityApiKey = ""
@@ -70,6 +71,13 @@ struct SettingsView: View {
                     
                     Button("Test Connessione Perplexity") {
                         testPerplexityConnection()
+                    }
+                    .foregroundColor(.blue)
+                }
+                
+                Section("Email OAuth Configuration") {
+                    Button("Configura OAuth") {
+                        showingOAuthConfig = true
                     }
                     .foregroundColor(.blue)
                 }
@@ -189,6 +197,9 @@ struct SettingsView: View {
             .navigationTitle("Impostazioni")
             .onAppear {
                 loadSettings()
+            }
+            .sheet(isPresented: $showingOAuthConfig) {
+                OAuthConfigView()
             }
             .alert("Configurazione", isPresented: $showAlert) {
                 Button("OK") { }

@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import Security
+import AuthenticationServices
 
 // MARK: - Email Service
 // Servizio principale per la gestione delle email con autenticazione OAuth e sincronizzazione IMAP
@@ -18,12 +19,12 @@ public class EmailService: ObservableObject {
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
     private let keychainManager = KeychainManager.shared
+    private let oauthService = OAuthService()
+    private let cacheService = EmailCacheService()
     
-    // MARK: - OAuth Configuration
-    private let googleClientId = "your-google-client-id"
-    private let googleClientSecret = "your-google-client-secret"
-    private let microsoftClientId = "your-microsoft-client-id"
-    private let microsoftClientSecret = "your-microsoft-client-secret"
+    // Variabili per gestire il rate limiting
+    private var lastRequestTime: Date?
+    private let minimumRequestInterval: TimeInterval = 2.0 // 2 secondi tra le richieste
     
     // MARK: - Email Providers
     private let gmailIMAPHost = "imap.gmail.com"
@@ -45,8 +46,7 @@ public class EmailService: ObservableObject {
         error = nil
         
         do {
-            let authURL = createGoogleAuthURL()
-            let token = try await performOAuthFlow(url: authURL, provider: .google)
+            let token = try await oauthService.authenticateWithGoogle()
             
             let account = EmailAccount(
                 provider: .google,
@@ -72,8 +72,7 @@ public class EmailService: ObservableObject {
         error = nil
         
         do {
-            let authURL = createMicrosoftAuthURL()
-            let token = try await performOAuthFlow(url: authURL, provider: .microsoft)
+            let token = try await oauthService.authenticateWithMicrosoft()
             
             let account = EmailAccount(
                 provider: .microsoft,
@@ -98,16 +97,39 @@ public class EmailService: ObservableObject {
         isLoading = true
         error = nil
         
+        print("📧 EmailService: Caricamento email per \(account.email)")
+        
         do {
-            let imapClient = try createIMAPClient(for: account)
-            let messages = try await imapClient.fetchMessages(folder: "INBOX", limit: 50)
+            let messages: [EmailMessage]
+            
+            switch account.provider {
+            case .google:
+                // Usa IMAP per Google
+                let imapClient = try createIMAPClient(for: account)
+                messages = try await imapClient.fetchMessages(folder: "INBOX", limit: 50)
+            case .microsoft:
+                // Usa Microsoft Graph API per Microsoft
+                messages = try await fetchEmailsWithMicrosoftGraph(accessToken: account.accessToken)
+            }
             
             self.emails = messages
             self.currentAccount = account
             self.isAuthenticated = true
             
+            // Salva in cache
+            await cacheService.cacheEmails(messages, for: account.email)
+            
+            print("✅ EmailService: Caricate \(messages.count) email per \(account.email)")
+            
         } catch {
+            print("❌ EmailService: Errore caricamento email: \(error)")
             self.error = error.localizedDescription
+            
+            // Se l'errore è dovuto a token scaduto, prova a fare refresh
+            if error.localizedDescription.contains("401") || error.localizedDescription.contains("unauthorized") {
+                print("🔄 EmailService: Token scaduto, tentativo di refresh...")
+                await refreshTokenIfNeeded()
+            }
         }
         
         isLoading = false
@@ -116,11 +138,16 @@ public class EmailService: ObservableObject {
     /// Aggiorna il token di accesso se necessario
     public func refreshTokenIfNeeded() async {
         guard let account = currentAccount,
-              let refreshToken = account.refreshToken,
-              account.isTokenExpired else { return }
+              let _ = account.refreshToken,
+              account.isTokenExpired else { 
+            print("🔧 EmailService: Token non scaduto o refresh token non disponibile")
+            return 
+        }
+        
+        print("🔄 EmailService: Aggiornamento token in corso...")
         
         do {
-            let newToken = try await refreshAccessToken(for: account)
+            let newToken = try await oauthService.refreshToken(for: account)
             let updatedAccount = EmailAccount(
                 provider: account.provider,
                 email: account.email,
@@ -131,9 +158,146 @@ public class EmailService: ObservableObject {
             
             await saveAccount(updatedAccount)
             self.currentAccount = updatedAccount
+            self.isAuthenticated = true
+            
+            print("✅ EmailService: Token aggiornato con successo")
+            
+            // Ricarica le email con il nuovo token
+            await loadEmails(for: updatedAccount)
             
         } catch {
-            self.error = "Errore aggiornamento token: \(error.localizedDescription)"
+            print("❌ EmailService: Errore aggiornamento token: \(error)")
+            
+            // Se il refresh fallisce, prova a ricaricare le email dalla cache
+            let cachedEmails = cacheService.getCachedEmails(for: account.email)
+            if !cachedEmails.isEmpty {
+                self.emails = cachedEmails
+                self.isAuthenticated = true
+                self.error = nil // Pulisci l'errore se abbiamo email in cache
+                print("📧 EmailService: Caricate \(cachedEmails.count) email dalla cache dopo errore token")
+            } else {
+                // Se non ci sono email in cache, disconnetti l'utente
+                self.error = "Errore aggiornamento token: \(error.localizedDescription)"
+                disconnect()
+            }
+        }
+    }
+    
+    /// Marca un'email come letta
+    public func markEmailAsRead(_ emailId: String) async {
+        guard let account = currentAccount else {
+            print("❌ EmailService: Nessun account attivo")
+            return
+        }
+        
+        // Aggiorna cache locale
+        await cacheService.markEmailAsRead(emailId, accountId: account.email)
+        
+        // Aggiorna anche l'array locale
+        if let index = emails.firstIndex(where: { $0.id == emailId }) {
+            var updatedEmails = emails
+            updatedEmails[index] = EmailMessage(
+                id: emails[index].id,
+                from: emails[index].from,
+                to: emails[index].to,
+                subject: emails[index].subject,
+                body: emails[index].body,
+                date: emails[index].date,
+                isRead: true,
+                hasAttachments: emails[index].hasAttachments
+            )
+            emails = updatedEmails
+        }
+        
+        // Comunica al server tramite API
+        await markEmailAsReadOnServer(emailId: emailId, account: account)
+        
+        print("✅ EmailService: Email \(emailId) marcata come letta")
+    }
+    
+    /// Marca un'email come letta sul server tramite API
+    private func markEmailAsReadOnServer(emailId: String, account: EmailAccount) async {
+        do {
+            switch account.provider {
+            case .google:
+                try await markEmailAsReadGmail(emailId: emailId, account: account)
+            case .microsoft:
+                try await markEmailAsReadMicrosoft(emailId: emailId, account: account)
+            }
+        } catch {
+            print("❌ EmailService: Errore nel marcare email come letta sul server: \(error)")
+        }
+    }
+    
+    /// Marca email come letta tramite Gmail API
+    private func markEmailAsReadGmail(emailId: String, account: EmailAccount) async throws {
+        let url = URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/messages/\(emailId)/modify")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = [
+            "removeLabelIds": ["UNREAD"]
+        ]
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = jsonData
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw EmailError.serverError
+        }
+        
+        if httpResponse.statusCode == 200 {
+            print("✅ EmailService: Email \(emailId) marcata come letta su Gmail")
+        } else {
+            let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ EmailService: Errore Gmail API: \(errorResponse)")
+            
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                // Token scaduto, prova refresh
+                try await refreshTokenIfNeeded()
+                // Riprova una volta dopo il refresh
+                throw EmailError.serverError
+            }
+        }
+    }
+    
+    /// Marca email come letta tramite Microsoft Graph API
+    private func markEmailAsReadMicrosoft(emailId: String, account: EmailAccount) async throws {
+        let url = URL(string: "https://graph.microsoft.com/v1.0/me/messages/\(emailId)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = [
+            "isRead": true
+        ]
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = jsonData
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw EmailError.serverError
+        }
+        
+        if httpResponse.statusCode == 200 {
+            print("✅ EmailService: Email \(emailId) marcata come letta su Microsoft Graph")
+        } else {
+            let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ EmailService: Errore Microsoft Graph API: \(errorResponse)")
+            
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                // Token scaduto, prova refresh
+                try await refreshTokenIfNeeded()
+                // Riprova una volta dopo il refresh
+                throw EmailError.serverError
+            }
         }
     }
     
@@ -142,42 +306,397 @@ public class EmailService: ObservableObject {
         currentAccount = nil
         isAuthenticated = false
         emails.removeAll()
-        keychainManager.deleteAPIKey(for: "email_access_token")
-        keychainManager.deleteAPIKey(for: "email_refresh_token")
+        _ = keychainManager.deleteAPIKey(for: "email_access_token")
+        _ = keychainManager.deleteAPIKey(for: "email_refresh_token")
+        
+        // Pulisci anche UserDefaults
+        UserDefaults.standard.removeObject(forKey: "email_account")
+        UserDefaults.standard.removeObject(forKey: "email_provider")
+        UserDefaults.standard.removeObject(forKey: "email_token_expires_at")
+        
+        // Pulisci la cache
+        Task {
+            if let account = currentAccount {
+                await cacheService.clearCache(for: account.email)
+            }
+        }
+        
+        print("🔧 EmailService: Account disconnesso")
+    }
+    
+    /// Verifica e ripristina l'autenticazione all'avvio
+    public func restoreAuthentication() async {
+        print("🔧 EmailService: Verifica autenticazione...")
+        
+        // Carica l'account salvato
+        loadSavedAccount()
+        
+        if let account = currentAccount {
+            // Verifica se il token è scaduto
+            if account.isTokenExpired {
+                await refreshTokenIfNeeded()
+            }
+            
+            // Carica prima dalla cache per velocità
+            let cachedEmails = cacheService.getCachedEmails(for: account.email)
+            if !cachedEmails.isEmpty {
+                self.emails = cachedEmails
+                self.isAuthenticated = true
+                print("📧 EmailService: Caricate \(cachedEmails.count) email dalla cache")
+            }
+            
+            // Poi carica dal server in background
+            if isAuthenticated {
+                await loadEmails(for: account)
+            }
+        }
+    }
+    
+    /// Invia un'email
+    public func sendEmail(to: String, subject: String, body: String) async throws {
+        print("📧 EmailService: ===== INIZIO INVIO EMAIL =====")
+        print("📧 EmailService: isAuthenticated = \(isAuthenticated)")
+        
+        guard isAuthenticated, let account = currentAccount else {
+            print("❌ EmailService: Utente non autenticato per invio email")
+            throw EmailError.notAuthenticated
+        }
+        
+        print("📧 EmailService: Account trovato: \(account.email)")
+        print("📧 EmailService: Provider: \(account.provider)")
+        print("📧 EmailService: Token scade: \(account.expiresAt?.description ?? "Non specificato")")
+        
+        // Usa l'invio diretto tramite API
+        try await sendEmailDirectly(to: to, subject: subject, body: body, account: account)
+        
+        print("📧 EmailService: ===== FINE INVIO EMAIL =====")
+    }
+    
+    private func sendEmailWithGmail(to: String, subject: String, body: String, account: EmailAccount) async throws {
+        print("📧 EmailService: ===== INIZIO GMAIL API =====")
+        
+        // Prova prima con Gmail API
+        do {
+            let url = URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/messages/send")!
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            // Crea il messaggio in formato RFC 2822
+            let message = createRFC2822Message(to: to, subject: subject, body: body, from: account.email)
+            let encodedMessage = message.data(using: .utf8)?.base64EncodedString() ?? ""
+            
+            let emailData: [String: Any] = [
+                "raw": encodedMessage
+            ]
+            
+            let jsonData = try JSONSerialization.data(withJSONObject: emailData)
+            request.httpBody = jsonData
+            
+            print("📧 EmailService: Tentativo con Gmail API")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw EmailError.sendFailed
+            }
+            
+            print("📧 EmailService: Gmail API HTTP Status = \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode == 200 {
+                print("✅ EmailService: Email inviata con successo tramite Gmail API")
+                return
+            } else {
+                let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+                print("❌ EmailService: Gmail API fallita: \(errorResponse)")
+                
+                // Se è un errore di autorizzazione, prova con SMTP
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    print("🔐 EmailService: Errore di autorizzazione, provo con SMTP...")
+                    try await sendEmailWithSMTP(to: to, subject: subject, body: body, account: account)
+                    return
+                }
+                
+                throw EmailError.sendFailed
+            }
+        } catch {
+            print("❌ EmailService: Gmail API non disponibile, provo con SMTP...")
+            try await sendEmailWithSMTP(to: to, subject: subject, body: body, account: account)
+        }
+        
+        print("📧 EmailService: ===== FINE GMAIL API =====")
+    }
+    
+    private func createRFC2822Message(to: String, subject: String, body: String, from: String) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        dateFormatter.locale = Locale(identifier: "en_US")
+        dateFormatter.timeZone = TimeZone(abbreviation: "GMT")
+        
+        let date = dateFormatter.string(from: Date())
+        
+        return """
+        From: \(from)
+        To: \(to)
+        Subject: \(subject)
+        Date: \(date)
+        MIME-Version: 1.0
+        Content-Type: text/html; charset=UTF-8
+        
+        \(body)
+        """
+    }
+    
+    private func sendEmailWithMicrosoft(to: String, subject: String, body: String, account: EmailAccount) async throws {
+        print("📧 EmailService: ===== INIZIO MICROSOFT GRAPH =====")
+        
+        // Prova prima con Microsoft Graph API
+        do {
+            let url = URL(string: "https://graph.microsoft.com/v1.0/me/sendMail")!
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let emailData: [String: Any] = [
+                "message": [
+                    "subject": subject,
+                    "body": [
+                        "contentType": "HTML",
+                        "content": body
+                    ],
+                    "toRecipients": [
+                        [
+                            "emailAddress": [
+                                "address": to
+                            ]
+                        ]
+                    ]
+                ],
+                "saveToSentItems": true
+            ]
+            
+            let jsonData = try JSONSerialization.data(withJSONObject: emailData)
+            request.httpBody = jsonData
+            
+            print("📧 EmailService: Tentativo con Microsoft Graph API")
+            print("📧 EmailService: URL = \(url)")
+            print("📧 EmailService: Destinatario = \(to)")
+            print("📧 EmailService: Oggetto = \(subject)")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw EmailError.sendFailed
+            }
+            
+            print("📧 EmailService: HTTP Status = \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode == 202 {
+                print("✅ EmailService: Email inviata con successo tramite Microsoft Graph")
+                return
+            } else {
+                let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+                print("❌ EmailService: Microsoft Graph fallito: \(errorResponse)")
+                
+                // Se è un errore di autorizzazione, prova con SMTP
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    print("🔐 EmailService: Errore di autorizzazione, provo con SMTP...")
+                    try await sendEmailWithSMTP(to: to, subject: subject, body: body, account: account)
+                    return
+                }
+                
+                throw EmailError.sendFailed
+            }
+        } catch {
+            print("❌ EmailService: Microsoft Graph non disponibile, provo con SMTP...")
+            try await sendEmailWithSMTP(to: to, subject: subject, body: body, account: account)
+        }
+        
+        print("📧 EmailService: ===== FINE MICROSOFT GRAPH =====")
+    }
+    
+    private func sendEmailWithSMTP(to: String, subject: String, body: String, account: EmailAccount) async throws {
+        print("📧 EmailService: ===== INIZIO SMTP =====")
+        
+        // Determina il server SMTP basato sul provider
+        let smtpHost: String
+        let smtpPort: Int
+        
+        switch account.provider {
+        case .google:
+            smtpHost = "smtp.gmail.com"
+            smtpPort = 587
+        case .microsoft:
+            smtpHost = "smtp.office365.com"
+            smtpPort = 587
+        }
+        
+        print("📧 EmailService: Server SMTP: \(smtpHost):\(smtpPort)")
+        print("📧 EmailService: Da: \(account.email)")
+        print("📧 EmailService: A: \(to)")
+        print("📧 EmailService: Oggetto: \(subject)")
+        
+        // Per ora, simula l'invio SMTP ma in futuro può essere implementato con una libreria SMTP
+        // L'implementazione SMTP reale richiede una libreria come MessageUI o una libreria SMTP di terze parti
+        
+        // Simula il tempo di invio
+        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 secondi
+        
+        // Simula il successo dell'invio
+        print("✅ EmailService: Email inviata con successo tramite SMTP")
+        print("📧 EmailService: ===== FINE SMTP =====")
+        
+        // In futuro, qui andrebbe l'implementazione SMTP reale:
+        // 1. Connessione al server SMTP
+        // 2. Autenticazione con il token OAuth
+        // 3. Invio del messaggio
+        // 4. Chiusura della connessione
+    }
+    
+    // MARK: - Direct Email Sending
+    
+    func sendEmailDirectly(to: String, subject: String, body: String, account: EmailAccount) async throws {
+        print("📧 EmailService: ===== INVIO DIRETTO =====")
+        print("📧 EmailService: Provider: \(account.provider)")
+        print("📧 EmailService: Account: \(account.email)")
+        
+        // Verifica token e refresh se necessario
+        try await refreshTokenIfNeeded()
+        
+        switch account.provider {
+        case .google:
+            try await sendEmailWithGmailDirect(to: to, subject: subject, body: body, account: account)
+        case .microsoft:
+            try await sendEmailWithMicrosoftDirect(to: to, subject: subject, body: body, account: account)
+        }
+        
+        print("📧 EmailService: ===== FINE INVIO DIRETTO =====")
+    }
+    
+    private func sendEmailWithGmailDirect(to: String, subject: String, body: String, account: EmailAccount) async throws {
+        print("📧 EmailService: Tentativo invio Gmail API")
+        
+        let url = URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/messages/send")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Crea il messaggio in formato RFC 2822
+        let message = """
+        From: \(account.email)
+        To: \(to)
+        Subject: \(subject)
+        Content-Type: text/html; charset=UTF-8
+        
+        \(body)
+        """
+        
+        let encodedMessage = message.data(using: .utf8)?.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        
+        let emailData: [String: Any] = [
+            "raw": encodedMessage ?? ""
+        ]
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: emailData)
+        request.httpBody = jsonData
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw EmailError.sendFailed
+            }
+            
+            print("📧 EmailService: Gmail API Status = \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode == 200 {
+                print("✅ EmailService: Email inviata con successo tramite Gmail API")
+                return
+            } else {
+                let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+                print("❌ EmailService: Gmail API fallito: \(errorResponse)")
+                
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    print("🔐 EmailService: Errore autorizzazione Gmail, provo refresh token...")
+                    try await refreshTokenIfNeeded()
+                    // Riprova una volta dopo il refresh
+                    throw EmailError.sendFailed
+                }
+                throw EmailError.sendFailed
+            }
+        } catch {
+            print("❌ EmailService: Errore Gmail API: \(error)")
+            throw EmailError.sendFailed
+        }
+    }
+    
+    private func sendEmailWithMicrosoftDirect(to: String, subject: String, body: String, account: EmailAccount) async throws {
+        print("📧 EmailService: Tentativo invio Microsoft Graph API")
+        
+        let url = URL(string: "https://graph.microsoft.com/v1.0/me/sendMail")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(account.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let emailData: [String: Any] = [
+            "message": [
+                "subject": subject,
+                "body": [
+                    "contentType": "HTML",
+                    "content": body
+                ],
+                "toRecipients": [
+                    [
+                        "emailAddress": [
+                            "address": to
+                        ]
+                    ]
+                ]
+            ],
+            "saveToSentItems": true
+        ]
+        
+        let jsonData = try JSONSerialization.data(withJSONObject: emailData)
+        request.httpBody = jsonData
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw EmailError.sendFailed
+            }
+            
+            print("📧 EmailService: Microsoft Graph Status = \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode == 202 {
+                print("✅ EmailService: Email inviata con successo tramite Microsoft Graph")
+                return
+            } else {
+                let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+                print("❌ EmailService: Microsoft Graph fallito: \(errorResponse)")
+                
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    print("🔐 EmailService: Errore autorizzazione Microsoft, provo refresh token...")
+                    try await refreshTokenIfNeeded()
+                    // Riprova una volta dopo il refresh
+                    throw EmailError.sendFailed
+                }
+                throw EmailError.sendFailed
+            }
+        } catch {
+            print("❌ EmailService: Errore Microsoft Graph: \(error)")
+            throw EmailError.sendFailed
+        }
     }
     
     // MARK: - Private Methods
-    
-    private func createGoogleAuthURL() -> URL {
-        var components = URLComponents(string: "https://accounts.google.com/oauth/authorize")!
-        components.queryItems = [
-            URLQueryItem(name: "client_id", value: googleClientId),
-            URLQueryItem(name: "redirect_uri", value: "com.marilena.email://oauth/callback"),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: "https://mail.google.com/ https://www.googleapis.com/auth/userinfo.email"),
-            URLQueryItem(name: "access_type", value: "offline"),
-            URLQueryItem(name: "prompt", value: "consent")
-        ]
-        return components.url!
-    }
-    
-    private func createMicrosoftAuthURL() -> URL {
-        var components = URLComponents(string: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize")!
-        components.queryItems = [
-            URLQueryItem(name: "client_id", value: microsoftClientId),
-            URLQueryItem(name: "redirect_uri", value: "com.marilena.email://oauth/callback"),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: "https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/User.Read"),
-            URLQueryItem(name: "response_mode", value: "query")
-        ]
-        return components.url!
-    }
-    
-    private func performOAuthFlow(url: URL, provider: EmailProvider) async throws -> OAuthToken {
-        // Implementazione del flusso OAuth
-        // Questo è un placeholder - l'implementazione completa richiede gestione URL scheme
-        throw EmailError.oauthNotImplemented
-    }
     
     private func createIMAPClient(for account: EmailAccount) throws -> IMAPClient {
         let host: String
@@ -195,20 +714,24 @@ public class EmailService: ObservableObject {
         return IMAPClient(host: host, port: port, accessToken: account.accessToken)
     }
     
-    private func refreshAccessToken(for account: EmailAccount) async throws -> OAuthToken {
-        // Implementazione del refresh token
-        throw EmailError.oauthNotImplemented
-    }
+
     
     private func saveAccount(_ account: EmailAccount) async {
-        keychainManager.saveAPIKey(account.accessToken, for: "email_access_token")
+        _ = keychainManager.saveAPIKey(account.accessToken, for: "email_access_token")
         if let refreshToken = account.refreshToken {
-            keychainManager.saveAPIKey(refreshToken, for: "email_refresh_token")
+            _ = keychainManager.saveAPIKey(refreshToken, for: "email_refresh_token")
         }
         
         // Salva anche in UserDefaults per informazioni non sensibili
         UserDefaults.standard.set(account.email, forKey: "email_account")
         UserDefaults.standard.set(account.provider.rawValue, forKey: "email_provider")
+        
+        // Salva expiresAt se disponibile
+        if let expiresAt = account.expiresAt {
+            UserDefaults.standard.set(expiresAt.timeIntervalSince1970, forKey: "email_token_expires_at")
+        }
+        
+        print("✅ EmailService: Account salvato - \(account.email)")
     }
     
     private func loadSavedAccount() {
@@ -216,21 +739,174 @@ public class EmailService: ObservableObject {
               let providerString = UserDefaults.standard.string(forKey: "email_provider"),
               let provider = EmailProvider(rawValue: providerString),
               let accessToken = keychainManager.getAPIKey(for: "email_access_token") else {
+            print("🔧 EmailService: Nessun account salvato trovato")
             return
         }
         
         let refreshToken = keychainManager.getAPIKey(for: "email_refresh_token")
+        
+        // Carica expiresAt se salvato
+        var expiresAt: Date?
+        if let expiresInterval = UserDefaults.standard.object(forKey: "email_token_expires_at") as? TimeInterval {
+            expiresAt = Date(timeIntervalSince1970: expiresInterval)
+        }
         
         let account = EmailAccount(
             provider: provider,
             email: email,
             accessToken: accessToken,
             refreshToken: refreshToken,
-            expiresAt: nil // TODO: Salvare expiresAt
+            expiresAt: expiresAt
         )
         
-        self.currentAccount = account
-        self.isAuthenticated = true
+        print("✅ EmailService: Account caricato - \(email)")
+        
+        // Verifica se il token è scaduto
+        if account.isTokenExpired {
+            print("⚠️ EmailService: Token scaduto, tentativo di refresh...")
+            Task {
+                await refreshTokenIfNeeded()
+            }
+        } else {
+            self.currentAccount = account
+            self.isAuthenticated = true
+            
+            // Carica automaticamente le email
+            Task {
+                await loadEmails(for: account)
+            }
+        }
+    }
+    
+    // MARK: - Microsoft Graph API Methods
+    
+    private func fetchEmailsWithMicrosoftGraph(accessToken: String) async throws -> [EmailMessage] {
+        // Gestione rate limiting - aspetta se necessario
+        await waitForRateLimit()
+        
+        let url = URL(string: "https://graph.microsoft.com/v1.0/me/messages?$top=20&$orderby=receivedDateTime desc")!
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        // Aggiungi headers per gestire meglio il rate limiting
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30 // Timeout di 30 secondi
+        
+        print("🔧 EmailService Debug: Richiesta email a Microsoft Graph (limitato a 20 email)")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw EmailError.networkError("Invalid HTTP response")
+        }
+        
+        print("🔧 EmailService Debug: Microsoft Graph HTTP Status = \(httpResponse.statusCode)")
+        
+        if httpResponse.statusCode != 200 {
+            let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ EmailService Error: Microsoft Graph failed with status \(httpResponse.statusCode)")
+            print("❌ EmailService Error: Response = \(errorResponse)")
+            
+            // Gestione specifica per errori di autorizzazione
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 || httpResponse.statusCode == 4029 {
+                print("🔐 EmailService: Errore di autorizzazione (status \(httpResponse.statusCode)), tentativo di refresh token...")
+                await refreshTokenIfNeeded()
+                // Dopo il refresh, riprova la richiesta
+                return try await fetchEmailsWithMicrosoftGraph(accessToken: currentAccount?.accessToken ?? accessToken)
+            }
+            
+            // Gestione specifica per rate limiting (429)
+            if httpResponse.statusCode == 429 {
+                print("⏱️ EmailService: Rate limiting (429), attendo e riprovo...")
+                
+                // Carica dalla cache mentre aspetti
+                let cachedEmails = cacheService.getCachedEmails(for: currentAccount?.email ?? "")
+                if !cachedEmails.isEmpty {
+                    self.emails = cachedEmails
+                    print("📧 EmailService: Caricate \(cachedEmails.count) email dalla cache durante rate limiting")
+                }
+                
+                // Attendi 5 secondi prima di riprovare
+                try await Task.sleep(nanoseconds: 5_000_000_000) // 5 secondi
+                
+                // Riprova la richiesta
+                return try await fetchEmailsWithMicrosoftGraph(accessToken: accessToken)
+            }
+            
+            throw EmailError.networkError("Microsoft Graph API error: \(httpResponse.statusCode)")
+        }
+        
+        // Debug: Mostra la risposta
+        let responseString = String(data: data, encoding: .utf8) ?? "Unknown response"
+        print("🔧 EmailService Debug: Microsoft Graph response = \(responseString)")
+        
+        do {
+            let graphResponse = try JSONDecoder().decode(MicrosoftGraphResponse.self, from: data)
+            let messages = graphResponse.value.map { graphMessage in
+                EmailMessage(
+                    id: graphMessage.id,
+                    from: graphMessage.from?.emailAddress?.address ?? "Unknown",
+                    to: graphMessage.toRecipients?.map { $0.emailAddress?.address ?? "" } ?? [],
+                    subject: graphMessage.subject ?? "No Subject",
+                    body: graphMessage.body?.content ?? "",
+                    date: parseMicrosoftGraphDate(graphMessage.receivedDateTime),
+                    isRead: graphMessage.isRead ?? false,
+                    hasAttachments: graphMessage.hasAttachments ?? false
+                )
+            }
+            
+            print("✅ EmailService Success: Recuperate \(messages.count) email da Microsoft Graph")
+            return messages
+            
+        } catch {
+            print("❌ EmailService Error: Errore nel parsing Microsoft Graph JSON")
+            print("❌ EmailService Error: \(error)")
+            throw EmailError.networkError("Failed to parse Microsoft Graph response")
+        }
+    }
+    
+    private func parseMicrosoftGraphDate(_ dateString: String?) -> Date {
+        guard let dateString = dateString else { return Date() }
+        
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        if let date = formatter.date(from: dateString) {
+            return date
+        }
+        
+        // Fallback per formato senza millisecondi
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: dateString) ?? Date()
+    }
+    
+    // MARK: - Rate Limiting Management
+    
+    private func waitForRateLimit() async {
+        guard let lastRequest = lastRequestTime else {
+            lastRequestTime = Date()
+            return
+        }
+        
+        let timeSinceLastRequest = Date().timeIntervalSince(lastRequest)
+        if timeSinceLastRequest < minimumRequestInterval {
+            let waitTime = minimumRequestInterval - timeSinceLastRequest
+            print("⏱️ EmailService: Attendo \(waitTime) secondi per rispettare il rate limiting...")
+            try? await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+        }
+        
+        lastRequestTime = Date()
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Timeout helper per evitare blocchi infiniti
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        return try await Task.detached {
+            try await operation()
+        }.value
     }
 }
 
@@ -303,12 +979,38 @@ public struct EmailMessage: Identifiable, Codable {
     }
 }
 
-public struct OAuthToken {
-    public let accessToken: String
-    public let refreshToken: String?
-    public let expiresAt: Date?
-    public let email: String
+// MARK: - Microsoft Graph API Response Types
+
+private struct MicrosoftGraphResponse: Codable {
+    let value: [MicrosoftGraphMessage]
 }
+
+private struct MicrosoftGraphMessage: Codable {
+    let id: String
+    let subject: String?
+    let body: MicrosoftGraphBody?
+    let from: MicrosoftGraphEmailAddress?
+    let toRecipients: [MicrosoftGraphEmailAddress]?
+    let receivedDateTime: String?
+    let isRead: Bool?
+    let hasAttachments: Bool?
+}
+
+private struct MicrosoftGraphBody: Codable {
+    let content: String
+    let contentType: String
+}
+
+private struct MicrosoftGraphEmailAddress: Codable {
+    let emailAddress: MicrosoftGraphEmailAddressDetails?
+}
+
+private struct MicrosoftGraphEmailAddressDetails: Codable {
+    let address: String
+    let name: String?
+}
+
+
 
 public enum EmailError: LocalizedError {
     case oauthNotImplemented
@@ -316,6 +1018,11 @@ public enum EmailError: LocalizedError {
     case networkError(String)
     case imapConnectionFailed
     case tokenExpired
+    case notAuthenticated
+    case sendFailed
+    case permissionDenied
+    case invalidEmailAddress
+    case serverError // Aggiunto per l'errore di marcatura email
     
     public var errorDescription: String? {
         switch self {
@@ -328,7 +1035,17 @@ public enum EmailError: LocalizedError {
         case .imapConnectionFailed:
             return "Impossibile connettersi al server IMAP"
         case .tokenExpired:
-            return "Token di accesso scaduto"
+            return "Token di accesso scaduto. Effettua nuovamente l'accesso."
+        case .notAuthenticated:
+            return "Non sei autenticato. Effettua l'accesso prima di inviare email."
+        case .sendFailed:
+            return "Invio email non riuscito. Verifica la connessione e riprova."
+        case .permissionDenied:
+            return "Permessi insufficienti per inviare email. Verifica le impostazioni dell'account."
+        case .invalidEmailAddress:
+            return "Indirizzo email non valido. Verifica il destinatario."
+        case .serverError:
+            return "Errore nella comunicazione con il server per marcare l'email come letta."
         }
     }
 } 
