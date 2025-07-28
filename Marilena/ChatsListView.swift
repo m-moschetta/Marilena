@@ -99,14 +99,19 @@ struct ChatsListView: View {
                 HStack {
                     Spacer()
                     Button(action: createNewChat) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 56))
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .medium))
                             .foregroundStyle(.white)
-                            .background(.blue, in: Circle())
-                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(.white.opacity(0.3), lineWidth: 1)
+                            )
+                            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                     }
                     .padding(.trailing, 20)
-                    .padding(.bottom, 80) // Sopra la tab bar
+                    .padding(.bottom, 100) // Sopra la tab bar
                 }
             }
         }
