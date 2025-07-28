@@ -46,7 +46,7 @@ struct ChatsListView: View {
                             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
                     .padding(.trailing, 20)
-                    .padding(.bottom, 100) // Sopra la tab bar
+                    .padding(.bottom, 80) // Sopra la tab bar
                 }
             }
         }
