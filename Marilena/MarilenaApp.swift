@@ -8,6 +8,7 @@ struct MarilenaApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var transcriptionService: SpeechTranscriptionService
     @StateObject private var recordingService: RecordingService
+    @StateObject private var emailChatService: EmailChatService
     
     @State private var shouldStartRecording = false
     @State private var shouldStopRecording = false
@@ -16,6 +17,7 @@ struct MarilenaApp: App {
         // Inizializza i servizi
         self._transcriptionService = StateObject(wrappedValue: SpeechTranscriptionService(context: PersistenceController.shared.container.viewContext))
         self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
+        self._emailChatService = StateObject(wrappedValue: EmailChatService(context: PersistenceController.shared.container.viewContext))
     }
 
     var body: some Scene {

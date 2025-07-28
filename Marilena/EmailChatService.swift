@@ -25,9 +25,12 @@ public class EmailChatService: ObservableObject {
     // MARK: - Initialization
     
     public init(context: NSManagedObjectContext? = nil) {
+        print("🔧 EmailChatService: Inizializzazione...")
         self.context = context ?? PersistenceController.shared.container.viewContext
+        print("🔧 EmailChatService: Context configurato")
         setupObservers()
         loadEmailChats()
+        print("✅ EmailChatService: Inizializzazione completata")
     }
     
     // MARK: - Public Methods
@@ -188,16 +191,24 @@ public class EmailChatService: ObservableObject {
     // MARK: - Private Methods
     
     private func setupObservers() {
+        print("🔧 EmailChatService: Setup observers...")
+        
         // Osserva nuove email per creare automaticamente chat
-        NotificationCenter.default.publisher(for: .newEmailReceived)
-            .sink { [weak self] notification in
-                if let email = notification.object as? EmailMessage {
-                    Task {
-                        await self?.handleNewEmail(email)
-                    }
+        let publisher = NotificationCenter.default.publisher(for: .newEmailReceived)
+        let cancellable = publisher.sink { [weak self] notification in
+            print("📧 EmailChatService: Notifica ricevuta!")
+            if let email = notification.object as? EmailMessage {
+                print("📧 EmailChatService: Email ricevuta da \(email.from)")
+                Task {
+                    await self?.handleNewEmail(email)
                 }
+            } else {
+                print("❌ EmailChatService: Oggetto notifica non è EmailMessage")
             }
-            .store(in: &cancellables)
+        }
+        cancellables.insert(cancellable)
+        
+        print("✅ EmailChatService: Observer configurato")
     }
     
     private func handleNewEmail(_ email: EmailMessage) async {

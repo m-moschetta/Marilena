@@ -1004,6 +1004,8 @@ public class EmailService: ObservableObject {
     
     /// Test: Simula l'arrivo di nuove email per testare la creazione automatica delle chat
     public func simulateNewEmail() async {
+        print("🧪 EmailService: ===== INIZIO SIMULAZIONE EMAIL =====")
+        
         let testEmail = EmailMessage(
             id: "test_\(UUID().uuidString)",
             from: "test@example.com",
@@ -1016,13 +1018,19 @@ public class EmailService: ObservableObject {
             emailType: .received
         )
         
+        print("🧪 EmailService: Email di test creata - \(testEmail.from)")
+        print("🧪 EmailService: Tipo email: \(testEmail.emailType)")
+        
         // Aggiungi alla lista delle email
         emails.insert(testEmail, at: 0)
+        print("🧪 EmailService: Email aggiunta alla lista (totale: \(emails.count))")
         
         // Notifica la nuova email
+        print("🧪 EmailService: Invio notifica newEmailReceived...")
         NotificationCenter.default.post(name: .newEmailReceived, object: testEmail)
+        print("🧪 EmailService: Notifica inviata!")
         
-        print("🧪 EmailService: Email di test inviata - \(testEmail.from)")
+        print("🧪 EmailService: ===== FINE SIMULAZIONE EMAIL =====")
     }
 }
 

@@ -139,30 +139,86 @@ struct ChatsListView: View {
     private var chatsList: some View {
         List {
             // Sezione Chat Mail
-            Section(header: Text("Chat Mail")) {
-                ForEach(chats.filter { $0.tipo == "email" }) { chat in
-                    ChatRowView(chat: chat)
-                        .onTapGesture {
-                            selectedChat = chat
+            Section(header: 
+                HStack {
+                    Image(systemName: "envelope.circle.fill")
+                        .foregroundStyle(.blue)
+                    Text("Chat Mail")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                }
+            ) {
+                let emailChats = chats.filter { $0.tipo == "email" }
+                if emailChats.isEmpty {
+                    HStack {
+                        Image(systemName: "envelope.badge")
+                            .foregroundStyle(.secondary)
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Nessuna Chat Mail")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("Le chat mail verranno create automaticamente quando arriveranno nuove email")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
                         }
-                        .background(
-                            NavigationLink(value: chat) {
-                                EmptyView()
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    ForEach(emailChats) { chat in
+                        ChatRowView(chat: chat)
+                            .onTapGesture {
+                                selectedChat = chat
                             }
-                            .opacity(0)
-                        )
+                            .background(
+                                NavigationLink(value: chat) {
+                                    EmptyView()
+                                }
+                                .opacity(0)
+                            )
+                    }
                 }
             }
             
             // Sezione Chat AI classiche
-            Section(header: Text("Chat AI")) {
-                ForEach(chats.filter { $0.tipo != "email" }) { chat in
-                    ChatRowView(chat: chat)
-                        .onTapGesture {
-                            selectedChat = chat
-                        }
+            Section(header: 
+                HStack {
+                    Image(systemName: "brain.head.profile")
+                        .foregroundStyle(.purple)
+                    Text("Chat AI")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
                 }
-                .onDelete(perform: deleteChats)
+            ) {
+                let aiChats = chats.filter { $0.tipo != "email" }
+                if aiChats.isEmpty {
+                    HStack {
+                        Image(systemName: "message.circle")
+                            .foregroundStyle(.secondary)
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Nessuna Chat AI")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("Crea la tua prima chat per iniziare a conversare con l'AI")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    ForEach(aiChats) { chat in
+                        ChatRowView(chat: chat)
+                            .onTapGesture {
+                                selectedChat = chat
+                            }
+                    }
+                    .onDelete(perform: deleteChats)
+                }
             }
         }
         .navigationDestination(for: ChatMarilena.self) { chat in
@@ -211,51 +267,111 @@ struct ChatRowView: View {
     let chat: ChatMarilena
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(chat.titolo ?? "Chat senza titolo")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+        HStack(spacing: 12) {
+            // Icona e colore basati sul tipo di chat
+            ZStack {
+                Circle()
+                    .fill(chatTypeColor)
+                    .frame(width: 44, height: 44)
                 
-                Spacer()
-                
-                if let data = getChatDisplayDate() {
-                    Text(data, style: .relative)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                Image(systemName: chatTypeIcon)
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .symbolRenderingMode(.hierarchical)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(chat.titolo ?? "Chat senza titolo")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.primary)
+                    
+                    Spacer()
+                    
+                    if let data = getChatDisplayDate() {
+                        Text(data, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
-            
-            if let ultimoMessaggio = getUltimoMessaggio() {
-                Text(ultimoMessaggio)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-            } else {
-                Text("Nessun messaggio")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .italic()
-            }
-            
-            HStack {
-                if chat.tipo == "transcription" {
-                    Image(systemName: "waveform.circle.fill")
-                        .foregroundColor(.green)
+                
+                if let ultimoMessaggio = getUltimoMessaggio() {
+                    Text(ultimoMessaggio)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 } else {
-                    Image(systemName: "message.circle.fill")
-                        .foregroundColor(.blue)
+                    Text(chat.tipo == "email" ? "Nessuna email" : "Nessun messaggio")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .italic()
                 }
                 
-                Text("\(getNumeroMessaggi()) messaggi")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
+                HStack(spacing: 8) {
+                    // Badge per il numero di messaggi
+                    HStack(spacing: 4) {
+                        Image(systemName: "message.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("\(getNumeroMessaggi())")
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    
+                    // Badge per il tipo di chat
+                    if chat.tipo == "email" {
+                        HStack(spacing: 4) {
+                            Image(systemName: "envelope.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.blue)
+                            Text("Email")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.blue)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.blue.opacity(0.1), in: Capsule())
+                    }
+                    
+                    Spacer()
+                }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
     }
+    
+    // MARK: - Computed Properties
+    
+    private var chatTypeIcon: String {
+        switch chat.tipo {
+        case "email":
+            return "envelope.circle.fill"
+        case "transcription":
+            return "waveform.circle.fill"
+        default:
+            return "message.circle.fill"
+        }
+    }
+    
+    private var chatTypeColor: Color {
+        switch chat.tipo {
+        case "email":
+            return .blue
+        case "transcription":
+            return .green
+        default:
+            return .purple
+        }
+    }
+    
+    // MARK: - Helper Methods
     
     private func getUltimoMessaggio() -> String? {
         guard let messaggi = chat.messaggi?.allObjects as? [MessaggioMarilena],
@@ -271,6 +387,12 @@ struct ChatRowView: View {
         if messaggiOrdinati.first?.tipo == "transcription" {
             let preview = String(ultimoMessaggio.prefix(100))
             return preview + (ultimoMessaggio.count > 100 ? "..." : "")
+        }
+        
+        // Se è una email, mostra un preview più breve
+        if chat.tipo == "email" {
+            let preview = String(ultimoMessaggio.prefix(80))
+            return preview + (ultimoMessaggio.count > 80 ? "..." : "")
         }
         
         return ultimoMessaggio

@@ -76,11 +76,12 @@ public struct EmailListView: View {
                             emailService.disconnect()
                         }
                         Divider()
-                        Button("Test: Simula Nuova Email") {
+                        Button("🧪 Test: Simula Nuova Email") {
                             Task {
                                 await emailService.simulateNewEmail()
                             }
                         }
+                        .foregroundStyle(.orange)
                     } label: {
                         Image(systemName: "gear.circle.fill")
                             .font(.title2)
