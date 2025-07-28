@@ -25,12 +25,17 @@ struct ChatsListView: View {
     
     var body: some View {
         ZStack {
-            VStack(spacing: 0) {
-                // Header con filtri - senza padding superiore
+            // Lista chat che scorre anche sotto i filtri
+            chatsListView
+                .padding(.top, 120) // Spazio per i filtri sopra
+            
+            // Header con filtri sovrapposto
+            VStack {
                 headerView
+                    .background(.ultraThinMaterial)
+                    .liquidGlass(.subtle)
                 
-                // Lista chat
-                chatsListView
+                Spacer()
             }
             
             // Pulsante flottante in basso
@@ -114,7 +119,7 @@ struct ChatsListView: View {
                 .padding(.horizontal)
             }
         }
-        .padding(.top, 4) // Padding minimo
+        .padding(.top, 8) // Padding per status bar
     }
     
     // MARK: - Chats List
