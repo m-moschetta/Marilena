@@ -975,6 +975,12 @@ struct MessageEditCanvas: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isTextFieldFocused = true
             }
+            // Notifica che una chat è stata aperta
+            NotificationCenter.default.post(name: .chatOpened, object: nil)
+        }
+        .onDisappear {
+            // Notifica che la chat è stata chiusa
+            NotificationCenter.default.post(name: .chatClosed, object: nil)
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showOriginal)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isTextFieldFocused)

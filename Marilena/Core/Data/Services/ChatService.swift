@@ -37,12 +37,15 @@ public class ChatService: ObservableObject {
     
     // MARK: - Initialization
     
+    @MainActor
     public init(
-        aiProviderManager: AIProviderManager = .shared,
-        promptManager: PromptManager = .shared,
+        aiProviderManager: AIProviderManager? = nil,
+        promptManager: PromptManager? = nil,
         configuration: ChatConfiguration? = nil,
         context: NSManagedObjectContext? = nil
     ) {
+        let aiProviderManager = aiProviderManager ?? AIProviderManager.shared
+        let promptManager = promptManager ?? PromptManager.shared
         self.aiProviderManager = aiProviderManager
         self.promptManager = promptManager
         self.configuration = configuration
