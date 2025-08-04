@@ -4,6 +4,7 @@ import Security
 import AuthenticationServices
 import SwiftUI // Added for Color
 import CoreData
+import GoogleSignIn
 
 // MARK: - Email Service
 // Servizio principale per la gestione delle email con autenticazione OAuth e sincronizzazione IMAP
@@ -23,6 +24,7 @@ public class EmailService: ObservableObject {
     private let keychainManager = KeychainManager.shared
     private let oauthService = OAuthService()
     private let cacheService = EmailCacheService()
+    private let categorizationService = EmailCategorizationService()
     
     // Variabili per gestire il rate limiting
     private var lastRequestTime: Date?
@@ -38,9 +40,36 @@ public class EmailService: ObservableObject {
     
     public init() {
         loadSavedAccount()
+        // Prova a ripristinare l'autenticazione Google precedente
+        Task {
+            await restoreGoogleSignIn()
+        }
     }
     
     // MARK: - Public Methods
+    
+    /// Ripristina l'autenticazione Google precedente se disponibile
+    public func restoreGoogleSignIn() async {
+        do {
+            let user = try await GIDSignIn.sharedInstance.restorePreviousSignIn()
+            
+            let account = EmailAccount(
+                provider: .google,
+                email: user.profile?.email ?? "",
+                accessToken: user.accessToken.tokenString,
+                refreshToken: user.refreshToken.tokenString,
+                expiresAt: user.accessToken.expirationDate
+            )
+            
+            await saveAccount(account)
+            await loadEmails(for: account)
+            
+            print("✅ Google Sign-In ripristinato con successo")
+            
+        } catch {
+            print("ℹ️ Nessuna sessione Google precedente trovata: \(error)")
+        }
+    }
     
     /// Avvia il processo di autenticazione OAuth per Google
     public func authenticateWithGoogle() async {
@@ -61,7 +90,10 @@ public class EmailService: ObservableObject {
             await saveAccount(account)
             await loadEmails(for: account)
             
+            print("✅ Autenticazione Google completata con successo")
+            
         } catch {
+            print("❌ Errore autenticazione Google: \(error)")
             self.error = error.localizedDescription
         }
         
@@ -106,14 +138,14 @@ public class EmailService: ObservableObject {
             
             switch account.provider {
             case .google:
-                // Usa IMAP per Google
-                let imapClient = try createIMAPClient(for: account)
-                messages = try await imapClient.fetchMessages(folder: "INBOX", limit: 50)
+                // Usa Gmail API per Google
+                messages = try await fetchEmailsWithGmailAPI(accessToken: account.accessToken)
             case .microsoft:
                 // Usa Microsoft Graph API per Microsoft
                 messages = try await fetchEmailsWithMicrosoftGraph(accessToken: account.accessToken)
             }
             
+            // Carica prima le email senza categorizzazione per UI reattiva
             self.emails = messages
             self.currentAccount = account
             self.isAuthenticated = true
@@ -127,6 +159,11 @@ public class EmailService: ObservableObject {
             await cacheService.cacheEmails(messages, for: account.email)
             
             print("✅ EmailService: Caricate \(messages.count) email per \(account.email)")
+            
+            // Categorizza le email in background
+            Task {
+                await categorizeEmailsInBackground(messages)
+            }
             
         } catch {
             print("❌ EmailService: Errore caricamento email: \(error)")
@@ -845,6 +882,45 @@ public class EmailService: ObservableObject {
     
     // MARK: - Private Methods
     
+    /// Categorizza le email in background senza bloccare l'UI
+    private func categorizeEmailsInBackground(_ messages: [EmailMessage]) async {
+        print("🤖 EmailService: Inizio categorizzazione in background di \(messages.count) email")
+        
+        // Categorizza solo le email che non hanno già una categoria
+        let uncategorizedEmails = messages.filter { $0.category == nil }
+        
+        guard !uncategorizedEmails.isEmpty else {
+            print("🤖 EmailService: Tutte le email sono già categorizzate")
+            return
+        }
+        
+        do {
+            let categorizedEmails = await categorizationService.categorizeEmails(uncategorizedEmails)
+            
+            // Aggiorna l'array principale con le email categorizzate
+            await MainActor.run {
+                var updatedEmails = self.emails
+                
+                for categorizedEmail in categorizedEmails {
+                    if let index = updatedEmails.firstIndex(where: { $0.id == categorizedEmail.id }) {
+                        updatedEmails[index] = categorizedEmail
+                    }
+                }
+                
+                self.emails = updatedEmails
+                print("✅ EmailService: Categorizzazione completata per \(categorizedEmails.count) email")
+            }
+            
+            // Aggiorna la cache con le email categorizzate
+            if let account = currentAccount {
+                await cacheService.cacheEmails(categorizedEmails, for: account.email)
+            }
+            
+        } catch {
+            print("❌ EmailService: Errore durante la categorizzazione: \(error)")
+        }
+    }
+    
     private func createIMAPClient(for account: EmailAccount) throws -> IMAPClient {
         let host: String
         let port: Int
@@ -1014,6 +1090,146 @@ public class EmailService: ObservableObject {
         }
     }
     
+    // MARK: - Gmail API Methods
+    
+    private func fetchEmailsWithGmailAPI(accessToken: String) async throws -> [EmailMessage] {
+        // Gestione rate limiting - aspetta se necessario
+        await waitForRateLimit()
+        
+        let baseURL = "https://gmail.googleapis.com"
+        let url = URL(string: "\(baseURL)/gmail/v1/users/me/messages?maxResults=20")!
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 30
+        
+        print("🔧 EmailService Debug: Richiesta email a Gmail API (limitato a 20 email)")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw EmailError.networkError("Invalid HTTP response")
+        }
+        
+        print("🔧 EmailService Debug: Gmail API HTTP Status = \(httpResponse.statusCode)")
+        
+        if httpResponse.statusCode != 200 {
+            let errorResponse = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("❌ EmailService Error: Gmail API failed with status \(httpResponse.statusCode)")
+            print("❌ EmailService Error: Response = \(errorResponse)")
+            
+            // Gestione specifica per errori di autorizzazione
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                print("🔐 EmailService: Errore di autorizzazione (status \(httpResponse.statusCode)), tentativo di refresh token...")
+                await refreshTokenIfNeeded()
+                // Dopo il refresh, riprova la richiesta
+                return try await fetchEmailsWithGmailAPI(accessToken: currentAccount?.accessToken ?? accessToken)
+            }
+            
+            throw EmailError.networkError("Gmail API error: \(httpResponse.statusCode)")
+        }
+        
+        do {
+            let gmailResponse = try JSONDecoder().decode(GmailMessageList.self, from: data)
+            
+            // Fetch dettagli per ogni email
+            var messages: [EmailMessage] = []
+            for message in gmailResponse.messages.prefix(10) {
+                if let email = await fetchGmailMessageDetails(messageId: message.id, accessToken: accessToken) {
+                    messages.append(email)
+                }
+            }
+            
+            print("✅ EmailService Success: Recuperate \(messages.count) email da Gmail API")
+            return messages
+            
+        } catch {
+            print("❌ EmailService Error: Errore nel parsing Gmail API JSON")
+            print("❌ EmailService Error: \(error)")
+            throw EmailError.networkError("Failed to parse Gmail API response")
+        }
+    }
+    
+    private func fetchGmailMessageDetails(messageId: String, accessToken: String) async -> EmailMessage? {
+        let baseURL = "https://gmail.googleapis.com"
+        let url = URL(string: "\(baseURL)/gmail/v1/users/me/messages/\(messageId)")!
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                return nil
+            }
+            
+            let gmailMessage = try JSONDecoder().decode(GmailMessage.self, from: data)
+            
+            // Estrai le informazioni dall'header
+            let from = gmailMessage.payload?.headers?.first { $0.name.lowercased() == "from" }?.value ?? "Unknown"
+            let subject = gmailMessage.payload?.headers?.first { $0.name.lowercased() == "subject" }?.value ?? "No Subject"
+            let dateString = gmailMessage.payload?.headers?.first { $0.name.lowercased() == "date" }?.value
+            
+            // Decodifica il body
+            let body = decodeGmailBody(gmailMessage.payload)
+            
+            return EmailMessage(
+                id: gmailMessage.id,
+                from: from,
+                to: [], // Gmail API non fornisce direttamente i destinatari
+                subject: subject,
+                body: body,
+                date: parseGmailDate(dateString),
+                isRead: !gmailMessage.labelIds.contains("UNREAD"),
+                hasAttachments: gmailMessage.payload?.parts?.contains { $0.filename?.isEmpty == false } ?? false
+            )
+            
+        } catch {
+            print("❌ EmailService Error: Errore nel recupero dettagli email Gmail: \(error)")
+            return nil
+        }
+    }
+    
+    private func decodeGmailBody(_ payload: GmailMessagePayload?) -> String {
+        guard let payload = payload else { return "" }
+        
+        // Se il body è già in formato testo
+        if let bodyData = payload.body?.data,
+           let decodedData = Data(base64Encoded: bodyData.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")),
+           let body = String(data: decodedData, encoding: .utf8) {
+            return body
+        }
+        
+        // Se ci sono parti multiple, cerca la parte di testo
+        if let parts = payload.parts {
+            for part in parts {
+                if part.mimeType == "text/plain" {
+                    if let bodyData = part.body?.data,
+                       let decodedData = Data(base64Encoded: bodyData.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")),
+                       let body = String(data: decodedData, encoding: .utf8) {
+                        return body
+                    }
+                }
+            }
+        }
+        
+        return ""
+    }
+    
+    private func parseGmailDate(_ dateString: String?) -> Date {
+        guard let dateString = dateString else { return Date() }
+        
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        
+        return formatter.date(from: dateString) ?? Date()
+    }
+    
     private func parseMicrosoftGraphDate(_ dateString: String?) -> Date {
         guard let dateString = dateString else { return Date() }
         
@@ -1054,6 +1270,137 @@ public class EmailService: ObservableObject {
         return try await Task.detached {
             try await operation()
         }.value
+    }
+    
+    /// Categorizza manualmente una singola email
+    public func categorizeEmail(_ emailId: String) async {
+        guard let emailIndex = emails.firstIndex(where: { $0.id == emailId }) else {
+            print("❌ EmailService: Email con ID \(emailId) non trovata")
+            return
+        }
+        
+        let email = emails[emailIndex]
+        print("🤖 EmailService: Categorizzazione manuale email da \(email.from)")
+        
+        let category = await categorizationService.categorizeEmail(email)
+        
+        // Aggiorna l'email con la nuova categoria
+        let updatedEmail = EmailMessage(
+            id: email.id,
+            from: email.from,
+            to: email.to,
+            subject: email.subject,
+            body: email.body,
+            date: email.date,
+            isRead: email.isRead,
+            hasAttachments: email.hasAttachments,
+            emailType: email.emailType,
+            category: category
+        )
+        
+        emails[emailIndex] = updatedEmail
+        
+        // Aggiorna la cache
+        if let account = currentAccount {
+            await cacheService.cacheEmails([updatedEmail], for: account.email)
+        }
+        
+        print("✅ EmailService: Email categorizzata come \(category.displayName)")
+    }
+    
+    /// Filtra le email per categoria
+    public func emailsForCategory(_ category: EmailCategory) -> [EmailMessage] {
+        return emails.filter { $0.category == category }
+    }
+    
+    /// Ottieni il conteggio delle email per ogni categoria
+    public func getCategoryCounts() -> [EmailCategory: Int] {
+        var counts: [EmailCategory: Int] = [:]
+        
+        for category in EmailCategory.allCases {
+            counts[category] = emails.filter { $0.category == category }.count
+        }
+        
+        return counts
+    }
+    
+    /// Test: Simula la categorizzazione con email di esempio
+    public func testEmailCategorization() async {
+        print("🧪 EmailService: ===== INIZIO TEST CATEGORIZZAZIONE =====")
+        
+        let testEmails = [
+            EmailMessage(
+                id: "test_work_\(UUID().uuidString)",
+                from: "manager@company.com",
+                to: ["user@company.com"],
+                subject: "Meeting Tomorrow - Project Review",
+                body: "Hi team, let's review the project progress tomorrow at 10 AM in the conference room.",
+                date: Date(),
+                isRead: false,
+                hasAttachments: false,
+                emailType: .received
+            ),
+            EmailMessage(
+                id: "test_personal_\(UUID().uuidString)",
+                from: "friend@gmail.com",
+                to: ["user@gmail.com"],
+                subject: "Ciao! Come va?",
+                body: "Ciao! Come stai? Ti va di vederci questo weekend per un caffè?",
+                date: Date(),
+                isRead: false,
+                hasAttachments: false,
+                emailType: .received
+            ),
+            EmailMessage(
+                id: "test_notification_\(UUID().uuidString)",
+                from: "noreply@amazon.com",
+                to: ["user@gmail.com"],
+                subject: "Your order has been shipped",
+                body: "Your Amazon order #12345 has been shipped and will arrive by tomorrow.",
+                date: Date(),
+                isRead: false,
+                hasAttachments: false,
+                emailType: .received
+            ),
+            EmailMessage(
+                id: "test_promo_\(UUID().uuidString)",
+                from: "offers@store.com",
+                to: ["user@gmail.com"],
+                subject: "🔥 50% OFF - Limited Time Offer!",
+                body: "Don't miss out! Get 50% off on all products. Limited time offer ends soon!",
+                date: Date(),
+                isRead: false,
+                hasAttachments: false,
+                emailType: .received
+            )
+        ]
+        
+        print("🧪 EmailService: Creati \(testEmails.count) email di test")
+        
+        // Aggiungi le email di test all'inizio della lista
+        emails.insert(contentsOf: testEmails, at: 0)
+        print("🧪 EmailService: Email di test aggiunte alla lista (totale: \(emails.count))")
+        
+        // Categorizza le email di test
+        print("🧪 EmailService: Inizio categorizzazione email di test...")
+        let categorizedEmails = await categorizationService.categorizeEmails(testEmails)
+        
+        // Aggiorna le email nella lista con le versioni categorizzate
+        for categorizedEmail in categorizedEmails {
+            if let index = emails.firstIndex(where: { $0.id == categorizedEmail.id }) {
+                emails[index] = categorizedEmail
+                print("🧪 EmailService: Email da \(categorizedEmail.from) categorizzata come \(categorizedEmail.category?.displayName ?? "Non categorizzata")")
+            }
+        }
+        
+        // Mostra statistiche
+        let counts = getCategoryCounts()
+        print("🧪 EmailService: ===== STATISTICHE CATEGORIZZAZIONE =====")
+        for category in EmailCategory.allCases {
+            print("🧪 \(category.displayName): \(counts[category] ?? 0) email")
+        }
+        
+        print("🧪 EmailService: ===== FINE TEST CATEGORIZZAZIONE =====")
     }
     
     /// Test: Simula l'arrivo di nuove email per testare la creazione automatica delle chat
@@ -1136,6 +1483,7 @@ public struct EmailMessage: Identifiable, Codable {
     public let isRead: Bool
     public let hasAttachments: Bool
     public let emailType: EmailType
+    public var category: EmailCategory?
     
     public init(
         id: String,
@@ -1146,7 +1494,8 @@ public struct EmailMessage: Identifiable, Codable {
         date: Date,
         isRead: Bool = false,
         hasAttachments: Bool = false,
-        emailType: EmailType = .received
+        emailType: EmailType = .received,
+        category: EmailCategory? = nil
     ) {
         self.id = id
         self.from = from
@@ -1157,6 +1506,7 @@ public struct EmailMessage: Identifiable, Codable {
         self.isRead = isRead
         self.hasAttachments = hasAttachments
         self.emailType = emailType
+        self.category = category
     }
 }
 

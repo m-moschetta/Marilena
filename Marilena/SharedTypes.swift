@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Shared Types for AI Services
 
@@ -71,6 +72,93 @@ public enum ExportFormat: String, CaseIterable {
         case .csv: return "csv"
         case .srt: return "srt"
         case .timestamped: return "txt"
+        }
+    }
+}
+
+// MARK: - Gmail API Types
+
+// Gmail Message List Response
+struct GmailMessageList: Codable {
+    let messages: [GmailMessageSummary]
+    let nextPageToken: String?
+    let resultSizeEstimate: Int?
+}
+
+// Gmail Message Summary
+struct GmailMessageSummary: Codable {
+    let id: String
+    let threadId: String
+}
+
+// Gmail Message Detail
+struct GmailMessage: Codable {
+    let id: String
+    let threadId: String
+    let labelIds: [String]
+    let snippet: String?
+    let payload: GmailMessagePayload?
+    let sizeEstimate: Int?
+    let historyId: String?
+    let internalDate: String?
+}
+
+// Gmail Message Payload
+struct GmailMessagePayload: Codable {
+    let partId: String?
+    let mimeType: String?
+    let filename: String?
+    let headers: [GmailHeader]?
+    let body: GmailBody?
+    let parts: [GmailMessagePayload]?
+}
+
+// Gmail Header
+struct GmailHeader: Codable {
+    let name: String
+    let value: String
+}
+
+// Gmail Body
+struct GmailBody: Codable {
+    let attachmentId: String?
+    let size: Int?
+    let data: String?
+}
+
+// MARK: - Email Categorization
+
+// Email Categories for AI Classification
+public enum EmailCategory: String, Codable, CaseIterable {
+    case work = "work"
+    case personal = "personal"
+    case notifications = "notifications"
+    case promotional = "promotional"
+    
+    var displayName: String {
+        switch self {
+        case .work: return "Lavoro"
+        case .personal: return "Personale"
+        case .notifications: return "Notifiche"
+        case .promotional: return "Promo/Spam"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .work: return "briefcase.fill"
+        case .personal: return "person.fill"
+        case .notifications: return "bell.fill"
+        case .promotional: return "megaphone.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .work: return .blue
+        case .personal: return .green
+        case .notifications: return .orange
+        case .promotional: return .red
         }
     }
 } 

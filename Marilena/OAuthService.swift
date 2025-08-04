@@ -2,6 +2,7 @@ import Foundation
 import AuthenticationServices
 import SafariServices
 import Combine
+import GoogleSignIn
 
 // MARK: - OAuth Service
 // Servizio per gestire l'autenticazione OAuth con Google e Microsoft
@@ -27,20 +28,49 @@ public class OAuthService: NSObject, ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Avvia il flusso OAuth per Google
+    /// Avvia il flusso OAuth per Google usando GoogleSignIn
     public func authenticateWithGoogle() async throws -> OAuthToken {
         isAuthenticating = true
         error = nil
         
-        // Debug: Mostra le credenziali attuali
-        print("🔧 OAuth Debug: Verifica credenziali Google")
-        print("🔧 OAuth Debug: Client ID = \(EmailConfig.googleClientId)")
-        print("🔧 OAuth Debug: Client Secret = \(EmailConfig.googleClientSecret)")
-        
         defer { isAuthenticating = false }
         
-        let authURL = createGoogleAuthURL()
-        return try await performOAuthFlow(url: authURL, provider: .google)
+        do {
+            guard let windowScene = await MainActor.run(body: {
+                UIApplication.shared.connectedScenes.first as? UIWindowScene
+            }) else {
+                throw OAuthError.authenticationFailed(NSError(domain: "OAuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No window scene available"]))
+            }
+            
+            guard let rootViewController = windowScene.windows.first?.rootViewController else {
+                throw OAuthError.authenticationFailed(NSError(domain: "OAuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No root view controller available"]))
+            }
+            
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            let user = result.user
+            
+            guard let idToken = user.idToken?.tokenString else {
+                throw OAuthError.authenticationFailed(NSError(domain: "OAuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No ID token available"]))
+            }
+            
+            // Ottieni l'access token per le API Gmail
+            let accessToken = user.accessToken.tokenString
+            
+            // Crea il token OAuth
+            let token = OAuthToken(
+                accessToken: accessToken,
+                refreshToken: user.refreshToken.tokenString,
+                expiresAt: user.accessToken.expirationDate,
+                email: user.profile?.email ?? ""
+            )
+            
+            print("✅ Google Sign-In completato con successo")
+            return token
+            
+        } catch {
+            print("❌ Google Sign-In fallito: \(error)")
+            throw OAuthError.authenticationFailed(error)
+        }
     }
     
     /// Avvia il flusso OAuth per Microsoft
@@ -61,41 +91,63 @@ public class OAuthService: NSObject, ObservableObject {
     
     /// Aggiorna un token di accesso scaduto
     public func refreshToken(for account: EmailAccount) async throws -> OAuthToken {
-        guard let refreshToken = account.refreshToken else {
-            throw OAuthError.noRefreshToken
+        if account.provider == .google {
+            // Per Google, usa GoogleSignIn per il refresh
+            do {
+                guard let currentUser = GIDSignIn.sharedInstance.currentUser else {
+                    throw OAuthError.noRefreshToken
+                }
+                
+                // GoogleSignIn gestisce automaticamente il refresh del token
+                let accessToken = currentUser.accessToken.tokenString
+                
+                return OAuthToken(
+                    accessToken: accessToken,
+                    refreshToken: currentUser.refreshToken.tokenString,
+                    expiresAt: currentUser.accessToken.expirationDate,
+                    email: account.email
+                )
+            } catch {
+                throw OAuthError.tokenRefreshFailed
+            }
+        } else {
+            // Per Microsoft, usa il metodo tradizionale
+            guard let refreshToken = account.refreshToken else {
+                throw OAuthError.noRefreshToken
+            }
+            
+            let config = EmailConfig.getProviderConfig(for: account.provider)
+            
+            var request = URLRequest(url: URL(string: config.tokenEndpoint)!)
+            request.httpMethod = "POST"
+            request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            
+            let parameters = [
+                "client_id": config.clientId,
+                "client_secret": config.clientSecret,
+                "refresh_token": refreshToken,
+                "grant_type": "refresh_token"
+            ]
+            
+            let bodyString = parameters.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+            request.httpBody = bodyString.data(using: .utf8)
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                throw OAuthError.tokenRefreshFailed
+            }
+            
+            let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
+            
+            return OAuthToken(
+                accessToken: tokenResponse.accessToken,
+                refreshToken: tokenResponse.refreshToken ?? refreshToken,
+                expiresAt: Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn)),
+                email: account.email
+            )
         }
-        
-        let config = EmailConfig.getProviderConfig(for: account.provider)
-        
-        var request = URLRequest(url: URL(string: config.tokenEndpoint)!)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        
-        let parameters = [
-            "client_id": config.clientId,
-            "client_secret": config.clientSecret,
-            "refresh_token": refreshToken,
-            "grant_type": "refresh_token"
-        ]
-        
-        let bodyString = parameters.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        request.httpBody = bodyString.data(using: .utf8)
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw OAuthError.tokenRefreshFailed
-        }
-        
-        let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
-        
-        return OAuthToken(
-            accessToken: tokenResponse.accessToken,
-            refreshToken: tokenResponse.refreshToken ?? refreshToken,
-            expiresAt: Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn)),
-            email: account.email
-        )
     }
     
     // MARK: - Private Methods

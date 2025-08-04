@@ -10,6 +10,11 @@ public struct EmailConfig {
     
     // Google OAuth
     public static var googleClientId: String {
+        // Prima prova a leggere da Info.plist (per GoogleSignIn)
+        if let clientId = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String {
+            return clientId
+        }
+        // Fallback su UserDefaults
         return UserDefaults.standard.string(forKey: "google_client_id") ?? "your-google-client-id"
     }
     

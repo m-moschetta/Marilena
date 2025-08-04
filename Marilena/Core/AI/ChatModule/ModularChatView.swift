@@ -23,10 +23,15 @@ public struct ModularChatView: View {
     @State private var showModelSelector = false
     @State private var selectedModel = "gpt-4o-mini"
     @State private var selectedPerplexityModel = "sonar-pro"
+    @State private var selectedProvider = "openai"
+    @State private var selectedGroqModel = "qwen-qwq-32b"
+    @State private var selectedAnthropicModel = "claude-3.5-sonnet"
     
     private let openAIService = OpenAIService.shared
     private let profiloService = ProfiloUtenteService.shared
     private let perplexityService = PerplexityService.shared
+    private let groqService = GroqService.shared
+    private let anthropicService = AnthropicService.shared
     
     // Modelli Perplexity disponibili per ricerca
     private let perplexitySearchModels = [
@@ -35,16 +40,48 @@ public struct ModularChatView: View {
         "sonar-deep-research" // Ricerca approfondita multi-step
     ]
     
-    // Modelli OpenAI disponibili (allineati con SettingsView)
-    private let availableModels = [
-        "gpt-4o",        // Modello ottimizzato standard
-        "gpt-4o-mini",   // Versione leggera di gpt-4o
-        "gpt-4.1",       // Nuova versione 4.1 (2024)
-        "gpt-4.1-mini",  // Versione compatta di 4.1
-        "gpt-4.1-nano",  // Versione ultra-leggera di 4.1
-        "o3-mini",       // Modello di ragionamento compatto
-        "o4-mini",       // Nuova generazione compatta
-        "o3"             // Modello di ragionamento avanzato
+    // Modelli OpenAI disponibili (verificati e allineati con SettingsView)
+    private let availableOpenAIModels = [
+        "gpt-4o",                    // Latest GPT-4o, 128K context
+        "gpt-4o-mini",               // Fast and affordable, 128K context
+        "chatgpt-4o-latest",         // Latest used in ChatGPT
+        "gpt-4.1",                   // Full model, 1M context
+        "gpt-4.1-mini",              // Compact version, 1M context
+        "gpt-4.1-nano",              // Ultra-light version, optimized for speed
+        "gpt-4.5-preview",           // Largest model, creative tasks
+        "o1",                        // Latest reasoning model
+        "o1-mini",                   // Faster reasoning model
+        "o3-mini",                   // Latest small reasoning model
+        "gpt-4-turbo",               // Previous generation flagship
+        "gpt-3.5-turbo"              // Cost-effective option
+    ]
+    
+    // Modelli Groq disponibili (aggiornati secondo documentazione ufficiale 2025)
+    private let availableGroqModels = [
+        "qwen-qwq-32b",                    // Latest reasoning model, 400 T/s
+        "qwen2.5-32b-instruct",           // 397 T/s, 128K context, tool calling + JSON mode
+        "qwen2.5-72b-instruct",           // Larger version, enhanced performance
+        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691
+        "deepseek-r1-distill-llama-70b",  // 260 T/s, 131K context, CodeForces 1633
+        "llama-3.3-70b-versatile",        // General purpose, balanced performance
+        "llama-3.1-405b-reasoning",       // Largest model, best for complex tasks
+        "llama-3.1-70b-versatile",        // Good balance of size and performance
+        "llama-3.1-8b-instant",           // Fast and efficient for simple tasks
+        "mixtral-8x7b-32768",             // Mixture of Experts, multilingual
+        "gemma2-9b-it",                   // Efficient instruction-tuned model
+        "gemma-7b-it"                     // Lightweight but capable
+    ]
+    
+    // Modelli Anthropic disponibili
+    private let availableAnthropicModels = [
+        "claude-4-opus",               // Most capable, expensive, 200K context
+        "claude-4-sonnet",             // High performance, 200K context
+        "claude-3.7-sonnet",           // First hybrid reasoning model, enhanced thinking
+        "claude-3.5-sonnet",           // Best balance, 200K context
+        "claude-3.5-haiku",            // Fast and lightweight, 200K context
+        "claude-3-sonnet",             // Balanced performance, 200K context
+        "claude-3-haiku",              // Fastest and cheapest, 200K context
+        "claude-3-opus"                // Most capable legacy model, 200K context
     ]
     
     // MARK: - Configuration
@@ -218,15 +255,25 @@ public struct ModularChatView: View {
                             .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                             .scaleEffect(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.9 : 1.0)
                             .contextMenu {
-                                ForEach(availableModels, id: \.self) { model in
+                                ForEach(currentProviderModels, id: \.self) { model in
                                     Button(action: {
-                                        selectedModel = model
-                                        UserDefaults.standard.set(model, forKey: "selected_model")
+                                        // Aggiorna il modello corretto basato sul provider
+                                        switch selectedProvider {
+                                        case "groq":
+                                            selectedGroqModel = model
+                                            UserDefaults.standard.set(model, forKey: "selectedGroqChatModel")
+                                        case "anthropic":
+                                            selectedAnthropicModel = model
+                                            UserDefaults.standard.set(model, forKey: "selectedAnthropicModel")
+                                        default: // "openai"
+                                            selectedModel = model
+                                            UserDefaults.standard.set(model, forKey: "selected_model")
+                                        }
                                         inviaMessaggio()
                                     }) {
                                         HStack {
-                                            Text(model)
-                                            if model == selectedModel {
+                                            Text(getCurrentProviderModelDisplayName(model))
+                                            if model == currentSelectedModel {
                                                 Image(systemName: "checkmark")
                                             }
                                         }
@@ -243,6 +290,9 @@ public struct ModularChatView: View {
             }
             .navigationTitle(chat.titolo ?? "Chat")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                loadChatSettings()
+            }
         }
     }
     
@@ -307,38 +357,111 @@ public struct ModularChatView: View {
             return
         }
         
-        // Invia a OpenAI
+        // Invia al provider selezionato
         isLoading = true
         let conversationHistory = buildConversationHistory(newMessage: messaggioTesto)
         
-        openAIService.sendMessage(
-            messages: conversationHistory,
-            model: selectedModel
-        ) { result in
-            DispatchQueue.main.async {
-                isLoading = false
-                
-                switch result {
-                case .success(let risposta):
-                    let messaggioAI = MessaggioMarilena(context: viewContext)
-                    messaggioAI.id = UUID()
-                    messaggioAI.contenuto = risposta
-                    messaggioAI.isUser = false
-                    messaggioAI.dataCreazione = Date()
-                    messaggioAI.chat = chat
+        switch selectedProvider {
+        case "groq":
+            Task {
+                do {
+                    let risposta = try await groqService.sendMessage(messages: conversationHistory, model: selectedGroqModel)
                     
-                    try? viewContext.save()
+                    await MainActor.run {
+                        let messaggioAI = MessaggioMarilena(context: viewContext)
+                        messaggioAI.id = UUID()
+                        messaggioAI.contenuto = risposta
+                        messaggioAI.isUser = false
+                        messaggioAI.dataCreazione = Date()
+                        messaggioAI.chat = chat
+                        
+                        try? viewContext.save()
+                        isLoading = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("Errore Groq: \(error)")
+                        let messaggioErrore = MessaggioMarilena(context: viewContext)
+                        messaggioErrore.id = UUID()
+                        messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con Groq. Riprova tra poco."
+                        messaggioErrore.isUser = false
+                        messaggioErrore.dataCreazione = Date()
+                        messaggioErrore.chat = chat
+                        
+                        try? viewContext.save()
+                        isLoading = false
+                    }
+                }
+            }
+            
+        case "anthropic":
+            // Converti OpenAIMessage in AnthropicMessage
+            let anthropicMessages = conversationHistory.filter { $0.role != "system" }.map { openAIMsg in
+                AnthropicMessage(
+                    role: openAIMsg.role,
+                    content: [AnthropicContent(type: "text", text: openAIMsg.content)]
+                )
+            }
+            
+            anthropicService.sendMessage(messages: anthropicMessages, model: selectedAnthropicModel, maxTokens: 4096, temperature: 0.7) { result in
+                DispatchQueue.main.async {
+                    isLoading = false
                     
-                case .failure(let error):
-                    print("Errore OpenAI: \(error)")
-                    let messaggioErrore = MessaggioMarilena(context: viewContext)
-                    messaggioErrore.id = UUID()
-                    messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema. Riprova tra poco."
-                    messaggioErrore.isUser = false
-                    messaggioErrore.dataCreazione = Date()
-                    messaggioErrore.chat = chat
+                    switch result {
+                    case .success(let risposta):
+                        let messaggioAI = MessaggioMarilena(context: viewContext)
+                        messaggioAI.id = UUID()
+                        messaggioAI.contenuto = risposta
+                        messaggioAI.isUser = false
+                        messaggioAI.dataCreazione = Date()
+                        messaggioAI.chat = chat
+                        
+                        try? viewContext.save()
+                        
+                    case .failure(let error):
+                        print("Errore Anthropic: \(error)")
+                        let messaggioErrore = MessaggioMarilena(context: viewContext)
+                        messaggioErrore.id = UUID()
+                        messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con Anthropic. Riprova tra poco."
+                        messaggioErrore.isUser = false
+                        messaggioErrore.dataCreazione = Date()
+                        messaggioErrore.chat = chat
+                        
+                        try? viewContext.save()
+                    }
+                }
+            }
+            
+        default: // "openai"
+            openAIService.sendMessage(
+                messages: conversationHistory,
+                model: selectedModel
+            ) { result in
+                DispatchQueue.main.async {
+                    isLoading = false
                     
-                    try? viewContext.save()
+                    switch result {
+                    case .success(let risposta):
+                        let messaggioAI = MessaggioMarilena(context: viewContext)
+                        messaggioAI.id = UUID()
+                        messaggioAI.contenuto = risposta
+                        messaggioAI.isUser = false
+                        messaggioAI.dataCreazione = Date()
+                        messaggioAI.chat = chat
+                        
+                        try? viewContext.save()
+                        
+                    case .failure(let error):
+                        print("Errore OpenAI: \(error)")
+                        let messaggioErrore = MessaggioMarilena(context: viewContext)
+                        messaggioErrore.id = UUID()
+                        messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con OpenAI. Riprova tra poco."
+                        messaggioErrore.isUser = false
+                        messaggioErrore.dataCreazione = Date()
+                        messaggioErrore.chat = chat
+                        
+                        try? viewContext.save()
+                    }
                 }
             }
         }
@@ -511,6 +634,129 @@ public struct ModularChatView: View {
         contextString += "\n\nRispondi considerando il contesto della conversazione precedente."
         
         return contextString
+    }
+    
+    // MARK: - Provider Settings Functions
+    
+    func loadChatSettings() {
+        selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
+        selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
+        selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
+        selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "qwen-qwq-32b"
+        selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3.5-sonnet"
+    }
+    
+    // Modelli dinamici basati sul provider selezionato
+    private var currentProviderModels: [String] {
+        switch selectedProvider {
+        case "groq":
+            return availableGroqModels
+        case "anthropic":
+            return availableAnthropicModels
+        default: // "openai"
+            return availableOpenAIModels
+        }
+    }
+    
+    // Modello attualmente selezionato per il provider
+    private var currentSelectedModel: String {
+        switch selectedProvider {
+        case "groq":
+            return selectedGroqModel
+        case "anthropic":
+            return selectedAnthropicModel
+        default: // "openai"
+            return selectedModel
+        }
+    }
+    
+    func getOpenAIModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "gpt-4o":
+            return "🌟 GPT-4o (Flagship Multimodal)"
+        case "gpt-4o-mini":
+            return "⚡ GPT-4o Mini (Fast & Affordable)"
+        case "chatgpt-4o-latest":
+            return "🚀 ChatGPT-4o Latest"
+        case "gpt-4-turbo":
+            return "🚀 GPT-4 Turbo (Legacy Powerhouse)"
+        case "gpt-3.5-turbo":
+            return "💫 GPT-3.5 Turbo (Classic)"
+        case "o1":
+            return "🧠 o1 (Advanced Reasoning)"
+        case "o1-mini":
+            return "⚡ o1-mini (Fast Reasoning)"
+        case "o1-preview":
+            return "🔬 o1-preview (Early Access)"
+        default:
+            return model
+        }
+    }
+    
+    func getAnthropicModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "claude-4-opus":
+            return "💎 Claude 4 Opus (Most Capable)"
+        case "claude-4-sonnet":
+            return "🎯 Claude 4 Sonnet (High Performance)"
+        case "claude-3.7-sonnet":
+            return "🧠 Claude 3.7 Sonnet (Hybrid Reasoning)"
+        case "claude-3.5-sonnet":
+            return "⚖️ Claude 3.5 Sonnet (Balanced)"
+        case "claude-3.5-haiku":
+            return "⚡ Claude 3.5 Haiku (Fast)"
+        case "claude-3-opus":
+            return "💎 Claude 3 Opus (Legacy Premium)"
+        case "claude-3-sonnet":
+            return "🎯 Claude 3 Sonnet (Legacy Balanced)"
+        case "claude-3-haiku":
+            return "⚡ Claude 3 Haiku (Legacy Fast)"
+        default:
+            return model
+        }
+    }
+    
+    func getGroqModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "qwen-qwq-32b":
+            return "🧠 Qwen QwQ 32B (Latest Reasoning)"
+        case "qwen2.5-32b-instruct":
+            return "⚡ Qwen 2.5 32B (Fast)"
+        case "qwen2.5-72b-instruct":
+            return "🚀 Qwen 2.5 72B (Powerful)"
+        case "deepseek-r1-distill-qwen-32b":
+            return "🎯 DeepSeek R1 Qwen 32B (Coding)"
+        case "deepseek-r1-distill-llama-70b":
+            return "💎 DeepSeek R1 Llama 70B (Math)"
+        case "llama-3.3-70b-versatile":
+            return "🦙 Llama 3.3 70B (Versatile)"
+        case "llama-3.1-405b-reasoning":
+            return "🔬 Llama 3.1 405B (Reasoning)"
+        case "llama-3.1-70b-versatile":
+            return "⚖️ Llama 3.1 70B (Balanced)"
+        case "llama-3.1-8b-instant":
+            return "⚡ Llama 3.1 8B (Instant)"
+        case "mixtral-8x7b-32768":
+            return "🔀 Mixtral 8x7B (Expert Mix)"
+        case "gemma2-9b-it":
+            return "💫 Gemma 2 9B (Efficient)"
+        case "gemma-7b-it":
+            return "✨ Gemma 7B (Lightweight)"
+        default:
+            return model
+        }
+    }
+    
+    // Funzione dinamica per ottenere il display name basato sul provider
+    func getCurrentProviderModelDisplayName(_ model: String) -> String {
+        switch selectedProvider {
+        case "groq":
+            return getGroqModelDisplayName(model)
+        case "anthropic":
+            return getAnthropicModelDisplayName(model)
+        default: // "openai"
+            return getOpenAIModelDisplayName(model)
+        }
     }
 }
 
@@ -1164,5 +1410,4 @@ extension View {
     return NavigationView {
         ModularChatView(chat: chat, title: "Chat AI Demo")
             .environment(\.managedObjectContext, context)
-    }
-} 
+    }}

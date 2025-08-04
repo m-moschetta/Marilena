@@ -297,16 +297,12 @@ public class EmailAIService: ObservableObject {
             return .work
         case "personale":
             return .personal
-        case "commerciale":
-            return .commercial
-        case "tecnico":
-            return .technical
-        case "sociale":
-            return .social
-        case "spam":
-            return .spam
+        case "commerciale", "spam":
+            return .promotional
+        case "tecnico", "sociale":
+            return .notifications
         default:
-            return .other
+            return .notifications
         }
     }
     
@@ -368,75 +364,10 @@ public struct EmailAnalysis {
     public var mainTopics: [String] = []
     public var explicitRequests: [String] = []
     public var implicitRequests: [String] = []
-    public var category: EmailCategory = .other
+    public var category: EmailCategory = .notifications
 }
 
-public enum EmailCategory: String, CaseIterable {
-    case work = "lavoro"
-    case personal = "personale"
-    case commercial = "commerciale"
-    case technical = "tecnico"
-    case social = "sociale"
-    case spam = "spam"
-    case other = "altro"
-    
-    public var displayName: String {
-        switch self {
-        case .work:
-            return "Lavoro"
-        case .personal:
-            return "Personale"
-        case .commercial:
-            return "Commerciale"
-        case .technical:
-            return "Tecnico"
-        case .social:
-            return "Sociale"
-        case .spam:
-            return "Spam"
-        case .other:
-            return "Altro"
-        }
-    }
-    
-    public var icon: String {
-        switch self {
-        case .work:
-            return "briefcase.fill"
-        case .personal:
-            return "person.fill"
-        case .commercial:
-            return "cart.fill"
-        case .technical:
-            return "gear"
-        case .social:
-            return "person.2.fill"
-        case .spam:
-            return "xmark.octagon.fill"
-        case .other:
-            return "folder.fill"
-        }
-    }
-    
-    public var color: Color {
-        switch self {
-        case .work:
-            return .blue
-        case .personal:
-            return .green
-        case .commercial:
-            return .orange
-        case .technical:
-            return .purple
-        case .social:
-            return .pink
-        case .spam:
-            return .red
-        case .other:
-            return .gray
-        }
-    }
-}
+
 
 public enum EmailUrgency: String, CaseIterable {
     case low = "bassa"
