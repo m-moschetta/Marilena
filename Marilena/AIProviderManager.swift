@@ -26,7 +26,7 @@ public class AIProviderManager {
     func getBestChatProvider() -> (provider: ChatProvider, model: String)? {
         // Ottieni le impostazioni salvate
         let selectedChatModel = UserDefaults.standard.string(forKey: "selectedChatModel") ?? "gpt-4.1"
-        let selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.3-70b-versatile"
+        let selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
         let selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-sonnet-4-20250514"
         
         // Verifica quali provider hanno API keys configurate
@@ -39,7 +39,7 @@ public class AIProviderManager {
             return (.openai, selectedChatModel)
         } else if hasAnthropic && selectedAnthropicModel != "claude-sonnet-4-20250514" {
             return (.anthropic, selectedAnthropicModel)
-        } else if hasGroq && selectedGroqModel != "llama-3.3-70b-versatile" {
+        } else if hasGroq && selectedGroqModel != "deepseek-r1-distill-qwen-32b" {
             return (.groq, selectedGroqModel)
         } else if hasOpenAI {
             return (.openai, selectedChatModel)

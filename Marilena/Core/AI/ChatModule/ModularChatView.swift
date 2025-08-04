@@ -24,7 +24,7 @@ public struct ModularChatView: View {
     @State private var selectedModel = "gpt-4o-mini"
     @State private var selectedPerplexityModel = "sonar-pro"
     @State private var selectedProvider = "openai"
-    @State private var selectedGroqModel = "qwen-qwq-32b"
+    @State private var selectedGroqModel = "deepseek-r1-distill-qwen-32b"
     @State private var selectedAnthropicModel = "claude-3.5-sonnet"
     
     private let openAIService = OpenAIService.shared
@@ -58,11 +58,9 @@ public struct ModularChatView: View {
     
     // Modelli Groq disponibili (aggiornati secondo documentazione ufficiale 2025)
     private let availableGroqModels = [
-        "qwen-qwq-32b",                    // Latest reasoning model, 400 T/s
+        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691, AIME 83.3%
+        "deepseek-r1-distill-llama-70b",  // 260 T/s, 131K context, CodeForces 1633, MATH 94.5%
         "qwen2.5-32b-instruct",           // 397 T/s, 128K context, tool calling + JSON mode
-        "qwen2.5-72b-instruct",           // Larger version, enhanced performance
-        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691
-        "deepseek-r1-distill-llama-70b",  // 260 T/s, 131K context, CodeForces 1633
         "llama-3.3-70b-versatile",        // General purpose, balanced performance
         "llama-3.1-405b-reasoning",       // Largest model, best for complex tasks
         "llama-3.1-70b-versatile",        // Good balance of size and performance
@@ -642,7 +640,7 @@ public struct ModularChatView: View {
         selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
-        selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "qwen-qwq-32b"
+        selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
         selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3.5-sonnet"
     }
     
