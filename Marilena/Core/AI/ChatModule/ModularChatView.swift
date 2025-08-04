@@ -1049,7 +1049,7 @@ struct ModularMessageRow: View {
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
-                            // Badge speciale per draft email
+                            // Badge speciale per draft email con indicazione interattiva
                             if isEmailResponseDraft {
                                 HStack(spacing: 6) {
                                     Image(systemName: "envelope.arrow.triangle.branch")
@@ -1057,12 +1057,26 @@ struct ModularMessageRow: View {
                                     Text("Bozza Email")
                                         .font(.caption2)
                                         .fontWeight(.medium)
+                                    
+                                    // Indicatore interattivo
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "hand.tap")
+                                            .font(.system(size: 10))
+                                        Text("Tieni premuto")
+                                            .font(.system(size: 10))
+                                    }
+                                    .foregroundColor(.blue.opacity(0.7))
                                 }
                                 .foregroundColor(.blue)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(Color.blue.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: isEmailResponseDraft)
+                                )
                             }
                             
                             Text(messaggio.contenuto ?? "")
@@ -1080,15 +1094,32 @@ struct ModularMessageRow: View {
                                 .foregroundColor(.primary)
                                 .textSelection(.enabled)
                                 // NUOVO: Haptic Touch per email drafts
-                                .onLongPressGesture(minimumDuration: 0.6) {
+                                .onLongPressGesture(minimumDuration: 0.5) {
                                     if isEmailResponseDraft {
-                                        // Feedback haptic
+                                        // Preparazione haptic
                                         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                        impactFeedback.prepare()
+                                        
+                                        // Feedback haptic principale
                                         impactFeedback.impactOccurred()
+                                        
+                                        // Feedback aggiuntivo per indicare successo
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            let successFeedback = UINotificationFeedbackGenerator()
+                                            successFeedback.notificationOccurred(.success)
+                                        }
                                         
                                         // Apri canvas direttamente
                                         editedText = messaggio.contenuto ?? ""
                                         showingCanvas = true
+                                    }
+                                }
+                                // NUOVO: Tap normale per indicazioni visive
+                                .onTapGesture {
+                                    if isEmailResponseDraft {
+                                        // Feedback leggero per indicare che è interattivo
+                                        let lightFeedback = UIImpactFeedbackGenerator(style: .light)
+                                        lightFeedback.impactOccurred()
                                     }
                                 }
                         }
@@ -1278,6 +1309,10 @@ struct MessageEditCanvas: View {
                 // Toolbar superiore minimalista
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Annulla") {
+                        // Feedback haptic per annullamento
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                        impactFeedback.impactOccurred()
+                        
                         onCancel()
                     }
                     .foregroundColor(.primary)
@@ -1288,6 +1323,10 @@ struct MessageEditCanvas: View {
                         // Toggle Rich Text per email
                         if onSendEmail != nil {
                             Button(action: {
+                                // Feedback haptic per toggle
+                                let selectionFeedback = UISelectionFeedbackGenerator()
+                                selectionFeedback.selectionChanged()
+                                
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     isRichTextMode.toggle()
                                 }
@@ -1297,23 +1336,33 @@ struct MessageEditCanvas: View {
                             }
                         }
                         
-                        // Menu Rigenera
+                        // Menu Rigenera con Haptic
                         Menu {
                             Button("🎭 Più Formale") {
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                impactFeedback.impactOccurred()
                                 regenerateContent(style: "Rendi questo testo più formale e professionale")
                             }
                             Button("😊 Più Casual") {
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                impactFeedback.impactOccurred()
                                 regenerateContent(style: "Rendi questo testo più casual e amichevole")
                             }
                             Button("📝 Più Breve") {
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                impactFeedback.impactOccurred()
                                 regenerateContent(style: "Riassumi questo testo rendendolo più conciso")
                             }
                             Button("📚 Più Dettagliato") {
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                impactFeedback.impactOccurred()
                                 regenerateContent(style: "Espandi questo testo aggiungendo più dettagli")
                             }
                             if onSendEmail != nil {
                                 Divider()
                                 Button("✉️ Formato Email") {
+                                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                    impactFeedback.impactOccurred()
                                     regenerateContent(style: "Trasforma questo in una email professionale ben formattata")
                                 }
                             }
@@ -1334,8 +1383,12 @@ struct MessageEditCanvas: View {
                             }
                         }
                         
-                        // Salva
+                        // Salva con Haptic
                         Button("Fine") {
+                            // Feedback haptic per salvataggio
+                            let successFeedback = UINotificationFeedbackGenerator()
+                            successFeedback.notificationOccurred(.success)
+                            
                             onSave()
                         }
                         .fontWeight(.medium)
@@ -1404,6 +1457,10 @@ struct MessageEditCanvas: View {
                 
                 // Cerca
                 Button(action: {
+                    // Feedback haptic per ricerca
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                    
                     onSearchWithPerplexity(editedText)
                 }) {
                     Label("Cerca", systemImage: "magnifyingglass")
@@ -1415,6 +1472,10 @@ struct MessageEditCanvas: View {
                 
                 // Reinvia all'AI - icona corretta
                 Button(action: {
+                    // Feedback haptic per rigenerazione
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                    
                     onSendToAI(editedText)
                 }) {
                     Label("Reinvia", systemImage: "arrow.clockwise")
@@ -1427,6 +1488,10 @@ struct MessageEditCanvas: View {
                 // Invia Email - solo se è disponibile la callback
                 if let sendEmail = onSendEmail {
                     Button(action: {
+                        // Feedback haptic per invio email
+                        let successFeedback = UINotificationFeedbackGenerator()
+                        successFeedback.notificationOccurred(.success)
+                        
                         sendEmail(editedText)
                     }) {
                         Label("Invia", systemImage: "envelope.arrow.triangle.branch")
