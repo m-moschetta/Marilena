@@ -320,6 +320,15 @@ struct SettingsView: View {
                     }
                 }
                 
+                // NUOVO: Sezione Email
+                Section("Impostazioni Email") {
+                    NavigationLink {
+                        EmailSettingsView()
+                    } label: {
+                        Label("Prompt Email", systemImage: "envelope.badge.person.crop")
+                    }
+                }
+                
                 Section {
                     Button("Salva Configurazione") {
                         saveSettings()

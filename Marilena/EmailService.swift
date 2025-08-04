@@ -182,9 +182,17 @@ public class EmailService: ObservableObject {
             self.currentAccount = account
             self.isAuthenticated = true
             
-            // Notifica nuove email ricevute
-            for email in messages where email.emailType == .received {
+            // Notifica SOLO nuove email ricevute (non già viste)
+            let previousEmailIds = Set(self.emails.map { $0.id })
+            let newEmails = messages.filter { !previousEmailIds.contains($0.id) && $0.emailType == .received }
+            
+            for email in newEmails {
+                print("📧 EmailService: Nuova email ricevuta da \(email.from) - Invio notifica")
                 NotificationCenter.default.post(name: .newEmailReceived, object: email)
+            }
+            
+            if !newEmails.isEmpty {
+                print("✅ EmailService: Inviate \(newEmails.count) notifiche per nuove email")
             }
             
             // Salva in cache

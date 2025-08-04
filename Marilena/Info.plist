@@ -116,7 +116,7 @@
 	
 	<!-- Google Sign-In Configuration -->
 	<key>GIDClientID</key>
-	<string>123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com</string>
+	<string>561616949612-bhr5dsrtgf10482ba6iuttinm2b0n61e.apps.googleusercontent.com</string>
 	
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
