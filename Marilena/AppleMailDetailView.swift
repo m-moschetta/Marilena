@@ -51,21 +51,57 @@ struct AppleMailDetailView: View {
                 }
             }
             
-            // Bottom Toolbar
-            AppleMailStyleToolbar(
-                email: email,
-                onReply: { showingReplySheet = true },
-                onForward: { 
-                    forwardData = emailService.prepareForwardEmail(email)
-                    showingForwardSheet = true 
-                },
-                onDelete: { showingDeleteAlert = true },
-                onMore: { showingMoreMenu = true }
-            )
         }
         .background(Color(UIColor.systemBackground))
         .navigationTitle("Email")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // NUOVO: Azioni nella navigation bar (stile Apple Mail)
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 16) {
+                    // Archive
+                    Button {
+                        // TODO: Implementare archive
+                    } label: {
+                        Image(systemName: "archivebox")
+                    }
+                    
+                    // Delete
+                    Button {
+                        showingDeleteAlert = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .foregroundStyle(.red)
+                    
+                    // Reply
+                    Button {
+                        showingReplySheet = true
+                    } label: {
+                        Image(systemName: "arrowshape.turn.up.left")
+                    }
+                }
+            }
+            
+            // NUOVO: Compose button nella bottom bar
+            ToolbarItem(placement: .bottomBar) {
+                HStack {
+                    Button {
+                        // TODO: Move to folder
+                    } label: {
+                        Image(systemName: "folder")
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        // TODO: Compose new email
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                }
+            }
+        }
         .onAppear {
             Task {
                 await emailService.markEmailAsRead(email.id)

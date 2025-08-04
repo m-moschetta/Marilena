@@ -56,8 +56,7 @@ struct AppleMailStyleHeader: View {
                 .padding(.top, 8)
         }
         .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .liquidGlass(.subtle)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
     
     private func formatDate(_ date: Date) -> String {
@@ -196,10 +195,9 @@ struct AppleMailAISection: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .symbolEffect(.bounce, value: showingAI)
-                }
-                .padding()
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                .liquidGlass(.subtle)
+                            }
+            .padding()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
             
@@ -272,7 +270,6 @@ struct AppleMailAISection: View {
                                 .lineLimit(showingFullSummary ? nil : 3)
                                 .padding()
                                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
-                                .liquidGlass(.subtle)
                                 .animation(.easeInOut(duration: 0.3), value: showingFullSummary)
                         }
                     }
@@ -286,7 +283,6 @@ struct AppleMailAISection: View {
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(.ultraThinMaterial, in: Capsule())
-                                .liquidGlass(.subtle)
                             
                             // Urgency
                             Label(analysis.urgency.displayName, systemImage: analysis.urgency.icon)
@@ -295,7 +291,6 @@ struct AppleMailAISection: View {
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(colorFromString(analysis.urgency.color).opacity(0.1), in: Capsule())
-                                .liquidGlass(.subtle)
                         }
                     }
                 }
@@ -334,7 +329,6 @@ private struct QuickResponseButton: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(gradient.opacity(0.1), in: Capsule())
-                .liquidGlass(.subtle)
         }
         .buttonStyle(.plain)
         .scaleEffect(isPressed ? 0.95 : 1.0)

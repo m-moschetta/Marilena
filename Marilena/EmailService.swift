@@ -17,7 +17,14 @@ public class EmailService: ObservableObject {
     @Published public var isLoading = false
     @Published public var error: String?
     @Published public var emails: [EmailMessage] = []
+    @Published public var emailConversations: [EmailConversation] = [] // NUOVO: Conversazioni organizzate
+    @Published public var isThreadingEnabled = true // NUOVO: Toggle per abilitare/disabilitare threading
     @Published public var currentAccount: EmailAccount?
+    
+    // NUOVO: Proprietà offline
+    @Published public var isOnline = true
+    @Published public var syncStatus: SyncStatus = .idle
+    @Published public var pendingOperationsCount = 0
     
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
@@ -25,6 +32,7 @@ public class EmailService: ObservableObject {
     private let oauthService = OAuthService()
     private let cacheService = EmailCacheService()
     private let categorizationService = EmailCategorizationService()
+    private lazy var offlineSyncService = OfflineSyncService.shared
     
     // Variabili per gestire il rate limiting
     private var lastRequestTime: Date?
@@ -40,10 +48,34 @@ public class EmailService: ObservableObject {
     
     public init() {
         loadSavedAccount()
+        
+        // NUOVO: Sincronizza stato offline
+        setupOfflineSync()
+        
+        // Collega EmailService a OfflineSyncService per evitare dipendenza circolare
+        offlineSyncService.setEmailService(self)
+        
         // Prova a ripristinare l'autenticazione Google precedente
         Task {
             await restoreGoogleSignIn()
         }
+    }
+    
+    // MARK: - Offline Sync Setup
+    
+    private func setupOfflineSync() {
+        // Sincronizza le proprietà offline con OfflineSyncService
+        offlineSyncService.$isOnline
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isOnline)
+        
+        offlineSyncService.$syncStatus
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$syncStatus)
+        
+        offlineSyncService.$pendingOperationsCount
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$pendingOperationsCount)
     }
     
     // MARK: - Public Methods
@@ -158,11 +190,26 @@ public class EmailService: ObservableObject {
             // Salva in cache
             await cacheService.cacheEmails(messages, for: account.email)
             
+                        // Sincronizza lo stato di categorizzazione con il service
+            categorizationService.syncWithEmailCache(messages)
+            
+            // Adatta automaticamente la configurazione al numero di email
+            await EmailCategorizationConfigManager.shared.adaptToEmailCount(messages.count)
+            
             print("✅ EmailService: Caricate \(messages.count) email per \(account.email)")
             
-            // Categorizza le email in background
+            // Organizza le email in conversazioni
+            await organizeEmailsIntoConversations()
+            
+            // Categorizza le email in background con strategia ibrida intelligente
             Task {
                 await categorizeEmailsInBackground(messages)
+            }
+            
+            // Resetta contatori di sessione per grandi caricamenti (nuovo account)
+            if messages.count > 100 {
+                categorizationService.resetSessionCounters()
+                print("🔄 EmailService: Reset contatori AI per nuovo caricamento di \(messages.count) email")
             }
             
         } catch {
@@ -368,6 +415,22 @@ public class EmailService: ObservableObject {
         print("🔧 EmailService: Account disconnesso")
     }
     
+    /// NUOVO: Refresh manuale che forza il ricaricamento dal server
+    public func forceRefresh() async {
+        guard let account = currentAccount else {
+            print("❌ EmailService: Nessun account per refresh manuale")
+            return
+        }
+        
+        print("🔄 EmailService: Refresh manuale forzato...")
+        
+        // Invalida la cache forzando il ricaricamento
+        await cacheService.clearCache(for: account.email)
+        
+        // Ricarica dal server
+        await loadEmails(for: account)
+    }
+    
     /// Verifica e ripristina l'autenticazione all'avvio
     public func restoreAuthentication() async {
         print("🔧 EmailService: Verifica autenticazione...")
@@ -387,19 +450,26 @@ public class EmailService: ObservableObject {
                 self.emails = cachedEmails
                 self.isAuthenticated = true
                 print("📧 EmailService: Caricate \(cachedEmails.count) email dalla cache")
+                
+                // MIGLIORATO: Organizza subito le conversazioni dalla cache
+                await organizeEmailsIntoConversations()
             }
             
-            // Poi carica dal server in background
-            if isAuthenticated {
+            // NUOVO: Controlla se la cache è valida prima di ricaricare dal server
+            if cacheService.shouldFetchFromServer(for: account.email) {
+                print("📧 EmailService: Cache non valida, ricarico dal server...")
                 await loadEmails(for: account)
+            } else {
+                print("📧 EmailService: Cache valida, utilizzo dati locali")
+                self.isAuthenticated = true
             }
         }
     }
     
-    /// Invia un'email
+    /// Invia un'email (con supporto offline)
     public func sendEmail(to: String, subject: String, body: String) async throws {
         print("📧 EmailService: ===== INIZIO INVIO EMAIL =====")
-        print("📧 EmailService: isAuthenticated = \(isAuthenticated)")
+        print("📧 EmailService: isAuthenticated = \(isAuthenticated), isOnline = \(isOnline)")
         
         guard isAuthenticated, let account = currentAccount else {
             print("❌ EmailService: Utente non autenticato per invio email")
@@ -408,20 +478,47 @@ public class EmailService: ObservableObject {
         
         print("📧 EmailService: Account trovato: \(account.email)")
         print("📧 EmailService: Provider: \(account.provider)")
-        print("📧 EmailService: Token scade: \(account.expiresAt?.description ?? "Non specificato")")
         
-        // Usa l'invio diretto tramite API
-        try await sendEmailDirectly(to: to, subject: subject, body: body, account: account)
+        // NUOVO: Controlla connessione
+        if !isOnline {
+            print("📴 EmailService: Offline - Email accodata per invio successivo")
+            offlineSyncService.sendEmailOffline(to: [to], subject: subject, body: body)
+            print("✅ EmailService: Email accodata per invio offline")
+            return
+        }
+        
+        do {
+            // Usa l'invio diretto tramite API
+            try await sendEmailDirectly(to: to, subject: subject, body: body, account: account)
+            print("✅ EmailService: Email inviata con successo")
+        } catch {
+            print("❌ EmailService: Errore invio email: \(error)")
+            
+            // Se fallisce per problemi di rete, accoda per offline
+            if error.localizedDescription.contains("network") || error.localizedDescription.contains("timeout") {
+                print("📴 EmailService: Errore di rete - Email accodata per invio offline")
+                offlineSyncService.sendEmailOffline(to: [to], subject: subject, body: body)
+            } else {
+                throw error
+            }
+        }
         
         print("📧 EmailService: ===== FINE INVIO EMAIL =====")
     }
     
     // MARK: - Delete Email
     
-    /// Cancella un'email sia dal server che dalla cache locale
+    /// Cancella un'email sia dal server che dalla cache locale (con supporto offline)
     public func deleteEmail(_ emailId: String) async throws {
         guard isAuthenticated, let account = currentAccount else {
             throw EmailError.notAuthenticated
+        }
+        
+        // NUOVO: Supporto offline
+        if !isOnline {
+            print("📴 EmailService: Offline - Eliminazione accodata")
+            offlineSyncService.deleteEmailOffline(emailId)
+            return
         }
         
         print("🗑️ EmailService: Eliminazione email ID: \(emailId)")
@@ -886,8 +983,12 @@ public class EmailService: ObservableObject {
     private func categorizeEmailsInBackground(_ messages: [EmailMessage]) async {
         print("🤖 EmailService: Inizio categorizzazione in background di \(messages.count) email")
         
-        // Categorizza solo le email che non hanno già una categoria
-        let uncategorizedEmails = messages.filter { $0.category == nil }
+        // Filtra le email che non sono già categorizzate, in elaborazione, o nella cache
+        let uncategorizedEmails = messages.filter { email in
+            email.category == nil && 
+            !categorizationService.isEmailCategorized(email.id) &&
+            !categorizationService.isEmailBeingCategorized(email.id)
+        }
         
         guard !uncategorizedEmails.isEmpty else {
             print("🤖 EmailService: Tutte le email sono già categorizzate")
@@ -909,6 +1010,11 @@ public class EmailService: ObservableObject {
                 
                 self.emails = updatedEmails
                 print("✅ EmailService: Categorizzazione completata per \(categorizedEmails.count) email")
+                
+                // Sincronizza la cache del servizio di categorizzazione
+                for categorizedEmail in categorizedEmails {
+                    self.categorizationService.markEmailAsCategorized(categorizedEmail.id)
+                }
             }
             
             // Aggiorna la cache con le email categorizzate
@@ -916,9 +1022,123 @@ public class EmailService: ObservableObject {
                 await cacheService.cacheEmails(categorizedEmails, for: account.email)
             }
             
+            // Riorganizza le conversazioni dopo la categorizzazione
+            await organizeEmailsIntoConversations()
+            
         } catch {
             print("❌ EmailService: Errore durante la categorizzazione: \(error)")
         }
+    }
+    
+    // MARK: - Email Threading Functions
+    
+    /// Organizza le email in conversazioni (threading)
+    public func organizeEmailsIntoConversations() async {
+        guard isThreadingEnabled else {
+            // Se il threading è disabilitato, crea una "conversazione" per ogni email
+            emailConversations = emails.map { email in
+                EmailConversation(
+                    id: email.id,
+                    subject: email.subject,
+                    messages: [email],
+                    participants: Set([email.from] + email.to),
+                    createdAt: email.date,
+                    lastActivity: email.date
+                )
+            }.sorted { $0.lastActivity > $1.lastActivity }
+            return
+        }
+        
+        print("🧵 EmailService: Organizzando \(emails.count) email in conversazioni...")
+        
+        var conversations: [String: EmailConversation] = [:]
+        
+        for email in emails {
+            let threadKey = generateThreadKey(for: email)
+            
+            if let existingConversation = conversations[threadKey] {
+                // Aggiungi l'email alla conversazione esistente
+                var updatedConversation = existingConversation
+                updatedConversation.addMessage(email)
+                conversations[threadKey] = updatedConversation
+            } else {
+                // Crea una nuova conversazione
+                let normalizedSubject = normalizeSubject(email.subject)
+                let participants = Set([email.from] + email.to)
+                
+                let conversation = EmailConversation(
+                    id: threadKey,
+                    subject: normalizedSubject,
+                    messages: [email],
+                    participants: participants,
+                    createdAt: email.date,
+                    lastActivity: email.date
+                )
+                
+                conversations[threadKey] = conversation
+            }
+        }
+        
+        // Ordina per ultima attività
+        let sortedConversations = Array(conversations.values)
+            .sorted { $0.lastActivity > $1.lastActivity }
+        
+        await MainActor.run {
+            self.emailConversations = sortedConversations
+            print("✅ EmailService: Organizzate \(sortedConversations.count) conversazioni da \(emails.count) email")
+        }
+    }
+    
+    /// Genera una chiave univoca per il thread basata su subject e partecipanti
+    private func generateThreadKey(for email: EmailMessage) -> String {
+        let normalizedSubject = normalizeSubject(email.subject)
+        let participants = Set([email.from] + email.to).sorted()
+        
+        // Combina subject normalizzato e partecipanti per creare una chiave
+        let participantsString = participants.joined(separator: ",")
+        return "\(normalizedSubject)|\(participantsString)".lowercased()
+    }
+    
+    /// Normalizza il subject rimuovendo prefissi come "Re:", "Fwd:", etc.
+    private func normalizeSubject(_ subject: String) -> String {
+        var normalized = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Rimuove prefissi comuni (case insensitive)
+        let prefixesToRemove = ["Re:", "RE:", "Fwd:", "FWD:", "Fw:", "FW:", "Fwd :", "Re :", 
+                               "R:", "R :", "Ri:", "Ri :", "I:", "Oggetto:", "Inoltro:"]
+        
+        for prefix in prefixesToRemove {
+            while normalized.lowercased().hasPrefix(prefix.lowercased()) {
+                normalized = String(normalized.dropFirst(prefix.count))
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        
+        return normalized.isEmpty ? "Nessun oggetto" : normalized
+    }
+    
+    /// Trova tutte le conversazioni che coinvolgono un determinato partecipante
+    public func conversationsInvolving(participant: String) -> [EmailConversation] {
+        return emailConversations.filter { conversation in
+            conversation.participants.contains { $0.lowercased() == participant.lowercased() }
+        }
+    }
+    
+    /// Trova conversazioni per subject
+    public func conversationsWithSubject(containing text: String) -> [EmailConversation] {
+        return emailConversations.filter { conversation in
+            conversation.subject.lowercased().contains(text.lowercased())
+        }
+    }
+    
+    /// Segna tutte le email di una conversazione come lette
+    public func markConversationAsRead(_ conversation: EmailConversation) async {
+        for message in conversation.messages where !message.isRead {
+            await markEmailAsRead(message.id)
+        }
+        
+        // Riorganizza le conversazioni per aggiornare lo stato
+        await organizeEmailsIntoConversations()
     }
     
     private func createIMAPClient(for account: EmailAccount) throws -> IMAPClient {
@@ -1272,17 +1492,45 @@ public class EmailService: ObservableObject {
         }.value
     }
     
-    /// Categorizza manualmente una singola email
-    public func categorizeEmail(_ emailId: String) async {
+    /// Categorizza manualmente una singola email (força uso AI se disponibile)
+    public func categorizeEmail(_ emailId: String, forceAI: Bool = false) async {
         guard let emailIndex = emails.firstIndex(where: { $0.id == emailId }) else {
             print("❌ EmailService: Email con ID \(emailId) non trovata")
             return
         }
         
         let email = emails[emailIndex]
-        print("🤖 EmailService: Categorizzazione manuale email da \(email.from)")
         
-        let category = await categorizationService.categorizeEmail(email)
+        // Controllo anti-duplicazione: se già categorizzata o in elaborazione
+        if email.category != nil && !forceAI {
+            print("🤖 EmailService: Email \(emailId) già categorizzata come \(email.category!.displayName)")
+            return
+        }
+        
+        if categorizationService.isEmailCategorized(emailId) && !forceAI {
+            print("🤖 EmailService: Email \(emailId) già processata dalla cache")
+            return
+        }
+        
+        if categorizationService.isEmailBeingCategorized(emailId) {
+            print("🤖 EmailService: Email \(emailId) già in elaborazione")
+            return
+        }
+        
+        print("🤖 EmailService: Categorizzazione manuale email da \(email.from) (ID: \(emailId), forceAI: \(forceAI))")
+        
+        let category: EmailCategory
+        if forceAI {
+            // Força l'uso dell'AI bypassando i limiti per categorizzazione manuale
+            category = await categorizationService.categorizeWithAI(email)
+            
+            // Incrementa contatore per account se ha usato AI
+            if let account = currentAccount {
+                categorizationService.incrementAccountAICount(for: account.email)
+            }
+        } else {
+            category = await categorizationService.categorizeEmail(email)
+        }
         
         // Aggiorna l'email con la nuova categoria
         let updatedEmail = EmailMessage(
@@ -1484,6 +1732,7 @@ public struct EmailMessage: Identifiable, Codable {
     public let hasAttachments: Bool
     public let emailType: EmailType
     public var category: EmailCategory?
+    public let threadingInfo: ThreadingInfo? // Nuova proprietà per threading
     
     public init(
         id: String,
@@ -1495,7 +1744,8 @@ public struct EmailMessage: Identifiable, Codable {
         isRead: Bool = false,
         hasAttachments: Bool = false,
         emailType: EmailType = .received,
-        category: EmailCategory? = nil
+        category: EmailCategory? = nil,
+        threadingInfo: ThreadingInfo? = nil
     ) {
         self.id = id
         self.from = from
@@ -1507,6 +1757,7 @@ public struct EmailMessage: Identifiable, Codable {
         self.hasAttachments = hasAttachments
         self.emailType = emailType
         self.category = category
+        self.threadingInfo = threadingInfo
     }
 }
 
@@ -1607,5 +1858,85 @@ public enum EmailError: LocalizedError {
         case .deleteFailed:
             return "Eliminazione email non riuscita."
         }
+    }
+}
+
+// MARK: - Email Threading Models
+
+/// Rappresenta una conversazione di email (thread)
+public struct EmailConversation: Identifiable, Codable {
+    public let id: String
+    public let subject: String // Subject normalizzato (senza "Re:", "Fwd:", etc.)
+    public var messages: [EmailMessage]
+    public let participants: Set<String> // Tutti i partecipanti alla conversazione
+    public let createdAt: Date // Data del primo messaggio
+    public var lastActivity: Date // Data dell'ultimo messaggio
+    public var messageCount: Int { messages.count }
+    public var hasUnread: Bool { messages.contains { !$0.isRead } }
+    public var isStarred: Bool = false
+    
+    /// Messaggio più recente nella conversazione
+    public var latestMessage: EmailMessage? {
+        messages.sorted { $0.date > $1.date }.first
+    }
+    
+    /// Partecipanti come stringa formattata
+    public var participantsDisplay: String {
+        Array(participants).prefix(3).joined(separator: ", ") + 
+        (participants.count > 3 ? " e \(participants.count - 3) altri" : "")
+    }
+    
+    public init(
+        id: String,
+        subject: String,
+        messages: [EmailMessage],
+        participants: Set<String>,
+        createdAt: Date,
+        lastActivity: Date,
+        isStarred: Bool = false
+    ) {
+        self.id = id
+        self.subject = subject
+        self.messages = messages.sorted { $0.date < $1.date } // Ordina cronologicamente
+        self.participants = participants
+        self.createdAt = createdAt
+        self.lastActivity = lastActivity
+        self.isStarred = isStarred
+    }
+    
+    /// Aggiunge un messaggio alla conversazione
+    public mutating func addMessage(_ message: EmailMessage) {
+        guard !messages.contains(where: { $0.id == message.id }) else { return }
+        messages.append(message)
+        messages.sort { $0.date < $1.date }
+        lastActivity = max(lastActivity, message.date)
+    }
+    
+    /// Rimuove un messaggio dalla conversazione
+    public mutating func removeMessage(withId messageId: String) {
+        messages.removeAll { $0.id == messageId }
+        if let latestDate = messages.max(by: { $0.date < $1.date })?.date {
+            lastActivity = latestDate
+        }
+    }
+}
+
+/// Informazioni per il threading delle email
+public struct ThreadingInfo: Codable {
+    public let threadId: String?
+    public let references: [String] // Message-IDs referenced
+    public let inReplyTo: String? // Message-ID this is replying to
+    public let messageId: String? // Unique Message-ID
+    
+    public init(
+        threadId: String? = nil,
+        references: [String] = [],
+        inReplyTo: String? = nil,
+        messageId: String? = nil
+    ) {
+        self.threadId = threadId
+        self.references = references
+        self.inReplyTo = inReplyTo
+        self.messageId = messageId
     }
 } 

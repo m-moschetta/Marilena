@@ -80,26 +80,7 @@ public class EmailChatService: ObservableObject {
             // Collega thread alla chat
             newChat.emailThread = emailThread
             
-            // Aggiungi il primo messaggio (email ricevuta)
-            let emailMessage = MessaggioMarilena(context: context)
-            emailMessage.id = UUID()
-            emailMessage.contenuto = """
-            📧 **Nuova Email Ricevuta**
-            
-            **Da:** \(email.from)
-            **Oggetto:** \(email.subject)
-            **Data:** \(formatDate(email.date))
-            
-            **Contenuto:**
-            \(email.body)
-            """
-            emailMessage.isUser = false
-            emailMessage.tipo = "email"
-            emailMessage.dataCreazione = email.date
-            emailMessage.emailId = email.id
-            emailMessage.chat = newChat
-            
-            // Analizza l'email e genera suggerimento di risposta
+            // Analizza l'email e genera i 2 messaggi (contesto + risposta)
             await analyzeEmailAndGenerateResponse(for: email, in: newChat)
             
             try context.save()
@@ -137,8 +118,8 @@ public class EmailChatService: ObservableObject {
         }
     }
     
-    /// Invia una risposta email dalla chat
-    public func sendEmailResponse(from chat: ChatMarilena, response: String) async throws {
+    /// Invia una risposta email dalla chat (dal canvas)
+    public func sendEmailResponse(from chat: ChatMarilena, response: String, originalEmailId: String? = nil) async throws {
         guard let sender = chat.emailSender else {
             throw EmailChatError.invalidChat
         }
@@ -321,30 +302,25 @@ public class EmailChatService: ObservableObject {
         }
     }
     
+    private func hasMessagesForEmail(_ emailId: String, in chat: ChatMarilena) -> Bool {
+        // Verifica se esistono già messaggi per questa email in questa chat
+        let fetchRequest: NSFetchRequest<MessaggioMarilena> = MessaggioMarilena.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "emailId == %@ AND chat == %@", emailId, chat)
+        
+        do {
+            let messages = try context.fetch(fetchRequest)
+            return !messages.isEmpty
+        } catch {
+            print("❌ EmailChatService: Errore verifica messaggi email: \(error)")
+            return false
+        }
+    }
+    
     private func updateExistingEmailChat(_ chat: ChatMarilena, with email: EmailMessage) async {
         // Aggiorna la data dell'ultima email
         chat.lastEmailDate = email.date
         
-        // Aggiungi il nuovo messaggio email
-        let emailMessage = MessaggioMarilena(context: context)
-        emailMessage.id = UUID()
-        emailMessage.contenuto = """
-        📧 **Nuova Email Ricevuta**
-        
-        **Da:** \(email.from)
-        **Oggetto:** \(email.subject)
-        **Data:** \(formatDate(email.date))
-        
-        **Contenuto:**
-        \(email.body)
-        """
-        emailMessage.isUser = false
-        emailMessage.tipo = "email"
-        emailMessage.dataCreazione = email.date
-        emailMessage.emailId = email.id
-        emailMessage.chat = chat
-        
-        // Analizza e genera suggerimento
+        // Analizza e genera i messaggi solo se non esistono già
         await analyzeEmailAndGenerateResponse(for: email, in: chat)
         
         try? context.save()
@@ -361,6 +337,12 @@ public class EmailChatService: ObservableObject {
     private func analyzeEmailAndGenerateResponse(for email: EmailMessage, in chat: ChatMarilena) async {
         print("🤖 EmailChatService: Avvio analisi AI per email da \(email.from)")
         
+        // Controlla se esistono già messaggi per questa email (evita duplicati)
+        if hasMessagesForEmail(email.id, in: chat) {
+            print("📧 EmailChatService: Messaggi già esistenti per email \(email.id), skip analisi")
+            return
+        }
+        
         do {
             // Analizza l'email
             let analysis = await aiService.analyzeEmail(email)
@@ -369,62 +351,87 @@ public class EmailChatService: ObservableObject {
             // Genera suggerimento di risposta
             let responseType = analysis != nil ? suggestResponseType(for: analysis!) : .custom
             
-            // Crea messaggio AI con analisi
-            let aiMessage = MessaggioMarilena(context: context)
-            aiMessage.id = UUID()
-            aiMessage.contenuto = """
-            🤖 **Analisi AI**
+            // 1. MESSAGGIO DI CONTESTO (termina con "io risponderei così:")
+            let contextMessage = MessaggioMarilena(context: context)
+            contextMessage.id = UUID()
+            contextMessage.contenuto = """
+            📧 **Email da \(email.from)**
             
-            **Mittente:** \(email.from)
             **Oggetto:** \(email.subject)
             **Data:** \(formatDate(email.date))
             
-            \(analysis != nil ? """
-            **Categoria:** \(analysis!.category.displayName)
-            **Urgenza:** \(analysis!.urgency.displayName)
-            **Tono:** \(analysis!.tone)
-            """ : "**Analisi:** Non disponibile")
+            **Contenuto originale:**
+            \(email.body)
             
-            \(summary != nil ? """
-            **Riassunto:**
-            \(summary!)
+            \(analysis != nil ? """
+            🤖 **Analisi AI:**
+            • Categoria: \(analysis!.category.displayName)
+            • Urgenza: \(analysis!.urgency.displayName)
+            • Tono: \(analysis!.tone)
             """ : "")
             
-            **Suggerimento:** \(responseType.displayName)
+            \(summary != nil ? """
+            📝 **Riassunto:** \(summary!)
+            """ : "")
             
-            Clicca per generare una risposta \(responseType.displayName.lowercased()).
+            💭 Basandomi sul contenuto e sul contesto, io risponderei così:
             """
-            aiMessage.isUser = false
-            aiMessage.tipo = "ai_suggestion"
-            aiMessage.dataCreazione = Date()
-            aiMessage.emailResponseType = responseType.rawValue
-            aiMessage.chat = chat
+            contextMessage.isUser = false
+            contextMessage.tipo = "email_context"
+            contextMessage.dataCreazione = email.date
+            contextMessage.emailId = email.id
+            contextMessage.chat = chat
             
-            print("✅ EmailChatService: Analisi AI completata per \(email.from)")
+            // 2. MESSAGGIO DI RISPOSTA (modificabile tramite canvas)
+            if let responseDraft = await aiService.generateDraft(for: email) {
+                let responseMessage = MessaggioMarilena(context: context)
+                responseMessage.id = UUID()
+                responseMessage.contenuto = responseDraft.content
+                responseMessage.isUser = false
+                responseMessage.tipo = "email_response_draft"
+                responseMessage.dataCreazione = Date()
+                responseMessage.emailId = email.id
+                responseMessage.emailResponseType = responseType.rawValue
+                responseMessage.chat = chat
+                
+                print("✅ EmailChatService: Creati messaggi contesto e risposta per \(email.from)")
+            }
             
         } catch {
             print("❌ EmailChatService: Errore analisi AI per \(email.from): \(error)")
             
-            // Crea messaggio di fallback
+            // Crea messaggio di fallback solo contesto
             let fallbackMessage = MessaggioMarilena(context: context)
             fallbackMessage.id = UUID()
             fallbackMessage.contenuto = """
-            🤖 **Analisi AI**
+            📧 **Email da \(email.from)**
             
-            **Mittente:** \(email.from)
             **Oggetto:** \(email.subject)
             **Data:** \(formatDate(email.date))
             
-            **Stato:** Analisi non disponibile
-            **Suggerimento:** Genera risposta personalizzata
+            **Contenuto originale:**
+            \(email.body)
             
-            Clicca per generare una risposta personalizzata.
+            ⚠️ **Analisi AI non disponibile**
+            
+            💭 Basandomi sul contenuto, io risponderei così:
             """
             fallbackMessage.isUser = false
-            fallbackMessage.tipo = "ai_suggestion"
-            fallbackMessage.dataCreazione = Date()
-            fallbackMessage.emailResponseType = EmailResponseType.custom.rawValue
+            fallbackMessage.tipo = "email_context"
+            fallbackMessage.dataCreazione = email.date
+            fallbackMessage.emailId = email.id
             fallbackMessage.chat = chat
+            
+            // Messaggio di risposta semplice in caso di errore
+            let fallbackResponse = MessaggioMarilena(context: context)
+            fallbackResponse.id = UUID()
+            fallbackResponse.contenuto = "Gentile \(email.from),\n\nGrazie per la vostra email. Vi risponderò al più presto.\n\nCordiali saluti"
+            fallbackResponse.isUser = false
+            fallbackResponse.tipo = "email_response_draft"
+            fallbackResponse.dataCreazione = Date()
+            fallbackResponse.emailId = email.id
+            fallbackResponse.emailResponseType = EmailResponseType.custom.rawValue
+            fallbackResponse.chat = chat
         }
     }
     

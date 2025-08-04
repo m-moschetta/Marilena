@@ -2,7 +2,7 @@
 
 ## Panoramica
 
-Il sistema di categorizzazione automatica delle email utilizza **OpenAI GPT-4o mini** per classificare automaticamente le email in 4 categorie principali basandosi su mittente, oggetto e anteprima del contenuto.
+Il sistema di categorizzazione automatica delle email utilizza **OpenAI GPT-4.1 nano** per classificare automaticamente le email in 4 categorie principali basandosi su mittente, oggetto e anteprima del contenuto.
 
 ## Categorie
 
@@ -41,7 +41,7 @@ Il sistema di categorizzazione automatica delle email utilizza **OpenAI GPT-4o m
 
 ### 1. Categorizzazione Automatica
 - Le email vengono categorizzate automaticamente quando caricate
-- Utilizza OpenAI GPT-4o mini per l'analisi intelligente
+- Utilizza OpenAI GPT-4.1 nano per l'analisi intelligente
 - Processa in background per non bloccare l'UI
 - Gestisce rate limiting e retry automatici
 
@@ -72,10 +72,13 @@ public struct EmailMessage {
 
 ### EmailCategorizationService
 Il servizio principale per la categorizzazione:
-- **Modello:** `gpt-4o-mini`
-- **Prompt ottimizzato** per la categorizzazione italiana
-- **Batch processing** per efficienza
-- **Fallback intelligente** in caso di errori
+- **Modello:** `gpt-4.1-nano` (ottimizzato per velocità)
+- **Prompt avanzato** con analisi domini e parole chiave italiane
+- **Parsing robusto** con mapping prioritizzato e fallback intelligenti
+- **Analisi contesto** con riconoscimento domini aziendali/consumer
+- **Pulizia contenuto** avanzata (HTML, URL, entità)
+- **Batch processing** per efficienza e rate limiting
+- **Logging dettagliato** per debugging e monitoraggio
 
 ### Integrazione in EmailService
 - Categorizzazione automatica al caricamento

@@ -32,6 +32,7 @@ public struct ModularChatView: View {
     private let perplexityService = PerplexityService.shared
     private let groqService = GroqService.shared
     private let anthropicService = AnthropicService.shared
+    @StateObject private var emailChatService = EmailChatService()
     
     // Modelli Perplexity disponibili per ricerca
     private let perplexitySearchModels = [
@@ -132,7 +133,21 @@ public struct ModularChatView: View {
                                             // Usa il testo modificato per la ricerca Perplexity
                                             testo = editedText
                                             searchWithPerplexity()
-                                        }
+                                        },
+                                        onSendEmail: chat.tipo == "email" ? { emailId, content in
+                                            // Invia la risposta email
+                                            Task {
+                                                do {
+                                                    try await emailChatService.sendEmailResponse(
+                                                        from: chat,
+                                                        response: content,
+                                                        originalEmailId: emailId
+                                                    )
+                                                } catch {
+                                                    print("❌ Errore invio email: \(error)")
+                                                }
+                                            }
+                                        } : nil
                                     )
                                 }
                             }
@@ -764,10 +779,16 @@ struct ModularMessageRow: View {
     let messaggio: MessaggioMarilena
     let onSendToAI: (String) -> Void
     let onSearchWithPerplexity: (String) -> Void
+    let onSendEmail: ((String, String) -> Void)? // emailId, content
     @State private var isEditing = false
     @State private var editedText = ""
     @FocusState private var isTextFieldFocused: Bool
     @State private var showingCanvas = false
+    
+    // Helper per identificare se è un draft di risposta email
+    private var isEmailResponseDraft: Bool {
+        return messaggio.tipo == "email_response_draft"
+    }
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -918,7 +939,13 @@ struct ModularMessageRow: View {
                         },
                         onCancel: {
                             showingCanvas = false
-                        }
+                        },
+                        onSendEmail: isEmailResponseDraft ? { text in
+                            if let emailId = messaggio.emailId {
+                                onSendEmail?(emailId, text)
+                                showingCanvas = false
+                            }
+                        } : nil
                     )
                 }
                 
@@ -1021,16 +1048,50 @@ struct ModularMessageRow: View {
             }
                         }
                     } else {
-                        Text(messaggio.contenuto ?? "")
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(.systemGray6))
-                                    .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
-                            )
-                            .foregroundColor(.primary)
-                            .textSelection(.enabled)
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Badge speciale per draft email
+                            if isEmailResponseDraft {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "envelope.arrow.triangle.branch")
+                                        .font(.caption2)
+                                    Text("Bozza Email")
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                            
+                            Text(messaggio.contenuto ?? "")
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(isEmailResponseDraft ? Color.blue.opacity(0.05) : Color(.systemGray6))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .stroke(isEmailResponseDraft ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                                        )
+                                        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+                                )
+                                .foregroundColor(.primary)
+                                .textSelection(.enabled)
+                                // NUOVO: Haptic Touch per email drafts
+                                .onLongPressGesture(minimumDuration: 0.6) {
+                                    if isEmailResponseDraft {
+                                        // Feedback haptic
+                                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                        impactFeedback.impactOccurred()
+                                        
+                                        // Apri canvas direttamente
+                                        editedText = messaggio.contenuto ?? ""
+                                        showingCanvas = true
+                                    }
+                                }
+                        }
                     }
                     
                     if let data = messaggio.dataCreazione {
@@ -1077,7 +1138,13 @@ struct ModularMessageRow: View {
                         },
                         onCancel: {
                             showingCanvas = false
-                        }
+                        },
+                        onSendEmail: isEmailResponseDraft ? { text in
+                            if let emailId = messaggio.emailId {
+                                onSendEmail?(emailId, text)
+                                showingCanvas = false
+                            }
+                        } : nil
                     )
                 }
             
@@ -1117,9 +1184,13 @@ struct MessageEditCanvas: View {
     let onSearchWithPerplexity: (String) -> Void
     let onSave: () -> Void
     let onCancel: () -> Void
+    let onSendEmail: ((String) -> Void)? // Nuovo parametro opzionale per inviare email
     
     @FocusState private var isTextFieldFocused: Bool
+    @State private var isRichTextFirstResponder = false
     @State private var showOriginal = false
+    @State private var isRichTextMode = false
+    @State private var showingRegenerateMenu = false
     @Environment(\.colorScheme) var colorScheme
     
 
@@ -1156,15 +1227,37 @@ struct MessageEditCanvas: View {
                                 ))
                             }
                             
-                            // TextEditor principale - IDENTICO AD APPLE NOTES
-                            TextEditor(text: $editedText)
-                                .font(.system(size: 18, weight: .regular))
-                                .foregroundColor(.primary)
-                                .scrollContentBackground(.hidden)
-                                .background(Color.clear)
-                                .focused($isTextFieldFocused)
-                                .frame(minHeight: UIScreen.main.bounds.height * 0.6)
-                                .padding(.horizontal, 20)
+                            // Editor principale - Rich Text o TextEditor semplice
+                            Group {
+                                if isRichTextMode && onSendEmail != nil {
+                                    // Rich Text Editor per email
+                                    RichTextEditor(
+                                        text: $editedText,
+                                        isFirstResponder: $isRichTextFirstResponder,
+                                        placeholder: "Componi la tua email..."
+                                    )
+                                    .frame(minHeight: UIScreen.main.bounds.height * 0.6)
+                                    .padding(.horizontal, 20)
+                                    .onChange(of: isTextFieldFocused) { oldValue, newValue in
+                                        isRichTextFirstResponder = newValue
+                                    }
+                                    .onChange(of: isRichTextFirstResponder) { oldValue, newValue in
+                                        if newValue != isTextFieldFocused {
+                                            isTextFieldFocused = newValue
+                                        }
+                                    }
+                                } else {
+                                    // TextEditor standard per messaggi normali
+                                    TextEditor(text: $editedText)
+                                        .font(.system(size: 18, weight: .regular))
+                                        .foregroundColor(.primary)
+                                        .scrollContentBackground(.hidden)
+                                        .background(Color.clear)
+                                        .focused($isTextFieldFocused)
+                                        .frame(minHeight: UIScreen.main.bounds.height * 0.6)
+                                        .padding(.horizontal, 20)
+                                }
+                            }
                         }
                     }
                     .scrollDismissesKeyboard(.interactively)
@@ -1192,6 +1285,43 @@ struct MessageEditCanvas: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
+                        // Toggle Rich Text per email
+                        if onSendEmail != nil {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    isRichTextMode.toggle()
+                                }
+                            }) {
+                                Image(systemName: isRichTextMode ? "textformat" : "textformat.alt")
+                                    .foregroundColor(isRichTextMode ? .blue : .secondary)
+                            }
+                        }
+                        
+                        // Menu Rigenera
+                        Menu {
+                            Button("🎭 Più Formale") {
+                                regenerateContent(style: "Rendi questo testo più formale e professionale")
+                            }
+                            Button("😊 Più Casual") {
+                                regenerateContent(style: "Rendi questo testo più casual e amichevole")
+                            }
+                            Button("📝 Più Breve") {
+                                regenerateContent(style: "Riassumi questo testo rendendolo più conciso")
+                            }
+                            Button("📚 Più Dettagliato") {
+                                regenerateContent(style: "Espandi questo testo aggiungendo più dettagli")
+                            }
+                            if onSendEmail != nil {
+                                Divider()
+                                Button("✉️ Formato Email") {
+                                    regenerateContent(style: "Trasforma questo in una email professionale ben formattata")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .foregroundColor(.secondary)
+                        }
+                        
                         // Toggle originale solo se diverso
                         if originalText != editedText {
                             Button(action: {
@@ -1217,7 +1347,15 @@ struct MessageEditCanvas: View {
         .onAppear {
             // Focus automatico come Apple Notes
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isTextFieldFocused = true
+                if isRichTextMode && onSendEmail != nil {
+                    isRichTextFirstResponder = true
+                } else {
+                    isTextFieldFocused = true
+                }
+            }
+            // Attiva automaticamente Rich Text per email
+            if onSendEmail != nil {
+                isRichTextMode = true
             }
             // Notifica che una chat è stata aperta
             NotificationCenter.default.post(name: .chatOpened, object: nil)
@@ -1228,6 +1366,18 @@ struct MessageEditCanvas: View {
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showOriginal)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isTextFieldFocused)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isRichTextMode)
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func regenerateContent(style: String) {
+        let promptWithStyle = "\(style): \(editedText)"
+        onSendToAI(promptWithStyle)
+        
+        // Feedback haptic
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
     }
     
     // MARK: - Advanced Liquid Glass Toolbar - TUTTE LE NUOVE API iOS 26
@@ -1273,6 +1423,19 @@ struct MessageEditCanvas: View {
                         .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
+                
+                // Invia Email - solo se è disponibile la callback
+                if let sendEmail = onSendEmail {
+                    Button(action: {
+                        sendEmail(editedText)
+                    }) {
+                        Label("Invia", systemImage: "envelope.arrow.triangle.branch")
+                            .labelStyle(.iconOnly)
+                            .font(.system(size: 20))
+                            .foregroundColor(.blue)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             }
         }
         .frame(height: 60)

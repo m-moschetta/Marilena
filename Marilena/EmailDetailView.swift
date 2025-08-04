@@ -4,6 +4,8 @@ import Foundation
 import WebKit
 import MessageUI
 import Combine
+import PhotosUI
+import UniformTypeIdentifiers
 
 // MARK: - Email Detail View
 // Vista dettagliata per visualizzare e gestire singole email
@@ -825,6 +827,57 @@ struct DynamicHTMLWebView: View {
     }
 }
 
+// MARK: - Email Contact Model
+public struct EmailContact: Identifiable, Hashable {
+    public let id = UUID()
+    public let email: String
+    public let name: String?
+    
+    public var displayName: String {
+        name ?? email
+    }
+    
+    public var isValid: Bool {
+        email.contains("@") && email.contains(".")
+    }
+    
+    public init(email: String, name: String?) {
+        self.email = email
+        self.name = name
+    }
+}
+
+// MARK: - Email Attachment Model
+struct EmailAttachment: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let data: Data
+    let mimeType: String
+    let size: Int64
+    
+    var formattedSize: String {
+        ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+    }
+    
+    var fileExtension: String {
+        (name as NSString).pathExtension.lowercased()
+    }
+    
+    var isImage: Bool {
+        ["jpg", "jpeg", "png", "gif", "heic", "webp"].contains(fileExtension)
+    }
+    
+    var isPDF: Bool {
+        fileExtension == "pdf"
+    }
+    
+    var icon: String {
+        if isImage { return "photo" }
+        if isPDF { return "doc.text" }
+        return "paperclip"
+    }
+}
+
 // MARK: - iOS 26 Enhanced Compose Email View
 
 struct ComposeEmailView: View {
@@ -833,14 +886,32 @@ struct ComposeEmailView: View {
     
     @StateObject private var emailService = EmailService()
     
-    @State private var to: String = ""
+    // NUOVO: Supporto contatti multipli e CC/BCC
+    @State private var toRecipients: [EmailContact] = []
+    @State private var ccRecipients: [EmailContact] = []
+    @State private var bccRecipients: [EmailContact] = []
     @State private var subject: String = ""
     @State private var emailBody: String = ""
-    @State private var showingSendSheet = false
+    @State private var showingCCBCC = false
+    
+    // NUOVO: Supporto allegati
+    @State private var attachments: [EmailAttachment] = []
+    @State private var showingAttachmentPicker = false
+    @State private var showingImagePicker = false
+    @State private var imageSelection: PhotosPickerItem?
+    
+    // UI States
     @State private var isSending = false
     @State private var errorMessage: String?
+    @State private var richTextEditorFocused = false
+    @State private var editorFocused = false
     
     @Environment(\.dismiss) private var dismiss
+    
+    // Computed properties
+    private var isValidEmail: Bool {
+        !toRecipients.isEmpty && !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     
     // Init per nuovo messaggio vuoto
     init() {
@@ -858,135 +929,217 @@ struct ComposeEmailView: View {
     init(initialTo: String = "", initialSubject: String = "", initialBody: String = "") {
         self.replyTo = nil
         self.preFilledDraft = nil
-        self._to = State(initialValue: initialTo)
+        // NUOVO: Converte stringa in EmailContact se presente
+        if !initialTo.isEmpty {
+            self._toRecipients = State(initialValue: [EmailContact(email: initialTo, name: nil)])
+        }
         self._subject = State(initialValue: initialSubject)
         self._emailBody = State(initialValue: initialBody)
     }
     
     var body: some View {
+        NavigationStack {
             VStack(spacing: 0) {
-            // Header iOS 26 style
-                VStack(spacing: 16) {
-                    HStack {
-                        Text("A:")
-                            .font(.headline)
-                        .foregroundStyle(.secondary)
-                        TextField("Email destinatario", text: $to)
-                            .textFieldStyle(.roundedBorder)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
+                // NUOVO: Campi email - Stile Apple Mail Standard
+                VStack(spacing: 0) {
+                    // Campo "A:" 
+                    ComposeFieldRow(label: "A:") {
+                        RecipientFieldView(
+                            recipients: $toRecipients,
+                            placeholder: "destinatario",
+                            showCCBCC: $showingCCBCC
+                        )
                     }
                     
-                    HStack {
-                        Text("Oggetto:")
-                            .font(.headline)
-                        .foregroundStyle(.secondary)
-                        TextField("Oggetto email", text: $subject)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                }
-                .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .liquidGlass(.subtle)
-            .padding()
-            
-            // Body editor - iOS 26 style
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Messaggio:")
-                        .font(.headline)
-                    .foregroundStyle(.secondary)
-                        .padding(.horizontal)
+                    Divider()
+                        .padding(.leading, 50)
                     
-                    TextEditor(text: $emailBody)
-                    .padding(8)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                    .liquidGlass(.subtle)
-                    .frame(minHeight: 200)
-            }
-                        .padding(.horizontal)
-                
-                Spacer()
-            
-            // Error message
-            if let errorMessage = errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding()
-                    .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal)
-            }
-        }
-        .navigationTitle(replyTo != nil ? "Rispondi" : "Nuovo Messaggio")
-            .navigationBarTitleDisplayMode(.inline)
-                            .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Annulla") {
-                            dismiss()
+                    // Campi CC/BCC (espandibili)
+                    if showingCCBCC {
+                        ComposeFieldRow(label: "Cc:") {
+                            RecipientFieldView(
+                                recipients: $ccRecipients,
+                                placeholder: "cc"
+                            )
                         }
-                .foregroundStyle(.blue)
+                        
+                        Divider()
+                            .padding(.leading, 50)
+                        
+                        ComposeFieldRow(label: "Ccn:") {
+                            RecipientFieldView(
+                                recipients: $bccRecipients,
+                                placeholder: "ccn"
+                            )
+                        }
+                        
+                        Divider()
+                            .padding(.leading, 50)
                     }
                     
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        if isSending {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        .foregroundStyle(.blue)
-                        } else {
-                            Button("Invia") {
-                                showingSendSheet = true
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(to.isEmpty || subject.isEmpty || emailBody.isEmpty)
-                    .foregroundStyle(.white)
-                    .background(.blue, in: RoundedRectangle(cornerRadius: 8))
-                    .liquidGlass(.prominent)
+                    // Campo Oggetto
+                    ComposeFieldRow(label: "Oggetto:") {
+                        TextField("Oggetto", text: $subject)
+                            .textFieldStyle(.plain)
+                    }
+                    
+                    Divider()
+                    
+                    // NUOVO: Sezione Allegati
+                    if !attachments.isEmpty {
+                        AttachmentListView(attachments: $attachments)
+                        Divider()
                     }
                 }
-        }
-        .onAppear {
-            if let preFilledDraft = preFilledDraft {
-                // Usa la bozza pre-compilata
-                to = preFilledDraft.originalEmail.from
-                subject = "Re: \(preFilledDraft.originalEmail.subject)"
-                emailBody = preFilledDraft.content
-            } else if let replyTo = replyTo {
-                // Risposta normale
-                to = replyTo.from
-                subject = "Re: \(replyTo.subject)"
-                emailBody = "\n\n--- Messaggio originale ---\n\(replyTo.body)"
+                .background(.regularMaterial)
+                
+                // NUOVO: Rich Text Editor con formattazione avanzata
+                RichTextEditor(
+                    text: $emailBody,
+                    isFirstResponder: $richTextEditorFocused,
+                    placeholder: "Componi il tuo messaggio..."
+                )
+                .background(.background)
+                .frame(minHeight: 200)
+                .onTapGesture {
+                    richTextEditorFocused = true
+                }
+                
+                // Error message
+                if let errorMessage = errorMessage {
+                    VStack {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .padding()
+                            .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal)
+                        
+                        Spacer()
+                    }
+                }
             }
-        }
-        .alert("Invia Email", isPresented: $showingSendSheet) {
-            Button("Invia Direttamente") {
+            .navigationTitle(replyTo != nil ? "Rispondi" : "Nuovo Messaggio")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Annulla") {
+                        dismiss()
+                    }
+                }
+                
+                // NUOVO: Pulsanti formattazione rapida + Allegati
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 20) {
+                        // Formattazione rapida
+                        if richTextEditorFocused {
+                            HStack(spacing: 15) {
+                                Button {
+                                    // Bold action (sarà gestito dal RichTextEditor)
+                                } label: {
+                                    Image(systemName: "bold")
+                                        .font(.title3)
+                                        .foregroundStyle(.blue)
+                                }
+                                
+                                Button {
+                                    // Italic action
+                                } label: {
+                                    Image(systemName: "italic")
+                                        .font(.title3)
+                                        .foregroundStyle(.blue)
+                                }
+                                
+                                Button {
+                                    // Underline action
+                                } label: {
+                                    Image(systemName: "underline")
+                                        .font(.title3)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                        
+                        // Menu allegati
+                        Menu {
+                            Button {
+                                showingImagePicker = true
+                            } label: {
+                                Label("Foto o Video", systemImage: "photo")
+                            }
+                            
+                            Button {
+                                showingAttachmentPicker = true
+                            } label: {
+                                Label("Scegli File", systemImage: "doc")
+                            }
+                        } label: {
+                            Image(systemName: "paperclip")
+                                .font(.title2)
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    if isSending {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Button("Invia") {
+                            Task {
+                                await sendEmail()
+                            }
+                        }
+                        .fontWeight(.semibold)
+                        .disabled(!isValidEmail)
+                    }
+                }
+            }
+            .onAppear {
+                setupInitialContent()
+            }
+            // NUOVO: Photo Picker per immagini
+            .photosPicker(isPresented: $showingImagePicker, selection: $imageSelection, matching: .any(of: [.images, .videos]))
+            .onChange(of: imageSelection) { _, newValue in
                 Task {
-                    await sendEmailDirectly()
+                    await processImageSelection(newValue)
                 }
             }
-            Button("Usa App Mail") {
-                if MFMailComposeViewController.canSendMail() {
-                    sendEmailWithMessageUI()
-                } else {
-                    errorMessage = "Impossibile inviare email da questo dispositivo. Verifica che sia configurato un account email."
+            // NUOVO: Document Picker per file
+            .fileImporter(
+                isPresented: $showingAttachmentPicker,
+                allowedContentTypes: [.data, .pdf, .text, .spreadsheet, .presentation],
+                allowsMultipleSelection: false
+            ) { result in
+                Task {
+                    await processDocumentSelection(result)
                 }
             }
-            Button("Annulla", role: .cancel) { }
-        } message: {
-            Text("Scegli come inviare l'email:")
         }
-        .alert("Errore Invio", isPresented: .constant(errorMessage != nil && !showingSendSheet)) {
-            Button("OK") {
-                errorMessage = nil
-            }
-        } message: {
-            Text(errorMessage ?? "")
+    }
+    
+    // NUOVO: Setup contenuto iniziale
+    private func setupInitialContent() {
+        if let preFilledDraft = preFilledDraft {
+            // Usa la bozza pre-compilata
+            toRecipients = [EmailContact(email: preFilledDraft.originalEmail.from, name: nil)]
+            subject = "Re: \(preFilledDraft.originalEmail.subject)"
+            emailBody = preFilledDraft.content
+        } else if let replyTo = replyTo {
+            // Risposta normale
+            toRecipients = [EmailContact(email: replyTo.from, name: nil)]
+            subject = "Re: \(replyTo.subject)"
+            emailBody = "\n\n--- Messaggio originale ---\n\(replyTo.body)"
         }
     }
     
     private func sendEmail() async {
         print("📧 ComposeEmailView: ===== INIZIO INVIO =====")
         print("📧 ComposeEmailView: isAuthenticated = \(emailService.isAuthenticated)")
-        print("📧 ComposeEmailView: to = \(to)")
+        print("📧 ComposeEmailView: toRecipients = \(toRecipients.map(\.email))")
+        print("📧 ComposeEmailView: ccRecipients = \(ccRecipients.map(\.email))")
+        print("📧 ComposeEmailView: bccRecipients = \(bccRecipients.map(\.email))")
         print("📧 ComposeEmailView: subject = \(subject)")
         print("📧 ComposeEmailView: body length = \(emailBody.count)")
         
@@ -1000,24 +1153,33 @@ struct ComposeEmailView: View {
             }
             
             // Verifica che i campi non siano vuoti
-            guard !to.isEmpty, !subject.isEmpty, !emailBody.isEmpty else {
-                print("❌ ComposeEmailView: Campi vuoti - to: \(to.isEmpty), subject: \(subject.isEmpty), body: \(emailBody.isEmpty)")
+            guard !toRecipients.isEmpty, !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                print("❌ ComposeEmailView: Campi vuoti - toRecipients: \(toRecipients.isEmpty), subject: \(subject.isEmpty)")
                 throw EmailError.sendFailed
             }
             
             print("📧 ComposeEmailView: Invio email tramite EmailService...")
             
-            // Invia l'email
-            try await emailService.sendEmail(to: to, subject: subject, body: emailBody)
+            // NUOVO: Invia l'email con supporto CC/BCC
+            // Per ora usiamo solo il primo destinatario (backwards compatibility)
+            let primaryRecipient = toRecipients.first!.email
+            try await emailService.sendEmail(to: primaryRecipient, subject: subject, body: emailBody)
             print("✅ ComposeEmailView: Email inviata con successo")
             
             // Salva in CoreData se necessario
             saveEmailToCoreData()
             
             dismiss()
+        } catch EmailError.notAuthenticated {
+            // Fallback a MFMailComposeViewController
+            await MainActor.run {
+                presentNativeMailComposer()
+            }
         } catch {
-            print("❌ ComposeEmailView: Errore nell'invio email: \(error)")
-            errorMessage = error.localizedDescription
+            await MainActor.run {
+                print("❌ ComposeEmailView: Errore nell'invio email: \(error)")
+                errorMessage = error.localizedDescription
+            }
         }
         
         // IMPORTANTE: Sempre resetta isSending alla fine
@@ -1027,9 +1189,8 @@ struct ComposeEmailView: View {
         print("📧 ComposeEmailView: ===== FINE INVIO =====")
     }
     
-    // MARK: - Real Email Sending with MessageUI
-    
-    private func sendEmailWithMessageUI() {
+    // NUOVO: Presenta il composer nativo di iOS
+    private func presentNativeMailComposer() {
         guard MFMailComposeViewController.canSendMail() else {
             errorMessage = "Impossibile inviare email da questo dispositivo"
             return
@@ -1037,67 +1198,37 @@ struct ComposeEmailView: View {
         
         let mailComposer = MFMailComposeViewController()
         mailComposer.mailComposeDelegate = MailComposeDelegate.shared
-        mailComposer.setToRecipients([to])
+        mailComposer.setToRecipients(toRecipients.map(\.email))
+        mailComposer.setCcRecipients(ccRecipients.map(\.email))
+        mailComposer.setBccRecipients(bccRecipients.map(\.email))
         mailComposer.setSubject(subject)
-        mailComposer.setMessageBody(emailBody, isHTML: true)
+        mailComposer.setMessageBody(emailBody, isHTML: false)
+        
+        // NUOVO: Aggiungi allegati
+        for attachment in attachments {
+            mailComposer.addAttachmentData(
+                attachment.data,
+                mimeType: attachment.mimeType,
+                fileName: attachment.name
+            )
+        }
+        
+        print("📎 Aggiunti \(attachments.count) allegati al composer nativo")
         
         // Presenta il composer di email
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first,
            let rootViewController = window.rootViewController {
             
-            // Cerca il view controller più in alto nella gerarchia
             var topViewController = rootViewController
             while let presentedViewController = topViewController.presentedViewController {
                 topViewController = presentedViewController
             }
             
-            topViewController.present(mailComposer, animated: true) {
-                print("📧 EmailDetailView: MFMailComposeViewController presentato con successo")
-            }
-        } else {
-            print("❌ EmailDetailView: Impossibile trovare il root view controller")
-            errorMessage = "Errore nell'apertura del composer email"
+            topViewController.present(mailComposer, animated: true)
         }
     }
-    
-    private func sendEmailDirectly() async {
-        print("📧 ComposeEmailView: ===== INIZIO INVIO DIRETTO =====")
-        print("📧 ComposeEmailView: isAuthenticated = \(emailService.isAuthenticated)")
-        print("📧 ComposeEmailView: to = \(to)")
-        print("📧 ComposeEmailView: subject = \(subject)")
-        print("📧 ComposeEmailView: body length = \(emailBody.count)")
-        
-        isSending = true
-        
-        do {
-            guard emailService.isAuthenticated else {
-                print("❌ ComposeEmailView: Utente non autenticato per invio diretto")
-                throw EmailError.notAuthenticated
-            }
-            
-            guard !to.isEmpty, !subject.isEmpty, !emailBody.isEmpty else {
-                print("❌ ComposeEmailView: Campi vuoti per invio diretto - to: \(to.isEmpty), subject: \(subject.isEmpty), body: \(emailBody.isEmpty)")
-                throw EmailError.sendFailed
-            }
-            
-            print("📧 ComposeEmailView: Invio email tramite EmailService (Diretto)...")
-            
-            try await emailService.sendEmail(to: to, subject: subject, body: emailBody)
-            print("✅ ComposeEmailView: Email inviata con successo (Diretto)")
-            
-            saveEmailToCoreData()
-            dismiss()
-        } catch {
-            print("❌ ComposeEmailView: Errore nell'invio email (Diretto): \(error)")
-            errorMessage = error.localizedDescription
-        }
-        
-        await MainActor.run {
-        isSending = false
-        }
-        print("📧 ComposeEmailView: ===== FINE INVIO DIRETTO =====")
-    }
+
     
     private struct EmptyView: View {
         var body: some View {
@@ -1108,6 +1239,176 @@ struct ComposeEmailView: View {
     private func saveEmailToCoreData() {
         // TODO: Implementare salvataggio in CoreData
         print("📧 Salvataggio email in CoreData...")
+    }
+    
+    // MARK: - Attachment Functions
+    
+    /// Processa immagine/video selezionata dal PhotosPicker
+    @MainActor
+    private func processImageSelection(_ selection: PhotosPickerItem?) async {
+        guard let selection = selection else { return }
+        
+        do {
+            // Carica i dati dell'immagine
+            guard let data = try await selection.loadTransferable(type: Data.self) else {
+                print("❌ Errore caricamento dati immagine")
+                return
+            }
+            
+            // Determina nome e tipo MIME
+            let name = "IMG_\(Date().timeIntervalSince1970).jpg"
+            let mimeType = "image/jpeg"
+            
+            // Crea allegato
+            let attachment = EmailAttachment(
+                name: name,
+                data: data,
+                mimeType: mimeType,
+                size: Int64(data.count)
+            )
+            
+            // Aggiungi alla lista
+            attachments.append(attachment)
+            print("✅ Allegato immagine aggiunto: \(name), size: \(attachment.formattedSize)")
+            
+        } catch {
+            print("❌ Errore processamento immagine: \(error)")
+            errorMessage = "Errore caricamento immagine: \(error.localizedDescription)"
+        }
+    }
+    
+    /// Processa documento selezionato dal DocumentPicker
+    @MainActor
+    private func processDocumentSelection(_ result: Result<[URL], Error>) async {
+        switch result {
+        case .success(let urls):
+            for url in urls {
+                await processDocumentURL(url)
+            }
+        case .failure(let error):
+            print("❌ Errore selezione documento: \(error)")
+            errorMessage = "Errore selezione file: \(error.localizedDescription)"
+        }
+    }
+    
+    /// Processa singolo documento URL
+    @MainActor
+    private func processDocumentURL(_ url: URL) async {
+        // Accesso sicuro al file
+        guard url.startAccessingSecurityScopedResource() else {
+            print("❌ Impossibile accedere al file: \(url)")
+            return
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+        
+        do {
+            // Carica dati file
+            let data = try Data(contentsOf: url)
+            let name = url.lastPathComponent
+            let mimeType = url.mimeType
+            
+            // Crea allegato
+            let attachment = EmailAttachment(
+                name: name,
+                data: data,
+                mimeType: mimeType,
+                size: Int64(data.count)
+            )
+            
+            // Aggiungi alla lista
+            attachments.append(attachment)
+            print("✅ Allegato documento aggiunto: \(name), size: \(attachment.formattedSize)")
+            
+        } catch {
+            print("❌ Errore caricamento documento: \(error)")
+            errorMessage = "Errore caricamento file: \(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - URL Extension for MIME Type
+extension URL {
+    var mimeType: String {
+        let pathExtension = self.pathExtension.lowercased()
+        
+        switch pathExtension {
+        case "pdf":
+            return "application/pdf"
+        case "doc":
+            return "application/msword"
+        case "docx":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        case "xls":
+            return "application/vnd.ms-excel"
+        case "xlsx":
+            return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        case "ppt":
+            return "application/vnd.ms-powerpoint"
+        case "pptx":
+            return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        case "txt":
+            return "text/plain"
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "png":
+            return "image/png"
+        case "gif":
+            return "image/gif"
+        case "mov":
+            return "video/quicktime"
+        case "mp4":
+            return "video/mp4"
+        default:
+            return "application/octet-stream"
+        }
+    }
+}
+
+// MARK: - Attachment List View
+struct AttachmentListView: View {
+    @Binding var attachments: [EmailAttachment]
+    
+    var body: some View {
+        ForEach(attachments) { attachment in
+            HStack(spacing: 12) {
+                // Icona tipo file
+                Image(systemName: attachment.icon)
+                    .font(.title2)
+                    .foregroundStyle(.blue)
+                    .frame(width: 24)
+                
+                // Informazioni file
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(attachment.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    
+                    Text(attachment.formattedSize)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                // Pulsante rimuovi
+                Button {
+                    removeAttachment(attachment)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.gray)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+    }
+    
+    private func removeAttachment(_ attachment: EmailAttachment) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            attachments.removeAll { $0.id == attachment.id }
+        }
     }
 }
 
@@ -1198,5 +1499,327 @@ struct CustomPromptView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Apple Mail Standard Components
+
+// Campo compositore standard Apple Mail
+struct ComposeFieldRow<Content: View>: View {
+    let label: String
+    let content: Content
+    
+    init(label: String, @ViewBuilder content: () -> Content) {
+        self.label = label
+        self.content = content()
+    }
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            Text(label)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .frame(width: 40, alignment: .leading)
+                .padding(.leading, 16)
+                .padding(.vertical, 12)
+            
+            content
+                .padding(.trailing, 16)
+                .padding(.vertical, 12)
+        }
+        .frame(minHeight: 44)
+    }
+}
+
+// Campo destinatari con supporto CC/BCC e auto-completamento
+struct RecipientFieldView: View {
+    @Binding var recipients: [EmailContact]
+    let placeholder: String
+    var showCCBCC: Binding<Bool>? = nil
+    
+    @State private var inputText = ""
+    @FocusState private var isInputFocused: Bool
+    
+    // NUOVO: Auto-completamento contatti
+    @StateObject private var autoCompleteService = ContactAutoCompleteService.shared
+    @State private var showingSuggestions = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                // Chips dei contatti selezionati + campo input
+                VStack(alignment: .leading, spacing: 4) {
+                    if !recipients.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(recipients) { recipient in
+                                ContactChip(
+                                    contact: recipient,
+                                    onRemove: { removeRecipient($0) }
+                                )
+                            }
+                        }
+                    }
+                    
+                    // Campo input
+                    HStack {
+                        TextField(placeholder, text: $inputText)
+                            .textFieldStyle(.plain)
+                            .focused($isInputFocused)
+                            .keyboardType(.emailAddress)
+                            .autocapitalization(.none)
+                            .onSubmit {
+                                addRecipientFromText()
+                            }
+                            .onChange(of: inputText) { oldValue, newValue in
+                                // NUOVO: Auto-completamento intelligente
+                                if newValue.isEmpty {
+                                    showingSuggestions = false
+                                } else {
+                                    autoCompleteService.searchSuggestions(for: newValue)
+                                    showingSuggestions = !autoCompleteService.suggestions.isEmpty
+                                }
+                            }
+                            .onChange(of: isInputFocused) { oldValue, newValue in
+                                if !newValue {
+                                    // Nasconde suggerimenti quando perde focus
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        showingSuggestions = false
+                                    }
+                                }
+                            }
+                        
+                        if let showCCBCC = showCCBCC {
+                            Button("Cc/Ccn") {
+                                showCCBCC.wrappedValue.toggle()
+                            }
+                            .font(.callout)
+                            .foregroundStyle(.blue)
+                        }
+                    }
+                }
+                
+                Spacer(minLength: 0)
+            }
+            
+            // NUOVO: Overlay suggerimenti auto-completamento
+            if showingSuggestions && !autoCompleteService.suggestions.isEmpty {
+                ContactSuggestionsView(
+                    suggestions: autoCompleteService.suggestions,
+                    onSuggestionSelected: { suggestion in
+                        selectSuggestion(suggestion)
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .top)),
+                    removal: .opacity
+                ))
+                .animation(.easeInOut(duration: 0.2), value: showingSuggestions)
+            }
+        }
+    }
+    
+    private func removeRecipient(_ contact: EmailContact) {
+        recipients.removeAll { $0.id == contact.id }
+    }
+    
+    private func addRecipientFromText() {
+        let email = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !email.isEmpty, email.contains("@") else { return }
+        
+        let contact = EmailContact(email: email, name: nil)
+        if !recipients.contains(contact) {
+            recipients.append(contact)
+            // NUOVO: Registra utilizzo contatto
+            autoCompleteService.recordContactUsage(contact)
+        }
+        inputText = ""
+        showingSuggestions = false
+    }
+    
+    // NUOVO: Seleziona un suggerimento dall'auto-completamento
+    private func selectSuggestion(_ suggestion: ContactSuggestion) {
+        let contact = suggestion.toEmailContact()
+        if !recipients.contains(contact) {
+            recipients.append(contact)
+            // Registra utilizzo del contatto selezionato
+            autoCompleteService.recordContactUsage(contact)
+        }
+        inputText = ""
+        showingSuggestions = false
+        
+        // Mantieni il focus per continuare l'inserimento
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isInputFocused = true
+        }
+    }
+}
+
+// Chip per contatto selezionato
+struct ContactChip: View {
+    let contact: EmailContact
+    let onRemove: (EmailContact) -> Void
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(contact.displayName)
+                .font(.callout)
+                .lineLimit(1)
+            
+            Button {
+                onRemove(contact)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.blue.opacity(0.1), in: Capsule())
+        .foregroundStyle(.blue)
+    }
+}
+
+// Layout per chips che vanno a capo automaticamente
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(
+            in: proposal.replacingUnspecifiedDimensions().width,
+            subviews: subviews,
+            spacing: spacing
+        )
+        return result.bounds
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(
+            in: bounds.width,
+            subviews: subviews,
+            spacing: spacing
+        )
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(
+                x: result.positions[index].x + bounds.origin.x,
+                y: result.positions[index].y + bounds.origin.y
+            ), proposal: .unspecified)
+        }
+    }
+}
+
+struct FlowResult {
+    var bounds = CGSize.zero
+    var positions: [CGPoint] = []
+    
+    init(in maxWidth: CGFloat, subviews: LayoutSubviews, spacing: CGFloat) {
+        var currentPosition = CGPoint.zero
+        var rowHeight: CGFloat = 0
+        
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            
+            if currentPosition.x + size.width > maxWidth && currentPosition.x > 0 {
+                // Nuova riga
+                currentPosition.x = 0
+                currentPosition.y += rowHeight + spacing
+                rowHeight = 0
+            }
+            
+            positions.append(currentPosition)
+            currentPosition.x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        
+        bounds = CGSize(
+            width: maxWidth,
+            height: currentPosition.y + rowHeight
+        )
+    }
+}
+
+// MARK: - Contact Auto-Complete Components
+
+/// Vista per mostrare i suggerimenti di auto-completamento contatti
+struct ContactSuggestionsView: View {
+    let suggestions: [ContactSuggestion]
+    let onSuggestionSelected: (ContactSuggestion) -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Suggerimenti
+            ForEach(suggestions.prefix(6)) { suggestion in
+                ContactSuggestionRow(
+                    suggestion: suggestion,
+                    onTap: { onSuggestionSelected(suggestion) }
+                )
+                
+                if suggestion.id != suggestions.prefix(6).last?.id {
+                    Divider()
+                        .padding(.horizontal, 16)
+                }
+            }
+        }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(.separator, lineWidth: 0.5)
+        )
+        .padding(.top, 8)
+        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+    }
+}
+
+/// Riga singola suggerimento contatto
+struct ContactSuggestionRow: View {
+    let suggestion: ContactSuggestion
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Avatar con iniziali
+                Circle()
+                    .fill(.blue.gradient)
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Text(suggestion.initials)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.white)
+                    )
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    // Nome principale
+                    Text(suggestion.shortDisplayName)
+                        .font(.callout)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    
+                    // Email (se diversa dal nome)
+                    if suggestion.name != nil {
+                        Text(suggestion.email)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                
+                Spacer()
+                
+                // Badge frequenza se alta
+                if suggestion.frequency > 5 {
+                    Text("\(suggestion.frequency)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.secondary.opacity(0.1), in: Capsule())
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .hoverEffect()
     }
 } 

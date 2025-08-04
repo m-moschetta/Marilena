@@ -15,13 +15,18 @@ public class EmailCacheService: ObservableObject {
     
     // MARK: - Private Properties
     private let persistenceController: PersistenceController?
-    private let maxCacheSize = 20
+    private let maxCacheSize = 1000 // MIGLIORATO: Da 20 a 1000 email
+    private let cacheValidityDuration: TimeInterval = 300 // 5 minuti di validità cache
     private var cancellables = Set<AnyCancellable>()
+    private var lastFetchTimestamp: [String: Date] = [:] // Timestamp ultimo fetch per account
     
     // MARK: - Initialization
     
     public init(persistenceController: PersistenceController? = nil) {
         self.persistenceController = persistenceController ?? PersistenceController.shared
+        
+        // NUOVO: Carica i timestamp dalla memoria persistente
+        loadTimestampsFromStorage()
         
         // Verifica se CoreData funziona, altrimenti disabilita la cache
         if persistenceController?.container.persistentStoreCoordinator.persistentStores.isEmpty ?? true {
@@ -56,7 +61,10 @@ public class EmailCacheService: ObservableObject {
             // Ricarica dalla cache
             loadCachedEmails()
             
-            print("✅ EmailCacheService: Salvate \(emails.count) email in cache")
+            // NUOVO: Aggiorna timestamp di ultimo fetch
+            updateFetchTimestamp(for: accountId)
+            
+            print("✅ EmailCacheService: Salvate \(emails.count) email in cache per \(accountId)")
             
         } catch {
             print("❌ EmailCacheService Error nel salvataggio cache: \(error)")
@@ -84,6 +92,33 @@ public class EmailCacheService: ObservableObject {
     /// Ottiene le email dalla cache
     public func getCachedEmails(for accountId: String? = nil) -> [EmailMessage] {
         return cachedEmails
+    }
+    
+    /// NUOVO: Verifica se la cache è ancora valida per un account
+    public func isCacheValid(for accountId: String) -> Bool {
+        guard let lastFetch = lastFetchTimestamp[accountId] else {
+            return false // Nessun timestamp = cache non valida
+        }
+        
+        let now = Date()
+        let timeSinceLastFetch = now.timeIntervalSince(lastFetch)
+        
+        let isValid = timeSinceLastFetch < cacheValidityDuration
+        print("📧 EmailCacheService: Cache per \(accountId) - Ultimo fetch: \(lastFetch), Validità: \(isValid)")
+        
+        return isValid
+    }
+    
+    /// NUOVO: Aggiorna il timestamp di ultimo fetch
+    public func updateFetchTimestamp(for accountId: String) {
+        lastFetchTimestamp[accountId] = Date()
+        saveTimestampsToStorage()
+        print("📧 EmailCacheService: Timestamp aggiornato per \(accountId)")
+    }
+    
+    /// NUOVO: Controlla se servono nuove email dal server
+    public func shouldFetchFromServer(for accountId: String) -> Bool {
+        return !isCacheValid(for: accountId) || cachedEmails.isEmpty
     }
     
     /// Pulisce la cache per un account specifico
@@ -283,6 +318,25 @@ public class EmailCacheService: ObservableObject {
         // La comunicazione con il server è ora gestita da EmailService
         // che chiama direttamente le API di Gmail e Microsoft Graph
         print("📡 EmailCacheService: Email \(emailId) marcata come letta - comunicazione server gestita da EmailService")
+    }
+    
+    // MARK: - Timestamp Persistence
+    
+    /// Carica i timestamp dalla memoria persistente
+    private func loadTimestampsFromStorage() {
+        if let data = UserDefaults.standard.data(forKey: "email_cache_timestamps"),
+           let timestamps = try? JSONDecoder().decode([String: Date].self, from: data) {
+            lastFetchTimestamp = timestamps
+            print("📧 EmailCacheService: Caricati \(timestamps.count) timestamp dalla memoria")
+        }
+    }
+    
+    /// Salva i timestamp nella memoria persistente
+    private func saveTimestampsToStorage() {
+        if let data = try? JSONEncoder().encode(lastFetchTimestamp) {
+            UserDefaults.standard.set(data, forKey: "email_cache_timestamps")
+            print("📧 EmailCacheService: Salvati \(lastFetchTimestamp.count) timestamp nella memoria")
+        }
     }
 }
 
