@@ -289,43 +289,8 @@ public protocol TokenManagerProtocol: AnyObject {
 
 // MARK: - Configuration Models
 
-/// Configurazione email
-public struct EmailConfiguration: Codable {
-    public let smtpServer: String
-    public let smtpPort: Int
-    public let imapServer: String
-    public let imapPort: Int
-    public let useTLS: Bool
-    public let defaultSender: String
-    public let signature: String?
-    
-    public init(smtpServer: String, smtpPort: Int, imapServer: String, imapPort: Int, useTLS: Bool, defaultSender: String, signature: String? = nil) {
-        self.smtpServer = smtpServer
-        self.smtpPort = smtpPort
-        self.imapServer = imapServer
-        self.imapPort = imapPort
-        self.useTLS = useTLS
-        self.defaultSender = defaultSender
-        self.signature = signature
-    }
-}
-
-/// Configurazione AI
-public struct AIConfiguration: Codable {
-    public let defaultProvider: String
-    public let defaultModel: String
-    public let temperature: Double
-    public let maxTokens: Int
-    public let timeout: TimeInterval
-    
-    public init(defaultProvider: String, defaultModel: String, temperature: Double, maxTokens: Int, timeout: TimeInterval) {
-        self.defaultProvider = defaultProvider
-        self.defaultModel = defaultModel
-        self.temperature = temperature
-        self.maxTokens = maxTokens
-        self.timeout = timeout
-    }
-}
+// Configuration models moved to Core/Configuration/ConfigurationTypes.swift
+// for better organization and to avoid duplication
 
 // MARK: - Supporting Enums
 
