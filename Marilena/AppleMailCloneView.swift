@@ -433,18 +433,37 @@ struct AppleMailCloneContent: View {
         VStack(spacing: 0) {
             if isHTMLContent(email.body) {
                 // HTML Content
-                AppleMailCloneWebView(
-                    htmlContent: email.body,
-                    webViewManager: webViewManager
-                )
-                .frame(
-                    minHeight: 300,
-                    maxHeight: webViewManager.contentHeight > 0 ? webViewManager.contentHeight : .infinity
-                )
-                .clipped()
+                VStack(spacing: 8) {
+                    // Debug info
+                    Text("🔍 HTML Mode - Height: \(Int(webViewManager.contentHeight))")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .padding(.horizontal)
+                    
+                    AppleMailCloneWebView(
+                        htmlContent: email.body,
+                        webViewManager: webViewManager
+                    )
+                    .frame(
+                        minHeight: 300,
+                        maxHeight: webViewManager.contentHeight > 0 ? webViewManager.contentHeight : .infinity
+                    )
+                    .background(Color.red.opacity(0.1)) // Temporary debug background
+                    .clipped()
+                }
+                .onAppear {
+                    print("🔍 AppleMailCloneContent: HTML mode activated")
+                    print("🔍 AppleMailCloneContent: WebViewManager height: \(webViewManager.contentHeight)")
+                }
             } else {
                 // Plain Text Content
                 VStack(alignment: .leading, spacing: 16) {
+                    // Debug info
+                    Text("📝 Text Mode")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal)
+                    
                     Text(email.body)
                         .font(.body)
                         .foregroundColor(.primary)
@@ -453,18 +472,40 @@ struct AppleMailCloneContent: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
+                .onAppear {
+                    print("🔍 AppleMailCloneContent: Text mode activated")
+                }
             }
         }
     }
     
     private func isHTMLContent(_ content: String) -> Bool {
+        // Debug: stampa il contenuto per verificare
+        print("🔍 AppleMailClone: Checking HTML content (first 200 chars): \(String(content.prefix(200)))")
+        
         let htmlTags = [
             "<html", "<body", "<div", "<p", "<br", "<strong", "<em", "<ul", "<ol", "<li",
             "<h1", "<h2", "<h3", "<h4", "<h5", "<h6", "<span", "<a", "<img", "<table",
             "<tr", "<td", "<th", "<blockquote", "<code", "<pre", "<b", "<i", "<u", "<s"
         ]
         
-        return htmlTags.contains { content.localizedCaseInsensitiveContains($0) }
+        // Controlla se contiene tag HTML
+        let containsHTMLTags = htmlTags.contains { content.localizedCaseInsensitiveContains($0) }
+        
+        // Controlla se contiene entità HTML
+        let containsHTMLEntities = content.contains("&") && (content.contains("&#") || content.contains("&lt;") || content.contains("&gt;") || content.contains("&amp;"))
+        
+        // Controlla se contiene attributi HTML
+        let containsHTMLAttrs = content.contains("style=") || content.contains("class=") || content.contains("id=")
+        
+        let isHTML = containsHTMLTags || containsHTMLEntities || containsHTMLAttrs
+        
+        print("🔍 AppleMailClone: Contains HTML tags: \(containsHTMLTags)")
+        print("🔍 AppleMailClone: Contains HTML entities: \(containsHTMLEntities)")
+        print("🔍 AppleMailClone: Contains HTML attrs: \(containsHTMLAttrs)")
+        print("🔍 AppleMailClone: Final isHTML result: \(isHTML)")
+        
+        return isHTML
     }
 }
 
@@ -517,6 +558,11 @@ struct AppleMailCloneWebView: UIViewRepresentable {
     
     func updateUIView(_ webView: WKWebView, context: Context) {
         let styledHTML = generateAppleMailHTML(content: htmlContent)
+        
+        print("🔍 AppleMailCloneWebView: Loading HTML content...")
+        print("🔍 AppleMailCloneWebView: Original content (first 300 chars): \(String(htmlContent.prefix(300)))")
+        print("🔍 AppleMailCloneWebView: Generated HTML (first 500 chars): \(String(styledHTML.prefix(500)))")
+        
         webView.loadHTMLString(styledHTML, baseURL: nil)
     }
     
@@ -784,11 +830,16 @@ struct AppleMailCloneWebView: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            print("🔍 AppleMailCloneWebView: didFinish navigation - page loaded successfully")
+            
             // Backup height calculation se il JavaScript fallisce
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, error in
                     if let height = result as? CGFloat {
+                        print("🔍 AppleMailCloneWebView: Content height calculated: \(height)")
                         self?.webViewManager.updateContentHeight(height)
+                    } else {
+                        print("🔍 AppleMailCloneWebView: Failed to calculate height: \(error?.localizedDescription ?? "unknown")")
                     }
                 }
             }

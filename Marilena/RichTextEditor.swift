@@ -199,6 +199,51 @@ struct RichTextEditor: UIViewRepresentable {
             textView.attributedText = attributedString
             parent.text = textView.text
         }
+        
+        @objc func showFormattingMenu(_ sender: UIBarButtonItem) {
+            guard let textView = sender.target as? UITextView,
+                  let scene = textView.window?.windowScene,
+                  let rootViewController = scene.windows.first?.rootViewController else { return }
+            
+            let alert = UIAlertController(title: "✨ Formattazione", message: "Scegli un'opzione", preferredStyle: .actionSheet)
+            
+            alert.addAction(UIAlertAction(title: "🎨 Colore Testo", style: .default) { _ in
+                self.changeTextColor(sender)
+            })
+            
+            alert.addAction(UIAlertAction(title: "🔗 Inserisci Link", style: .default) { _ in
+                self.insertLink(sender)
+            })
+            
+            alert.addAction(UIAlertAction(title: "• Lista", style: .default) { _ in
+                self.createList(sender)
+            })
+            
+            alert.addAction(UIAlertAction(title: "← Allinea Sinistra", style: .default) { _ in
+                self.alignLeft(sender)
+            })
+            
+            alert.addAction(UIAlertAction(title: "↔ Allinea Centro", style: .default) { _ in
+                self.alignCenter(sender)
+            })
+            
+            alert.addAction(UIAlertAction(title: "→ Allinea Destra", style: .default) { _ in
+                self.alignRight(sender)
+            })
+            
+            alert.addAction(UIAlertAction(title: "❌ Annulla", style: .cancel))
+            
+            if let popover = alert.popoverPresentationController {
+                popover.barButtonItem = sender
+            }
+            
+            rootViewController.present(alert, animated: true)
+        }
+        
+        @objc func dismissKeyboard(_ sender: UIBarButtonItem) {
+            guard let textView = sender.target as? UITextView else { return }
+            textView.resignFirstResponder()
+        }
     }
     
     // MARK: - Helper Functions
@@ -292,10 +337,28 @@ struct RichTextEditor: UIViewRepresentable {
         
         let flexSpace = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         
+        // Crea un menu compatto per opzioni avanzate
+        let moreButton = UIBarButtonItem(
+            image: UIImage(systemName: "ellipsis.circle"),
+            style: .plain,
+            target: coordinator,
+            action: #selector(Coordinator.showFormattingMenu)
+        )
+        moreButton.target = textView
+        
+        let doneButton = UIBarButtonItem(
+            barButtonSystemItem: .done,
+            target: coordinator,
+            action: #selector(Coordinator.dismissKeyboard)
+        )
+        doneButton.target = textView
+        
         toolbar.items = [
-            boldButton, italicButton, underlineButton, flexSpace,
-            colorButton, linkButton, listButton, flexSpace,
-            alignLeftButton, alignCenterButton, alignRightButton
+            boldButton, italicButton, underlineButton,
+            flexSpace,
+            moreButton,
+            flexSpace,
+            doneButton
         ]
         
         return toolbar
