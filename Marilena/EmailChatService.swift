@@ -137,6 +137,15 @@ public class EmailChatService: ObservableObject {
         let subject = chat.emailSubject ?? "Re: \(chat.titolo ?? "")"
         try await emailService.sendEmail(to: sender, subject: subject, body: response)
         
+        // NUOVO: Messaggio di conferma invio
+        let confirmationMessage = MessaggioMarilena(context: context)
+        confirmationMessage.id = UUID()
+        confirmationMessage.contenuto = "✅ **Email inviata con successo!**\n\n📧 Destinatario: \(sender)\n📝 Oggetto: \(subject)\n🕐 Ora: \(formatDate(Date()))"
+        confirmationMessage.isUser = false
+        confirmationMessage.tipo = "email_confirmation"
+        confirmationMessage.dataCreazione = Date()
+        confirmationMessage.chat = chat
+        
         // Aggiorna la data dell'ultima email
         chat.lastEmailDate = Date()
         

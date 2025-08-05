@@ -785,9 +785,14 @@ struct ModularMessageRow: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var showingCanvas = false
     
-    // Helper per identificare se è un draft di risposta email
+                        // Helper per identificare se è un draft di risposta email
     private var isEmailResponseDraft: Bool {
         return messaggio.tipo == "email_response_draft"
+    }
+    
+    // Helper per identificare se è un messaggio di conferma invio
+    private var isEmailConfirmation: Bool {
+        return messaggio.tipo == "email_confirmation"
     }
     
     var body: some View {
@@ -1079,15 +1084,45 @@ struct ModularMessageRow: View {
                                 )
                             }
                             
+                            // Badge per conferma invio email
+                            if isEmailConfirmation {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.green)
+                                    Text("Email Inviata")
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundColor(.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.green.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                                )
+                            }
+                            
                             Text(messaggio.contenuto ?? "")
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 20)
-                                        .fill(isEmailResponseDraft ? Color.blue.opacity(0.05) : Color(.systemGray6))
+                                        .fill(
+                                            isEmailResponseDraft ? Color.blue.opacity(0.05) :
+                                            isEmailConfirmation ? Color.green.opacity(0.05) :
+                                            Color(.systemGray6)
+                                        )
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 20)
-                                                .stroke(isEmailResponseDraft ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                                                .stroke(
+                                                    isEmailResponseDraft ? Color.blue.opacity(0.3) :
+                                                    isEmailConfirmation ? Color.green.opacity(0.3) :
+                                                    Color.clear,
+                                                    lineWidth: 1
+                                                )
                                         )
                                         .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
                                 )
@@ -1491,6 +1526,12 @@ struct MessageEditCanvas: View {
                         // Feedback haptic per invio email
                         let successFeedback = UINotificationFeedbackGenerator()
                         successFeedback.notificationOccurred(.success)
+                        
+                        // Doppio feedback haptic per confermare invio dal canvas
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            let finalSuccessFeedback = UINotificationFeedbackGenerator()
+                            finalSuccessFeedback.notificationOccurred(.success)
+                        }
                         
                         sendEmail(editedText)
                     }) {
