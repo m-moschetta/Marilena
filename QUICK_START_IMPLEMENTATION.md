@@ -18,7 +18,23 @@ mkdir -p Marilena/Core/Security
 mkdir -p Tests/Unit/Core
 ```
 
-### **Step 2: First Implementation - DI Container (45 min)**
+### **Step 2: Chat-Email System Analysis (15 min)**
+**⚠️ CRITICAL: Before coding, understand existing system**
+
+```bash
+# 1. Analyze existing chat-email flow
+grep -r "EmailChatService" Marilena/ --include="*.swift"
+grep -r "email_response_draft" Marilena/ --include="*.swift"
+grep -r "ModularChatView.*email" Marilena/ --include="*.swift"
+
+# 2. Key files to preserve:
+# - Marilena/EmailChatService.swift (CORE - chat orchestration)
+# - Marilena/Core/AI/ChatModule/ModularChatView.swift (UI - chat with haptic)
+# - Marilena/MessageEditCanvas.swift (Canvas editing)
+# - Marilena/RichTextEditor.swift (Rich text editing)
+```
+
+### **Step 3: First Implementation - DI Container (45 min)**
 
 #### **File 1: `Marilena/Core/DependencyInjection/DIContainer.swift`**
 ```swift
@@ -147,7 +163,7 @@ final class ServiceLocator {
 }
 ```
 
-### **Step 3: Basic Service Protocols (30 min)**
+### **Step 4: Basic Service Protocols (30 min)**
 
 #### **File 3: `Marilena/Core/Email/Protocols/EmailServiceProtocol.swift`**
 ```swift
@@ -208,6 +224,38 @@ enum EmailProvider: String, CaseIterable {
         case .microsoft: return "Outlook"
         }
     }
+}
+
+// MARK: - Email Chat Service Protocol (PRESERVE EXISTING SYSTEM)
+@MainActor
+protocol EmailChatServiceProtocol: AnyObject, ObservableObject {
+    // Existing functionality preservation
+    var emailChats: [ChatMarilena] { get }
+    var currentEmailChat: ChatMarilena? { get }
+    var isLoading: Bool { get }
+    var error: String? { get }
+    
+    // Core email chat operations (EXISTING)
+    func createEmailChat(for email: EmailMessage) async -> ChatMarilena?
+    func sendEmailResponse(from chat: ChatMarilena, response: String, originalEmailId: String?) async throws
+    
+    // Enhanced operations (NEW)
+    func loadEmailChats()
+}
+
+// MARK: - Supporting Models for Chat-Email
+struct EmailMessage {
+    let id: String
+    let from: String
+    let subject: String
+    let body: String
+    let date: Date
+    let emailType: EmailType
+}
+
+enum EmailType {
+    case sent
+    case received
 }
 ```
 
@@ -355,10 +403,15 @@ final class DIConfiguration {
         print("✅ Core services configured")
     }
     
-    // MARK: - Email Services (Placeholder)
+    // MARK: - Email Services (Include Chat-Email Preservation)
     private static func configureEmail() {
-        // Email services will be registered here in Phase 2
-        print("📧 Email services configuration placeholder")
+        // PRESERVE: Register existing EmailChatService with new protocol
+        ServiceLocator.register(EmailChatServiceProtocol.self) {
+            // This will use existing EmailChatService but with protocol compliance
+            return EmailChatService() // Existing implementation
+        }
+        
+        print("📧 Email services configured (EmailChatService preserved)")
     }
     
     // MARK: - AI Services (Placeholder)
@@ -472,13 +525,15 @@ echo "✅ Foundation implementation complete!"
 ## 🎯 **WHAT WE'VE ACCOMPLISHED**
 
 ### **✅ Completed in ~2 hours:**
+- [x] **Chat-Email System Analysis** - Existing system understood and mapped
 - [x] **Dependency Injection Container** - Thread-safe, production-ready
 - [x] **Service Locator** - Global access point with logging
-- [x] **Service Protocols** - EmailServiceProtocol defined
+- [x] **Service Protocols** - EmailServiceProtocol + EmailChatServiceProtocol defined
+- [x] **Chat-Email Preservation** - Protocol compliance for existing EmailChatService
 - [x] **Configuration System** - Environment-based, extensible
-- [x] **DI Configuration** - Centralized service registration
+- [x] **DI Configuration** - Centralized service registration with chat-email support
 - [x] **Basic Testing** - Unit tests for DI container
-- [x] **Integration** - Connected to main app
+- [x] **Integration** - Connected to main app preserving existing functionality
 
 ### **📈 Foundation Metrics:**
 - **Code Coverage**: 90%+ for DI components

@@ -2,13 +2,36 @@
 
 ## 📋 **EXECUTIVE SUMMARY**
 
-**Obiettivo**: Trasformare il sistema email Marilena da prototipo fragile a servizio professionale enterprise-grade
+**Obiettivo**: Trasformare il sistema email Marilena da prototipo fragile a servizio professionale enterprise-grade **PRESERVANDO completamente il flusso chat-email esistente**
 
-**Approccio**: Hybrid Refactoring (Foundation Rebuild + Incremental Migration)
+**Approccio**: Hybrid Refactoring (Foundation Rebuild + Incremental Migration) con **Zero Breaking Changes** per il sistema chat-email
 
 **Timeline**: 10 giorni lavorativi
 
-**Risultato Atteso**: Sistema email robusto, scalabile, testabile e user-friendly
+**Risultato Atteso**: Sistema email robusto, scalabile, testabile e user-friendly che **mantiene e migliora** tutte le funzionalità chat-email con assistente Marilena
+
+---
+
+## 🤖 **SISTEMA CHAT-EMAIL ESISTENTE (DA PRESERVARE)**
+
+### **✅ FUNZIONALITÀ CRITICHE GIÀ IMPLEMENTATE:**
+- [x] **Auto-creation email chats** - Creazione automatica chat per email ricevute (ultime 1 ora)
+- [x] **Dual message system** - 2 messaggi per email: contesto + bozza risposta AI
+- [x] **AI Analysis integration** - Categoria, urgenza, tono, sentiment analysis
+- [x] **ModularChatView** - UI chat completa con supporto email
+- [x] **MessageEditCanvas** - Canvas editing con RichTextEditor
+- [x] **Haptic feedback** - Long press (0.5s), tap gestures, button feedback
+- [x] **AI shortcuts** - Regenera con toni diversi (Formale, Casual, Breve, etc.)
+- [x] **Real-time email sending** - Invio dal canvas con conferma "Marilena Assistente"
+- [x] **Thread management** - Gestione conversazioni email per mittente
+
+### **📧 FLUSSO ESISTENTE DA MANTENERE:**
+```
+Email → EmailChatService → AI Analysis → 2 Messages (context + draft) 
+→ ModularChatView → Canvas Edit → Send → Confirmation
+```
+
+**⚠️ REQUISITO CRITICO: Zero Breaking Changes per questo flusso**
 
 ---
 
@@ -242,6 +265,14 @@
 
 ## 📊 **METRICHE DI SUCCESSO**
 
+### **Chat-Email System Targets (CRITICAL):**
+- [ ] **Zero Breaking Changes**: 100% existing functionality preserved
+- [ ] **Chat Creation**: < 2 secondi da email a chat completa
+- [ ] **AI Analysis**: < 3 secondi per context + draft generation
+- [ ] **Canvas Performance**: < 0.5 secondi per apertura
+- [ ] **Haptic Response**: < 50ms per feedback tattile
+- [ ] **Email Send Success**: > 99.9% dal canvas
+
 ### **Performance Targets:**
 - [ ] **Email Sync**: < 3 secondi per 100 email
 - [ ] **HTML Rendering**: < 1 secondo per email complessa
@@ -251,6 +282,7 @@
 
 ### **Quality Targets:**
 - [ ] **Test Coverage**: > 90%
+- [ ] **Chat-Email Flow Coverage**: 100%
 - [ ] **Crash Rate**: < 0.1%
 - [ ] **Error Recovery**: 100% error scenarios handled
 - [ ] **Accessibility**: 100% compliance
@@ -258,6 +290,7 @@
 
 ### **User Experience Targets:**
 - [ ] **Email Send Success**: > 99.9%
+- [ ] **Chat-Email UX**: Zero degradation vs current
 - [ ] **Offline Functionality**: 100% read access
 - [ ] **AI Accuracy**: > 95% categorization
 - [ ] **Response Relevance**: > 90% user satisfaction
@@ -267,19 +300,22 @@
 ## 🔄 **MIGRATION STRATEGY**
 
 ### **Phase 1-2: Foundation + Core**
-- Parallel development con sistema esistente
-- Feature flags per gradual rollout
-- Fallback mechanisms sempre attivi
+- **Chat-Email Preservation**: Mantieni EmailChatService interface intatta
+- **Backward Compatibility**: Tutti i protocolli implementati da servizi esistenti
+- **Gradual DI Integration**: Iniezione dipendenze senza rompere flusso esistente
+- **Real SMTP Behind Scenes**: Sostituisci backend mantenendo API
 
-### **Phase 3-4: AI + UI**
-- Progressive enhancement
-- A/B testing per nuove features
-- User feedback integration
+### **Phase 3-4: AI + UI Enhancement**
+- **AI Orchestrator Integration**: Migliora qualità mantenendo message format
+- **Canvas Enhancement**: Aggiungi funzionalità senza rimuovere esistenti
+- **Haptic Preservation**: Conserva + migliora feedback tattile
+- **Zero UI Breaking Changes**: ModularChatView enhanced not replaced
 
 ### **Phase 5: Production**
-- Gradual traffic migration
-- Performance monitoring
-- Rollback procedures ready
+- **A/B Testing**: Chat-email flow vs enhanced flow
+- **Gradual Feature Rollout**: Feature flags per nuove enhancement
+- **Performance Monitoring**: Specific metrics per chat-email system
+- **Instant Rollback**: Fallback to current system if issues
 
 ---
 
