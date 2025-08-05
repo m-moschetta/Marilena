@@ -137,10 +137,16 @@ public class EmailChatService: ObservableObject {
         let subject = chat.emailSubject ?? "Re: \(chat.titolo ?? "")"
         try await emailService.sendEmail(to: sender, subject: subject, body: response)
         
-        // NUOVO: Messaggio di conferma invio
+        // NUOVO: Messaggio di conferma invio (tono Marilena assistente)
         let confirmationMessage = MessaggioMarilena(context: context)
         confirmationMessage.id = UUID()
-        confirmationMessage.contenuto = "✅ **Email inviata con successo!**\n\n📧 Destinatario: \(sender)\n📝 Oggetto: \(subject)\n🕐 Ora: \(formatDate(Date()))"
+        // Messaggio personalizzato con variazioni casuali
+        let confirmationMessages = [
+            "Perfetto! ✉️ Ho inviato la mail a **\(sender)**.\n\nC'è qualcos'altro che posso fare per te?",
+            "Fatto! 📧 La tua email è stata inviata a **\(sender)**.\n\nHai bisogno di altro aiuto?",
+            "Email inviata con successo a **\(sender)**! ✅\n\nPosso aiutarti con qualcos'altro?"
+        ]
+        confirmationMessage.contenuto = confirmationMessages.randomElement() ?? confirmationMessages[0]
         confirmationMessage.isUser = false
         confirmationMessage.tipo = "email_confirmation"
         confirmationMessage.dataCreazione = Date()

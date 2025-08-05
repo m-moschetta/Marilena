@@ -1090,7 +1090,7 @@ struct ModularMessageRow: View {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.caption2)
                                         .foregroundColor(.green)
-                                    Text("Email Inviata")
+                                    Text("Marilena Assistente")
                                         .font(.caption2)
                                         .fontWeight(.medium)
                                 }
