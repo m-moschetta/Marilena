@@ -79,13 +79,10 @@ struct ChatsListView: View {
                     .listStyle(.plain)
                     .environment(\.defaultMinListRowHeight, 60)
                     .navigationDestination(for: ChatMarilena.self) { chat in
-                        if chat.tipo == "email" {
-                            EmailChatView(chat: chat)
-                        } else {
-                            let adapter = ModuleAdapter(context: viewContext)
-                            adapter.createModularChatView(for: chat)
-                                .environment(\.managedObjectContext, viewContext)
-                        }
+                        // Usa sempre ModularChatView per tutte le chat (incluse email)
+                        let adapter = ModuleAdapter(context: viewContext)
+                        adapter.createModularChatView(for: chat)
+                            .environment(\.managedObjectContext, viewContext)
                     }
                     .refreshable {
                         // Refresh automatico tramite FetchRequest
