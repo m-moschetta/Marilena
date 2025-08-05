@@ -28,7 +28,7 @@ public struct EmailListView: View {
     private func destinationView(for email: EmailMessage) -> some View {
         Group {
             if useAppleMailStyle {
-                AppleMailDetailView(
+                AppleMailCloneView(
                     email: email,
                     emailService: emailService,
                     aiService: aiService
