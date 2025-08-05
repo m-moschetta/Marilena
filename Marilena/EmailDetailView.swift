@@ -910,7 +910,21 @@ struct ComposeEmailView: View {
     
     // Computed properties
     private var isValidEmail: Bool {
-        !toRecipients.isEmpty && !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        hasValidRecipients && hasValidSubject
+    }
+    
+    private var hasValidRecipients: Bool {
+        !toRecipients.isEmpty && toRecipients.allSatisfy { isValidEmailAddress($0.email) }
+    }
+    
+    private var hasValidSubject: Bool {
+        !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    private func isValidEmailAddress(_ email: String) -> Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format:"SELF MATCHES %@", emailRegex)
+        return emailPredicate.evaluate(with: email)
     }
     
     // Init per nuovo messaggio vuoto
@@ -943,43 +957,43 @@ struct ComposeEmailView: View {
                 // NUOVO: Campi email - Stile Apple Mail Standard
                 VStack(spacing: 0) {
                     // Campo "A:" 
-                    ComposeFieldRow(label: "A:") {
+                    ComposeFieldRow(label: "A:", isRequired: true, isValid: hasValidRecipients || toRecipients.isEmpty) {
                         RecipientFieldView(
                             recipients: $toRecipients,
-                            placeholder: "destinatario",
+                            placeholder: "Inserisci email destinatario",
                             showCCBCC: $showingCCBCC
                         )
                     }
                     
                     Divider()
-                        .padding(.leading, 50)
+                        .padding(.leading, 76)
                     
                     // Campi CC/BCC (espandibili)
                     if showingCCBCC {
                         ComposeFieldRow(label: "Cc:") {
                             RecipientFieldView(
                                 recipients: $ccRecipients,
-                                placeholder: "cc"
+                                placeholder: "Email in copia (opzionale)"
                             )
                         }
                         
                         Divider()
-                            .padding(.leading, 50)
+                            .padding(.leading, 76)
                         
                         ComposeFieldRow(label: "Ccn:") {
                             RecipientFieldView(
                                 recipients: $bccRecipients,
-                                placeholder: "ccn"
+                                placeholder: "Email in copia nascosta (opzionale)"
                             )
                         }
                         
                         Divider()
-                            .padding(.leading, 50)
+                            .padding(.leading, 76)
                     }
                     
                     // Campo Oggetto
-                    ComposeFieldRow(label: "Oggetto:") {
-                        TextField("Oggetto", text: $subject)
+                    ComposeFieldRow(label: "Oggetto:", isRequired: true, isValid: hasValidSubject || subject.isEmpty) {
+                        TextField("Inserisci oggetto email", text: $subject)
                             .textFieldStyle(.plain)
                     }
                     
@@ -1507,27 +1521,47 @@ struct CustomPromptView: View {
 // Campo compositore standard Apple Mail
 struct ComposeFieldRow<Content: View>: View {
     let label: String
+    let isRequired: Bool
+    let isValid: Bool
     let content: Content
     
-    init(label: String, @ViewBuilder content: () -> Content) {
+    init(label: String, isRequired: Bool = false, isValid: Bool = true, @ViewBuilder content: () -> Content) {
         self.label = label
+        self.isRequired = isRequired
+        self.isValid = isValid
         self.content = content()
     }
     
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
-            Text(label)
-                .font(.body)
-                .foregroundStyle(.primary)
-                .frame(width: 40, alignment: .leading)
-                .padding(.leading, 16)
-                .padding(.vertical, 12)
+            HStack(spacing: 2) {
+                Text(label)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                
+                if isRequired {
+                    Text("*")
+                        .font(.body)
+                        .foregroundStyle(.red)
+                }
+                
+                // Indicatore validazione
+                if isRequired && !isValid {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            .frame(width: 60, alignment: .leading)
+            .padding(.leading, 16)
+            .padding(.vertical, 12)
             
             content
                 .padding(.trailing, 16)
                 .padding(.vertical, 12)
         }
         .frame(minHeight: 44)
+        .background(isRequired && !isValid ? Color.red.opacity(0.05) : Color.clear)
     }
 }
 

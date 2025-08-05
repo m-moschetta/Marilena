@@ -438,10 +438,15 @@ struct AppleMailCloneContent: View {
                     webViewManager: webViewManager
                 )
                 .frame(
-                    minHeight: 300,
-                    maxHeight: webViewManager.contentHeight > 0 ? webViewManager.contentHeight : .infinity
+                    minHeight: 200,
+                    idealHeight: webViewManager.contentHeight > 0 ? webViewManager.contentHeight : 300,
+                    maxHeight: webViewManager.contentHeight > 0 ? webViewManager.contentHeight : 2000
                 )
+                .animation(.easeInOut(duration: 0.3), value: webViewManager.contentHeight)
                 .clipped()
+                .onAppear {
+                    webViewManager.resetHeight()
+                }
             } else {
                 // Plain Text Content
                 VStack(alignment: .leading, spacing: 16) {
@@ -458,22 +463,65 @@ struct AppleMailCloneContent: View {
     }
     
     private func isHTMLContent(_ content: String) -> Bool {
+        // Controlli più robusti per HTML detection
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 1. Check DOCTYPE o tag HTML completi
+        if trimmedContent.localizedCaseInsensitiveContains("<!DOCTYPE") ||
+           trimmedContent.localizedCaseInsensitiveContains("<html") ||
+           trimmedContent.localizedCaseInsensitiveContains("</html>") {
+            return true
+        }
+        
+        // 2. Check per tag HTML comuni (migliorato)
         let htmlTags = [
-            "<html", "<body", "<div", "<p", "<br", "<strong", "<em", "<ul", "<ol", "<li",
-            "<h1", "<h2", "<h3", "<h4", "<h5", "<h6", "<span", "<a", "<img", "<table",
-            "<tr", "<td", "<th", "<blockquote", "<code", "<pre", "<b", "<i", "<u", "<s"
+            "<html", "<body", "<div", "<p>", "<br", "<strong", "<em", "<ul", "<ol", "<li",
+            "<h1", "<h2", "<h3", "<h4", "<h5", "<h6", "<span", "<a ", "<img", "<table",
+            "<tr", "<td", "<th", "<blockquote", "<code", "<pre", "<b>", "<i>", "<u>", 
+            "<center", "<font", "<style", "<script", "<meta", "<link", "<head"
         ]
         
-        // Controlla se contiene tag HTML
-        let containsHTMLTags = htmlTags.contains { content.localizedCaseInsensitiveContains($0) }
+        let containsHTMLTags = htmlTags.contains { tag in
+            trimmedContent.localizedCaseInsensitiveContains(tag)
+        }
         
-        // Controlla se contiene entità HTML
-        let containsHTMLEntities = content.contains("&") && (content.contains("&#") || content.contains("&lt;") || content.contains("&gt;") || content.contains("&amp;"))
+        // 3. Check per entità HTML
+        let containsHTMLEntities = trimmedContent.contains("&") && (
+            trimmedContent.contains("&#") || 
+            trimmedContent.contains("&lt;") || 
+            trimmedContent.contains("&gt;") || 
+            trimmedContent.contains("&amp;") ||
+            trimmedContent.contains("&nbsp;") ||
+            trimmedContent.contains("&quot;")
+        )
         
-        // Controlla se contiene attributi HTML
-        let containsHTMLAttrs = content.contains("style=") || content.contains("class=") || content.contains("id=")
+        // 4. Check per attributi HTML
+        let containsHTMLAttrs = trimmedContent.contains("style=") || 
+                               trimmedContent.contains("class=") || 
+                               trimmedContent.contains("id=") ||
+                               trimmedContent.contains("href=") ||
+                               trimmedContent.contains("src=")
         
-        return containsHTMLTags || containsHTMLEntities || containsHTMLAttrs
+        // 5. Pattern matching per strutture HTML tipiche
+        let htmlPatterns = [
+            #"<\w+[^>]*>"#,  // Tag con attributi
+            #"</\w+>"#       // Tag di chiusura
+        ]
+        
+        let containsHTMLPatterns = htmlPatterns.contains { pattern in
+            trimmedContent.range(of: pattern, options: .regularExpression) != nil
+        }
+        
+        let isHTML = containsHTMLTags || containsHTMLEntities || containsHTMLAttrs || containsHTMLPatterns
+        
+        // Debug logging
+        if isHTML {
+            print("🔍 HTML Content detected: \(String(trimmedContent.prefix(100)))")
+        } else {
+            print("📝 Plain text content: \(String(trimmedContent.prefix(100)))")
+        }
+        
+        return isHTML
     }
 }
 
@@ -482,14 +530,40 @@ class AppleMailWebViewManager: NSObject, ObservableObject {
     @Published var contentHeight: CGFloat = 0
     @Published var isLoading = true
     
+    private var heightUpdateTimer: Timer?
+    private var lastReceivedHeight: CGFloat = 0
+    
     func updateContentHeight(_ height: CGFloat) {
         DispatchQueue.main.async {
-            // Aggiungi padding e assicurati che non sia troppo piccolo
-            let adjustedHeight = max(height + 40, 300)
-            if abs(self.contentHeight - adjustedHeight) > 10 {
-                self.contentHeight = adjustedHeight
+            // Evita aggiornamenti troppo frequenti
+            self.heightUpdateTimer?.invalidate()
+            
+            self.heightUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
+                let minHeight: CGFloat = 200
+                let maxHeight: CGFloat = 2000
+                let padding: CGFloat = 40
+                
+                // Clamp height tra valori ragionevoli
+                let clampedHeight = max(min(height, maxHeight), minHeight)
+                let adjustedHeight = clampedHeight + padding
+                
+                // Aggiorna solo se c'è una differenza significativa
+                if abs(self.contentHeight - adjustedHeight) > 5 {
+                    print("🔍 WebView height update: \(height) -> \(adjustedHeight)")
+                    self.contentHeight = adjustedHeight
+                    self.lastReceivedHeight = height
+                }
+                
+                self.isLoading = false
             }
-            self.isLoading = false
+        }
+    }
+    
+    func resetHeight() {
+        DispatchQueue.main.async {
+            self.contentHeight = 300
+            self.isLoading = true
+            self.lastReceivedHeight = 0
         }
     }
 }
