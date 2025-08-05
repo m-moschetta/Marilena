@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Shared Types for AI Services
 
@@ -75,85 +76,89 @@ public enum ExportFormat: String, CaseIterable {
     }
 }
 
-// MARK: - Compose Email Types
+// MARK: - Gmail API Types
 
-// Email Contact for auto-completion and chips
-public struct EmailContact: Identifiable, Codable, Hashable {
-    public let id = UUID()
-    public let email: String
-    public let name: String?
-    public let isRecent: Bool
-    
-    public init(email: String, name: String? = nil, isRecent: Bool = false) {
-        self.email = email
-        self.name = name
-        self.isRecent = isRecent
-    }
-    
-    public var displayName: String {
-        if let name = name, !name.isEmpty {
-            return "\(name) <\(email)>"
-        }
-        return email
-    }
-    
-    public var shortDisplayName: String {
-        name ?? email
-    }
+// Gmail Message List Response
+struct GmailMessageList: Codable {
+    let messages: [GmailMessageSummary]
+    let nextPageToken: String?
+    let resultSizeEstimate: Int?
 }
 
-// Email Attachment
-public struct EmailAttachment: Identifiable, Codable {
-    public let id = UUID()
-    public let name: String
-    public let size: Int64
-    public let mimeType: String
-    public let data: Data
-    public let type: AttachmentType
-    
-    public init(name: String, size: Int64, mimeType: String, data: Data, type: AttachmentType) {
-        self.name = name
-        self.size = size
-        self.mimeType = mimeType
-        self.data = data
-        self.type = type
-    }
-    
-    public var formattedSize: String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: size)
-    }
+// Gmail Message Summary
+struct GmailMessageSummary: Codable {
+    let id: String
+    let threadId: String
 }
 
-public enum AttachmentType: String, Codable, CaseIterable {
-    case photo = "photo"
-    case document = "document"
-    case video = "video"
-    case audio = "audio"
-    case other = "other"
+// Gmail Message Detail
+struct GmailMessage: Codable {
+    let id: String
+    let threadId: String
+    let labelIds: [String]
+    let snippet: String?
+    let payload: GmailMessagePayload?
+    let sizeEstimate: Int?
+    let historyId: String?
+    let internalDate: String?
+}
+
+// Gmail Message Payload
+struct GmailMessagePayload: Codable {
+    let partId: String?
+    let mimeType: String?
+    let filename: String?
+    let headers: [GmailHeader]?
+    let body: GmailBody?
+    let parts: [GmailMessagePayload]?
+}
+
+// Gmail Header
+struct GmailHeader: Codable {
+    let name: String
+    let value: String
+}
+
+// Gmail Body
+struct GmailBody: Codable {
+    let attachmentId: String?
+    let size: Int?
+    let data: String?
+}
+
+// MARK: - Email Categorization
+
+// Email Categories for AI Classification
+public enum EmailCategory: String, Codable, CaseIterable {
+    case work = "work"
+    case personal = "personal"
+    case notifications = "notifications"
+    case promotional = "promotional"
     
-    public var iconName: String {
+    var displayName: String {
         switch self {
-        case .photo: return "photo"
-        case .document: return "doc.text"
-        case .video: return "video"
-        case .audio: return "music.note"
-        case .other: return "paperclip"
+        case .work: return "Lavoro"
+        case .personal: return "Personale"
+        case .notifications: return "Notifiche"
+        case .promotional: return "Promo/Spam"
         }
     }
-}
-
-// Format State for Rich Text Editor
-public struct FormatState {
-    public var isBold: Bool = false
-    public var isItalic: Bool = false
-    public var isUnderlined: Bool = false
     
-    public init(isBold: Bool = false, isItalic: Bool = false, isUnderlined: Bool = false) {
-        self.isBold = isBold
-        self.isItalic = isItalic
-        self.isUnderlined = isUnderlined
+    var icon: String {
+        switch self {
+        case .work: return "briefcase.fill"
+        case .personal: return "person.fill"
+        case .notifications: return "bell.fill"
+        case .promotional: return "megaphone.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .work: return .blue
+        case .personal: return .green
+        case .notifications: return .orange
+        case .promotional: return .red
+        }
     }
 } 

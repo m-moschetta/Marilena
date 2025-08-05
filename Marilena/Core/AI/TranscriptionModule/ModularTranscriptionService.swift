@@ -374,7 +374,7 @@ public class ModularTranscriptionService: NSObject, ObservableObject {
             let request = SFSpeechURLRecognitionRequest(url: url)
             request.shouldReportPartialResults = configuration.enableSegments
             
-            let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            let _ = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 guard let self = self else { return }
                 
                 if let error = error {

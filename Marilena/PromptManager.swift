@@ -97,6 +97,92 @@ public class PromptManager {
     RISPOSTA:
     """
     
+    // MARK: - Email AI Prompts
+    
+    /// Prompt per generazione bozze di risposta email
+    static let emailDraftPrompt = """
+    Sei un assistente email professionale e conciso. Il tuo compito è scrivere una bozza di risposta a questa email. Rispondi in italiano.
+    
+    CONTESTO:
+    {CONTESTO}
+    
+    EMAIL A CUI RISpondere:
+    Da: {MITtente}
+    Oggetto: {Oggetto}
+    Data: {Data}
+    Corpo: {Corpo}
+    
+    ISTRUZIONI:
+    1. Scrivi una risposta professionale e appropriata
+    2. Mantieni un tono cordiale ma professionale
+    3. Rispondi a tutti i punti sollevati nell'email originale
+    4. Sii conciso ma completo
+    5. Non includere saluti iniziali se non necessario
+    6. Usa un linguaggio chiaro e diretto
+    
+    BOZZA DI RISPOSTA:
+    """
+    
+    /// Prompt per analisi email
+    static let emailAnalysisPrompt = """
+    Analizza questa email e fornisci un'analisi dettagliata.
+    
+    EMAIL:
+    Da: {MITtente}
+    Oggetto: {Oggetto}
+    Corpo: {Corpo}
+    
+    Fornisci un'analisi con i seguenti campi:
+    - tono: (formale, informale, amichevole, professionale, urgente)
+    - sentiment: (positivo, negativo, neutro)
+    - argomenti_principali: [lista degli argomenti principali]
+    - richieste_esplicite: [eventuali richieste esplicite]
+    - richieste_implicite: [eventuali richieste implicite]
+    - urgenza: (bassa, media, alta)
+    - complessità: (semplice, media, complessa)
+    """
+    
+    /// Prompt per categorizzazione email
+    static let emailCategorizationPrompt = """
+    Categorizza questa email in una delle seguenti categorie:
+    
+    - lavoro: email relative al lavoro
+    - personale: email personali
+    - commerciale: email commerciali/promozionali
+    - tecnico: email tecniche/supporto
+    - sociale: email sociali/inviti
+    - spam: email non desiderate
+    
+    EMAIL:
+    Da: {MITtente}
+    Oggetto: {Oggetto}
+    Corpo: {Corpo}
+    
+    Rispondi solo con la categoria.
+    """
+    
+    /// Prompt per riassunto email
+    static let emailSummaryPrompt = """
+    Crea un riassunto conciso di questa email in 2-3 frasi.
+    
+    EMAIL:
+    Da: {MITtente}
+    Oggetto: {Oggetto}
+    Corpo: {Corpo}
+    
+    RIASSUNTO:
+    """
+    
+    /// Prompt per valutazione urgenza email
+    static let emailUrgencyPrompt = """
+    Valuta l'urgenza di questa email. Rispondi solo con: bassa, media, alta.
+    
+    EMAIL:
+    Da: {MITtente}
+    Oggetto: {Oggetto}
+    Corpo: {Corpo}
+    """
+    
     // MARK: - Transcription Analysis Prompts
     
     /// Prompt per analisi trascrizioni

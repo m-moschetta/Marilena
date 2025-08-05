@@ -1,8 +1,13 @@
 import Foundation
 
-struct OpenAIMessage: Codable {
-    let role: String
-    let content: String
+public struct OpenAIMessage: Codable {
+    public let role: String
+    public let content: String
+    
+    public init(role: String, content: String) {
+        self.role = role
+        self.content = content
+    }
 }
 
 struct OpenAIRequest: Codable {

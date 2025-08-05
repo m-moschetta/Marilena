@@ -2,12 +2,14 @@ import SwiftUI
 import CoreData
 import Speech
 import AppIntents
+import GoogleSignIn
 
 @main
 struct MarilenaApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var transcriptionService: SpeechTranscriptionService
     @StateObject private var recordingService: RecordingService
+    @StateObject private var emailChatService: EmailChatService
     
     @State private var shouldStartRecording = false
     @State private var shouldStopRecording = false
@@ -16,6 +18,10 @@ struct MarilenaApp: App {
         // Inizializza i servizi
         self._transcriptionService = StateObject(wrappedValue: SpeechTranscriptionService(context: PersistenceController.shared.container.viewContext))
         self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
+        self._emailChatService = StateObject(wrappedValue: EmailChatService(context: PersistenceController.shared.container.viewContext))
+        
+        // Configura Google Sign-In dopo l'inizializzazione
+        setupGoogleSignIn()
     }
 
     var body: some Scene {
@@ -41,6 +47,9 @@ struct MarilenaApp: App {
                 .onOpenURL { url in
                     // Gestisce gli URL schemes dal widget
                     handleURL(url)
+                    
+                    // Gestisce gli URL per Google Sign-In
+                    GIDSignIn.sharedInstance.handle(url)
                 }
                 .onChange(of: shouldStartRecording) { oldValue, newValue in
                     if newValue {
@@ -154,5 +163,16 @@ struct MarilenaApp: App {
             }
             shouldStopRecording = false
         }
+    }
+    
+    private func setupGoogleSignIn() {
+        guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String else {
+            print("❌ Google ClientID non trovato in Info.plist")
+            return
+        }
+        
+        let config = GIDConfiguration(clientID: clientID)
+        GIDSignIn.sharedInstance.configuration = config
+        print("✅ Google Sign-In configurato con successo")
     }
 }

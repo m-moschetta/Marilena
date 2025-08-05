@@ -82,17 +82,24 @@ struct iPadLayout: View {
                 )
                 
                 TabButton(
-                    title: "Registratore",
-                    icon: "mic.fill",
+                    title: "Email",
+                    icon: "envelope.fill",
                     isSelected: selectedTab == 1,
                     action: { selectedTab = 1 }
                 )
                 
                 TabButton(
-                    title: "Profilo",
-                    icon: "person.fill",
+                    title: "Registratore",
+                    icon: "mic.fill",
                     isSelected: selectedTab == 2,
                     action: { selectedTab = 2 }
+                )
+                
+                TabButton(
+                    title: "Profilo",
+                    icon: "person.fill",
+                    isSelected: selectedTab == 3,
+                    action: { selectedTab = 3 }
                 )
             }
             .background(Color(.systemBackground))
@@ -147,9 +154,11 @@ struct iPadLayout: View {
             case 0:
                 ChatsListView()
             case 1:
+                EmailListView()
+            case 2:
                 // Su iPad, mostra solo la lista senza il pulsante di registrazione
                 RecordingsListView(context: viewContext, recordingService: recordingService, hideRecordButton: true)
-            case 2:
+            case 3:
                 ProfiloWrapperView()
                     .padding(.top, 16) // Aggiunto spazio sopra il profilo
             default:
@@ -175,7 +184,17 @@ struct iPhoneLayout: View {
             }
             .tag(0)
             
-            // Tab 2: Registratore
+            // Tab 2: Email
+            NavigationView {
+                EmailListView()
+            }
+            .tabItem {
+                Image(systemName: "envelope.fill")
+                Text("Email")
+            }
+            .tag(1)
+            
+            // Tab 3: Registratore
             NavigationView {
                 RecorderMainView()
             }
@@ -183,9 +202,9 @@ struct iPhoneLayout: View {
                 Image(systemName: "mic.fill")
                 Text("Registratore")
             }
-            .tag(1)
+            .tag(2)
             
-            // Tab 3: Profilo
+            // Tab 4: Profilo
             NavigationView {
                 ProfiloWrapperView()
             }
@@ -193,7 +212,7 @@ struct iPhoneLayout: View {
                 Image(systemName: "person.fill")
                 Text("Profilo")
             }
-            .tag(2)
+            .tag(3)
         }
     }
 }

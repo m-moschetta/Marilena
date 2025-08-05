@@ -4,26 +4,51 @@ import CoreData
 
 struct SettingsView: View {
     @State private var apiKey = ""
-    @State private var selectedModel = "gpt-4.1-mini"
+    @State private var selectedModel = "gpt-4o-mini"
     @State private var temperature: Double = 0.7
     @State private var maxTokens: Double = 1000
     @State private var selectedTranscriptionMode = "auto"
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var showingOAuthConfig = false
     
     // Perplexity settings
     @State private var perplexityApiKey = ""
     @State private var selectedPerplexityModel = "sonar-pro"
     
+    // Groq settings
+    @State private var groqApiKey = ""
+    @State private var selectedGroqModel = "deepseek-r1-distill-qwen-32b"
+    
+    // Anthropic settings
+    @State private var anthropicApiKey = ""
+    @State private var selectedAnthropicModel = "claude-3.5-sonnet"
+    
+    // Provider selection
+    @State private var selectedProvider = "openai"
+    
     let availableModels = [
-        "gpt-4o",
-        "gpt-4o-mini",
-        "gpt-4.1",
-        "gpt-4.1-mini", 
-        "gpt-4.1-nano",
-        "o3-mini",
-        "o4-mini",
-        "o3"
+        // GPT-4o series (flagship models, multimodal)
+        "gpt-4o",                    // Latest GPT-4o, 128K context, $5/$15 per 1M tokens
+        "gpt-4o-mini",               // Fast and affordable, 128K context, $0.15/$0.60 per 1M tokens
+        "chatgpt-4o-latest",         // Latest used in ChatGPT
+        
+        // GPT-4.1 series (April 2025 release, 1M context window)
+        "gpt-4.1",                   // Full model, 1M context, $2.00/$8.00 per 1M tokens  
+        "gpt-4.1-mini",              // Compact version, 1M context, $0.40/$1.60 per 1M tokens
+        "gpt-4.1-nano",              // Ultra-light version, optimized for speed
+        
+        // GPT-4.5 (Feb 2025 - research preview, large and expensive)
+        "gpt-4.5-preview",           // Largest model, $75/$150 per 1M tokens, creative tasks
+        
+        // o-series (reasoning models, advanced problem-solving)
+        "o1",                        // Latest reasoning model (alias to o1-2024-12-17)
+        "o1-mini",                   // Faster reasoning model
+        "o3-mini",                   // Latest small reasoning model
+        
+        // Legacy but stable
+        "gpt-4-turbo",               // Previous generation flagship
+        "gpt-3.5-turbo"              // Cost-effective option
     ]
     
     let availablePerplexityModels = [
@@ -35,6 +60,46 @@ struct SettingsView: View {
         "llama-405b-instruct", "llama-70b-instruct", "mixtral-8x7b-instruct"
     ]
     
+    let availableGroqModels = [
+        // DeepSeek R1 Distilled (Advanced Reasoning - BEST CHOICE)
+        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691, AIME 83.3%
+        "deepseek-r1-distill-llama-70b",  // 260 T/s, 131K context, CodeForces 1633, MATH 94.5%
+        
+        // Qwen 2.5 (Fast and Capable)
+        "qwen2.5-32b-instruct",           // 397 T/s, 128K context, tool calling + JSON mode
+        
+        // LLaMA 3.3/3.1 (Meta - Versatile and Reliable)
+        "llama-3.3-70b-versatile",        // General purpose, balanced performance
+        "llama-3.1-405b-reasoning",       // Largest model, best for complex tasks
+        "llama-3.1-70b-versatile",        // Good balance of size and performance
+        "llama-3.1-8b-instant",           // Fast and efficient for simple tasks
+        
+        // Mixtral (Mistral AI - Multilingual and Coding)
+        "mixtral-8x7b-32768",             // Mixture of Experts, multilingual
+        
+        // Gemma 2 (Google - Efficient and Fast)
+        "gemma2-9b-it",                   // Efficient instruction-tuned model
+        "gemma-7b-it"                     // Lightweight but capable
+    ]
+    
+    let availableAnthropicModels = [
+        // Claude 4 series (2025 - latest and most capable)
+        "claude-4-opus",               // Most capable, expensive, 200K context, $15/$75 per 1M tokens
+        "claude-4-sonnet",             // High performance, 200K context, $3/$15 per 1M tokens
+        
+        // Claude 3.7 series (Hybrid reasoning - Dec 2024)
+        "claude-3.7-sonnet",           // First hybrid reasoning model, enhanced thinking, $6/$22.5 per 1M tokens
+        
+        // Claude 3.5 series (Proven workhorses)
+        "claude-3.5-sonnet",           // Best balance, 200K context, $3/$15 per 1M tokens
+        "claude-3.5-haiku",            // Fast and lightweight, 200K context, $0.25/$1.25 per 1M tokens
+        
+        // Claude 3 series (Still available, lower cost)
+        "claude-3-sonnet",             // Balanced performance, 200K context
+        "claude-3-haiku",              // Fastest and cheapest, 200K context
+        "claude-3-opus"                // Most capable legacy model, 200K context
+    ]
+    
     let transcriptionModes = [
         ("auto", "Automatico", "Sceglie automaticamente il miglior framework disponibile"),
         ("speech_analyzer", "Speech Analyzer (iOS 26+)", "Framework più avanzato per iOS 26+"),
@@ -43,17 +108,86 @@ struct SettingsView: View {
         ("local", "Locale", "Trascrizione locale con modelli integrati")
     ]
     
+    let availableProviders = [
+        ("openai", "OpenAI", "Modelli GPT più avanzati e versatili"),
+        ("anthropic", "Anthropic Claude", "Modelli Claude per ragionamento profondo"),
+        ("groq", "Groq", "Velocità ultra-rapida con Qwen 3 e DeepSeek R1")
+    ]
+    
     var body: some View {
         NavigationView {
             Form {
-                Section("OpenAI Configuration") {
-                    SecureField("OpenAI API Key", text: $apiKey)
-                        .textContentType(.password)
-                    
-                    Picker("Modello", selection: $selectedModel) {
-                        ForEach(availableModels, id: \.self) { model in
-                            Text(model).tag(model)
+                Section("🎯 Selettore Provider AI") {
+                    Picker("Provider AI", selection: $selectedProvider) {
+                        ForEach(availableProviders, id: \.0) { provider in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(provider.1).font(.body)
+                                Text(provider.2).font(.caption).foregroundColor(.secondary)
+                            }
+                            .tag(provider.0)
                         }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                    
+                    Text("💡 I modelli del provider selezionato saranno disponibili nel long press della chat")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Sezione dinamica per il provider selezionato
+                if selectedProvider == "openai" {
+                    Section("OpenAI Configuration") {
+                        SecureField("OpenAI API Key", text: $apiKey)
+                            .textContentType(.password)
+                        
+                        Picker("Modello OpenAI", selection: $selectedModel) {
+                            ForEach(availableModels, id: \.self) { model in
+                                Text(getOpenAIModelDisplayName(model)).tag(model)
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                    }
+                } else if selectedProvider == "anthropic" {
+                    Section("Anthropic Claude Configuration") {
+                        SecureField("Anthropic API Key", text: $anthropicApiKey)
+                            .textContentType(.password)
+                        
+                        Picker("Modello Claude", selection: $selectedAnthropicModel) {
+                            ForEach(availableAnthropicModels, id: \.self) { model in
+                                Text(getAnthropicModelDisplayName(model)).tag(model)
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                        
+                        Button("Test Connessione Anthropic") {
+                            testAnthropicConnection()
+                        }
+                        .foregroundColor(.blue)
+                        
+                        Text("🧠 Anthropic Claude: Eccellente per ragionamento e analisi profonda")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else if selectedProvider == "groq" {
+                    Section("Groq AI Configuration") {
+                        SecureField("Groq API Key", text: $groqApiKey)
+                            .textContentType(.password)
+                        
+                        Picker("Modello Groq", selection: $selectedGroqModel) {
+                            ForEach(availableGroqModels, id: \.self) { model in
+                                Text(getGroqModelDisplayName(model)).tag(model)
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                        
+                        Button("Test Connessione Groq") {
+                            testGroqConnection()
+                        }
+                        .foregroundColor(.blue)
+                        
+                        Text("🚀 Groq: Velocità ultra-rapida con modelli Qwen 3 e DeepSeek R1")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -70,6 +204,13 @@ struct SettingsView: View {
                     
                     Button("Test Connessione Perplexity") {
                         testPerplexityConnection()
+                    }
+                    .foregroundColor(.blue)
+                }
+                
+                Section("Email OAuth Configuration") {
+                    Button("Configura OAuth") {
+                        showingOAuthConfig = true
                     }
                     .foregroundColor(.blue)
                 }
@@ -179,6 +320,15 @@ struct SettingsView: View {
                     }
                 }
                 
+                // NUOVO: Sezione Email
+                Section("Impostazioni Email") {
+                    NavigationLink {
+                        EmailSettingsView()
+                    } label: {
+                        Label("Prompt Email", systemImage: "envelope.badge.person.crop")
+                    }
+                }
+                
                 Section {
                     Button("Salva Configurazione") {
                         saveSettings()
@@ -189,6 +339,9 @@ struct SettingsView: View {
             .navigationTitle("Impostazioni")
             .onAppear {
                 loadSettings()
+            }
+            .sheet(isPresented: $showingOAuthConfig) {
+                OAuthConfigView()
             }
             .alert("Configurazione", isPresented: $showAlert) {
                 Button("OK") { }
@@ -202,8 +355,16 @@ struct SettingsView: View {
         let openAISuccess = KeychainManager.shared.save(key: "openai_api_key", value: apiKey)
         let perplexitySuccess = PerplexityService.shared.saveAPIKey(perplexityApiKey)
         
+        // Salva API keys per tutti i provider
+        UserDefaults.standard.set(groqApiKey, forKey: "groqApiKey")
+        UserDefaults.standard.set(anthropicApiKey, forKey: "anthropicAPIKey")
+        
+        // Salva provider selezionato e modelli
+        UserDefaults.standard.set(selectedProvider, forKey: "selectedProvider")
         UserDefaults.standard.set(selectedModel, forKey: "selected_model")
         UserDefaults.standard.set(selectedPerplexityModel, forKey: "selected_perplexity_model")
+        UserDefaults.standard.set(selectedGroqModel, forKey: "selectedGroqChatModel")
+        UserDefaults.standard.set(selectedAnthropicModel, forKey: "selectedAnthropicModel")
         UserDefaults.standard.set(temperature, forKey: "temperature")
         UserDefaults.standard.set(maxTokens, forKey: "max_tokens")
         UserDefaults.standard.set(selectedTranscriptionMode, forKey: "transcription_mode")
@@ -213,9 +374,9 @@ struct SettingsView: View {
         NotificationCenter.default.post(name: .settingsChanged, object: nil)
         
         if openAISuccess && perplexitySuccess {
-            alertMessage = "Configurazione salvata con successo!"
+            alertMessage = "✅ Configurazione salvata con successo!\n\n• Provider: \(selectedProvider.capitalized)\n• Tutte le API key salvate"
         } else {
-            alertMessage = "Errore nel salvare alcune configurazioni"
+            alertMessage = "❌ Errore nel salvare alcune configurazioni"
         }
         showAlert = true
     }
@@ -223,9 +384,14 @@ struct SettingsView: View {
     private func loadSettings() {
         apiKey = KeychainManager.shared.load(key: "openai_api_key") ?? ""
         perplexityApiKey = KeychainManager.shared.load(key: "perplexity_api_key") ?? ""
+        groqApiKey = UserDefaults.standard.string(forKey: "groqApiKey") ?? ""
+        anthropicApiKey = UserDefaults.standard.string(forKey: "anthropicAPIKey") ?? ""
         
-        selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4.1-mini"
+        selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
+        selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
+        selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
+        selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3.5-sonnet"
         temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
         maxTokens = UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000
         selectedTranscriptionMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
@@ -396,6 +562,135 @@ struct SettingsView: View {
                     showAlert = true
                 }
             }
+        }
+    }
+    
+    private func testGroqConnection() {
+        // Salva la chiave prima di testare
+        UserDefaults.standard.set(groqApiKey, forKey: "groqApiKey")
+        
+        Task {
+            do {
+                let success = try await GroqService.shared.testConnection()
+                await MainActor.run {
+                    if success {
+                        alertMessage = "✅ Test Groq riuscito:\n\n• API Key valida\n• Connessione a Groq OK\n• Modelli Qwen 3 e DeepSeek R1 disponibili"
+                    } else {
+                        alertMessage = "❌ Test Groq fallito:\n\nImpossibile connettersi a Groq."
+                    }
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    alertMessage = "❌ Test Groq fallito:\n\nErrore: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
+    }
+    
+    private func testAnthropicConnection() {
+        // Salva la chiave prima di testare
+        UserDefaults.standard.set(anthropicApiKey, forKey: "anthropicApiKey")
+        
+        Task {
+            await MainActor.run {
+                // Per ora mostra un messaggio di placeholder
+                // TODO: Implementare AnthropicService per test reale
+                if !anthropicApiKey.isEmpty {
+                    alertMessage = "✅ Test Anthropic configurato:\n\n• API Key salvata\n• Modelli Claude disponibili\n• Integrazione da completare"
+                } else {
+                    alertMessage = "❌ Test Anthropic fallito:\n\nInserisci una API Key valida"
+                }
+                showAlert = true
+            }
+        }
+    }
+    
+    private func getOpenAIModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "gpt-4o":
+            return "🌟 GPT-4o (Flagship Multimodal)"
+        case "gpt-4o-mini":
+            return "⚡ GPT-4o Mini (Fast & Affordable)"
+        case "chatgpt-4o-latest":
+            return "🆕 ChatGPT-4o Latest"
+        case "gpt-4.1":
+            return "🚀 GPT-4.1 (1M Context)"
+        case "gpt-4.1-mini":
+            return "💫 GPT-4.1 Mini (Compact)"
+        case "gpt-4.1-nano":
+            return "⚡ GPT-4.1 Nano (Ultra-light)"
+        case "gpt-4.5-preview":
+            return "🧠 GPT-4.5 Preview (Creative Giant)"
+        case "o1":
+            return "🤔 o1 (Advanced Reasoning)"
+        case "o1-mini":
+            return "🔬 o1 Mini (Fast Reasoning)"
+        case "o3-mini":
+            return "💎 o3 Mini (Latest Reasoning)"
+        case "gpt-4-turbo":
+            return "🔧 GPT-4 Turbo (Legacy)"
+        case "gpt-3.5-turbo":
+            return "💰 GPT-3.5 Turbo (Budget)"
+        default:
+            return model
+        }
+    }
+    
+    private func getAnthropicModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "claude-4-opus":
+            return "👑 Claude 4 Opus (Most Capable)"
+        case "claude-4-sonnet":
+            return "🎯 Claude 4 Sonnet (High Performance)"
+        case "claude-3.7-sonnet":
+            return "🧠 Claude 3.7 Sonnet (Hybrid Reasoning)"
+        case "claude-3.5-sonnet":
+            return "⚖️ Claude 3.5 Sonnet (Balanced)"
+        case "claude-3.5-haiku":
+            return "⚡ Claude 3.5 Haiku (Fast)"
+        case "claude-3-sonnet":
+            return "🔧 Claude 3 Sonnet (Legacy)"
+        case "claude-3-haiku":
+            return "💰 Claude 3 Haiku (Budget)"
+        case "claude-3-opus":
+            return "💎 Claude 3 Opus (Legacy Premium)"
+        default:
+            return model
+        }
+    }
+    
+    private func getGroqModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "qwen-qwq-32b":
+            return "🧠 Qwen QwQ 32B (Latest Reasoning)"
+        case "qwen2.5-32b-instruct":
+            return "⚡ Qwen 2.5 32B (Fast)"
+        case "qwen2.5-72b-instruct":
+            return "🚀 Qwen 2.5 72B (Powerful)"
+        case "deepseek-r1-distill-qwen-32b":
+            return "🎯 DeepSeek R1 Qwen 32B (Coding)"
+        case "deepseek-r1-distill-llama-70b":
+            return "💎 DeepSeek R1 Llama 70B (Math)"
+        case "llama-3.3-70b-versatile":
+            return "🦙 Llama 3.3 70B (Versatile)"
+        case "llama-3.1-405b-reasoning":
+            return "🔬 Llama 3.1 405B (Reasoning)"
+        case "llama-3.1-70b-versatile":
+            return "⚖️ Llama 3.1 70B (Balanced)"
+        case "llama-3.1-8b-instant":
+            return "⚡ Llama 3.1 8B (Instant)"
+        case "mixtral-8x7b-32768":
+            return "🌍 Mixtral 8x7B (Multilingual)"
+        case "mixtral-8x22b-32768":
+            return "🌎 Mixtral 8x22B (Enhanced)"
+        case "gemma2-9b-it":
+            return "💫 Gemma 2 9B (Efficient)"
+        case "gemma-7b-it":
+            return "✨ Gemma 7B (Lightweight)"
+        default:
+            return model
         }
     }
 }

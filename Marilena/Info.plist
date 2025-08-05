@@ -96,6 +96,38 @@
 				<string>marilena</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.marilena.email.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.marilena.email</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.googleusercontent.apps</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.123456789-abcdefghijklmnopqrstuvwxyz</string>
+			</array>
+		</dict>
 	</array>
+	
+	<!-- Google Sign-In Configuration -->
+	<key>GIDClientID</key>
+	<string>561616949612-bhr5dsrtgf10482ba6iuttinm2b0n61e.apps.googleusercontent.com</string>
+	
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>com.googleusercontent.apps</string>
+		<string>https</string>
+	</array>
+	
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
