@@ -63,12 +63,13 @@ class AnthropicService {
     
     private let baseURL = "https://api.anthropic.com/v1"
     
-    // Modelli supportati da Anthropic
+    // Modelli supportati da Anthropic (2025 - più recenti)
     static let claudeModels = [
-        "claude-opus-4-20250514",
-        "claude-sonnet-4-20250514", 
-        "claude-3-7-sonnet-20250219",
-        "claude-3-5-haiku-20241022"
+        "claude-4-sonnet-20250200",           // Claude 4 - Più potente (2025)
+        "claude-3-7-sonnet-20250219",         // Claude 3.7 - Hybrid reasoning (Feb 2025)
+        "claude-3-5-sonnet-20241022",         // Claude 3.5 Sonnet - Aggiornato
+        "claude-3-5-haiku-20241022",          // Claude 3.5 Haiku - Veloce
+        "claude-3-opus-20240229"              // Claude 3 Opus - Fallback
     ]
     
     public init() {}
@@ -89,7 +90,7 @@ class AnthropicService {
     
     func sendMessage(messages: [AnthropicMessage], completion: @escaping (Result<String, Error>) -> Void) {
         // Usa le impostazioni specifiche per Chat AI
-        let selectedModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-sonnet-4-20250514"
+        let selectedModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-4-sonnet-20250200"
         let maxTokens = Int(UserDefaults.standard.double(forKey: "maxChatTokens"))
         let temperature = UserDefaults.standard.double(forKey: "temperature")
         
@@ -176,14 +177,16 @@ class AnthropicService {
     	
     func getModelInfo(model: String) -> AIModelInfo? {
         switch model {
-        case "claude-opus-4-20250514":
-            return AIModelInfo(name: "Claude Opus 4", description: "Il modello più potente per ragionamento complesso", contextTokens: 200000, supportsStreaming: true)
-        case "claude-sonnet-4-20250514":
-            return AIModelInfo(name: "Claude Sonnet 4", description: "Bilanciamento perfetto tra intelligenza e velocità", contextTokens: 200000, supportsStreaming: true)
+        case "claude-4-sonnet-20250200":
+            return AIModelInfo(name: "Claude 4 Sonnet", description: "Il modello più intelligente per sviluppo e coding", contextTokens: 200000, supportsStreaming: true)
         case "claude-3-7-sonnet-20250219":
-            return AIModelInfo(name: "Claude Sonnet 3.7", description: "Alte prestazioni con pensiero esteso", contextTokens: 200000, supportsStreaming: true)
+            return AIModelInfo(name: "Claude 3.7 Sonnet", description: "Hybrid reasoning con pensiero esteso", contextTokens: 200000, supportsStreaming: true)
+        case "claude-3-5-sonnet-20241022":
+            return AIModelInfo(name: "Claude 3.5 Sonnet", description: "Bilanciamento perfetto tra intelligenza e velocità", contextTokens: 200000, supportsStreaming: true)
         case "claude-3-5-haiku-20241022":
-            return AIModelInfo(name: "Claude Haiku 3.5", description: "Velocità quasi istantanea per compiti leggeri", contextTokens: 200000, supportsStreaming: true)
+            return AIModelInfo(name: "Claude 3.5 Haiku", description: "Velocità quasi istantanea per compiti leggeri", contextTokens: 200000, supportsStreaming: true)
+        case "claude-3-opus-20240229":
+            return AIModelInfo(name: "Claude 3 Opus", description: "Modello avanzato per ragionamento complesso", contextTokens: 200000, supportsStreaming: true)
         default:
             return AIModelInfo(name: model, description: "Modello generico", contextTokens: 200000, supportsStreaming: true)
         }
