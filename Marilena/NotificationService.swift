@@ -1,6 +1,8 @@
 import Foundation
 import UserNotifications
+#if canImport(UIKit)
 import UIKit
+#endif
 
 class NotificationService {
     static let shared = NotificationService()

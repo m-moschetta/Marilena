@@ -1,4 +1,6 @@
+#if canImport(UIKit)
 import UIKit
+#endif
 import SwiftUI
 
 /// Rich Text Editor per la composizione email con formattazione completa
@@ -30,10 +32,31 @@ struct RichTextEditor: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UITextView, context: Context) {
+        // Previene aggiornamenti durante l'editing per evitare interferenze
+        guard !uiView.isFirstResponder || uiView.text != text else {
+            if isFirstResponder && !uiView.isFirstResponder {
+                uiView.becomeFirstResponder()
+            } else if !isFirstResponder && uiView.isFirstResponder {
+                uiView.resignFirstResponder()
+            }
+            return
+        }
+        
         if uiView.text != text {
             let selectedRange = uiView.selectedRange
+            let wasFirstResponder = uiView.isFirstResponder
+            
             uiView.text = text
-            uiView.selectedRange = selectedRange
+            
+            // Ripristina la selezione solo se valida
+            if selectedRange.location <= text.count {
+                uiView.selectedRange = selectedRange
+            }
+            
+            // Ripristina lo stato di first responder se necessario
+            if wasFirstResponder && !uiView.isFirstResponder {
+                uiView.becomeFirstResponder()
+            }
         }
         
         updatePlaceholder(uiView)
@@ -201,34 +224,52 @@ struct RichTextEditor: UIViewRepresentable {
         }
         
         @objc func showFormattingMenu(_ sender: UIBarButtonItem) {
-            guard let textView = sender.target as? UITextView,
-                  let scene = textView.window?.windowScene,
-                  let rootViewController = scene.windows.first?.rootViewController else { return }
+            // Trova il textView attivo, che è il primo responder
+            guard let window = UIApplication.shared.windows.filter({$0.isKeyWindow}).first,
+                  let textView = findFirstResponder(in: window) as? UITextView else {
+                return
+            }
             
+            showFormattingAlert(with: window.rootViewController!, textView: textView, sender: sender)
+        }
+        
+        private func findFirstResponder(in view: UIView) -> UIView? {
+            if view.isFirstResponder {
+                return view
+            }
+            for subview in view.subviews {
+                if let firstResponder = findFirstResponder(in: subview) {
+                    return firstResponder
+                }
+            }
+            return nil
+        }
+        
+        private func showFormattingAlert(with rootViewController: UIViewController, textView: UITextView, sender: UIBarButtonItem) {
             let alert = UIAlertController(title: "✨ Formattazione", message: "Scegli un'opzione", preferredStyle: .actionSheet)
             
             alert.addAction(UIAlertAction(title: "🎨 Colore Testo", style: .default) { _ in
-                self.changeTextColor(sender)
+                self.showColorPicker(for: textView, sender: sender)
             })
             
             alert.addAction(UIAlertAction(title: "🔗 Inserisci Link", style: .default) { _ in
-                self.insertLink(sender)
+                self.showLinkInsertion(for: textView)
             })
             
             alert.addAction(UIAlertAction(title: "• Lista", style: .default) { _ in
-                self.createList(sender)
+                self.createListInTextView(textView)
             })
             
             alert.addAction(UIAlertAction(title: "← Allinea Sinistra", style: .default) { _ in
-                self.alignLeft(sender)
+                self.applyParagraphAlignment(.left, textView: textView)
             })
             
             alert.addAction(UIAlertAction(title: "↔ Allinea Centro", style: .default) { _ in
-                self.alignCenter(sender)
+                self.applyParagraphAlignment(.center, textView: textView)
             })
             
             alert.addAction(UIAlertAction(title: "→ Allinea Destra", style: .default) { _ in
-                self.alignRight(sender)
+                self.applyParagraphAlignment(.right, textView: textView)
             })
             
             alert.addAction(UIAlertAction(title: "❌ Annulla", style: .cancel))
@@ -243,6 +284,73 @@ struct RichTextEditor: UIViewRepresentable {
         @objc func dismissKeyboard(_ sender: UIBarButtonItem) {
             guard let textView = sender.target as? UITextView else { return }
             textView.resignFirstResponder()
+        }
+        
+        // MARK: - Helper Methods for Menu Actions
+        
+        private func showColorPicker(for textView: UITextView, sender: UIBarButtonItem) {
+            let colorPicker = UIColorPickerViewController()
+            colorPicker.supportsAlpha = false
+            colorPicker.delegate = self
+            colorPicker.modalPresentationStyle = .popover
+            colorPicker.popoverPresentationController?.barButtonItem = sender
+            
+            if let scene = textView.window?.windowScene,
+               let rootViewController = scene.windows.first?.rootViewController {
+                rootViewController.present(colorPicker, animated: true)
+            }
+        }
+        
+        private func showLinkInsertion(for textView: UITextView) {
+            guard let scene = textView.window?.windowScene,
+                  let rootViewController = scene.windows.first?.rootViewController else { return }
+            
+            let alert = UIAlertController(title: "Inserisci Link", message: "Inserisci l'URL del link", preferredStyle: .alert)
+            
+            alert.addTextField { textField in
+                textField.placeholder = "https://esempio.com"
+                textField.keyboardType = .URL
+            }
+            
+            let insertAction = UIAlertAction(title: "Inserisci", style: .default) { _ in
+                guard let urlText = alert.textFields?.first?.text,
+                      let url = URL(string: urlText) else { return }
+                
+                let selectedRange = textView.selectedRange
+                let linkText = urlText
+                let attributedString = NSMutableAttributedString(attributedString: textView.attributedText)
+                
+                if selectedRange.length > 0 {
+                    attributedString.addAttribute(.link, value: url, range: selectedRange)
+                } else {
+                    let linkAttributedString = NSAttributedString(
+                        string: linkText,
+                        attributes: [.link: url, .font: UIFont.systemFont(ofSize: 16)]
+                    )
+                    attributedString.insert(linkAttributedString, at: selectedRange.location)
+                }
+                
+                textView.attributedText = attributedString
+                self.parent.text = textView.text
+            }
+            
+            alert.addAction(insertAction)
+            alert.addAction(UIAlertAction(title: "Annulla", style: .cancel))
+            
+            rootViewController.present(alert, animated: true)
+        }
+        
+        private func createListInTextView(_ textView: UITextView) {
+            let selectedRange = textView.selectedRange
+            let text = textView.text ?? ""
+            let lineStart = (text as NSString).lineRange(for: selectedRange).location
+            
+            let newText = "• "
+            let attributedString = NSMutableAttributedString(attributedString: textView.attributedText)
+            attributedString.insert(NSAttributedString(string: newText), at: lineStart)
+            
+            textView.attributedText = attributedString
+            parent.text = textView.text
         }
     }
     
@@ -344,7 +452,8 @@ struct RichTextEditor: UIViewRepresentable {
             target: coordinator,
             action: #selector(Coordinator.showFormattingMenu)
         )
-        moreButton.target = textView
+        // Salva riferimento al textView per il menu
+        moreButton.accessibilityHint = "textView"
         
         let doneButton = UIBarButtonItem(
             barButtonSystemItem: .done,

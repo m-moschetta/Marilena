@@ -225,8 +225,8 @@ public struct EmailCategorizationStatsView: View {
                 
                 ForEach(monitor.currentStats.categoryDistribution.sorted(by: { $0.value > $1.value }), id: \.key) { category, count in
                     HStack {
-                        Label(category.displayName, systemImage: category.iconName)
-                            .foregroundColor(category.displayColor)
+                        Label(category.displayName, systemImage: category.icon)
+                            .foregroundColor(category.color)
                         
                         Spacer()
                         
@@ -386,34 +386,7 @@ struct PerformanceCard: View {
 }
 
 // MARK: - Email Category Extensions
-
-extension EmailCategory {
-    var iconName: String {
-        switch self {
-        case .work:
-            return "briefcase.fill"
-        case .personal:
-            return "person.fill"
-        case .notifications:
-            return "bell.fill"
-        case .promotional:
-            return "megaphone.fill"
-        }
-    }
-    
-    var displayColor: Color {
-        switch self {
-        case .work:
-            return .blue
-        case .personal:
-            return .green
-        case .notifications:
-            return .orange
-        case .promotional:
-            return .red
-        }
-    }
-}
+// Le proprietà icon, displayName, color sono già definite in SharedTypes.swift
 
 // MARK: - Configuration View
 

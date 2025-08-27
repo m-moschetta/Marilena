@@ -132,15 +132,27 @@ struct GmailBody: Codable {
 public enum EmailCategory: String, Codable, CaseIterable {
     case work = "work"
     case personal = "personal"
-    case notifications = "notifications"
     case promotional = "promotional"
+    case newsletter = "newsletter"
+    case social = "social"
+    case finance = "finance"
+    case travel = "travel"
+    case shopping = "shopping"
+    case notifications = "notifications"
+    case other = "other"
     
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .work: return "Lavoro"
         case .personal: return "Personale"
+        case .promotional: return "Promozionale"
+        case .newsletter: return "Newsletter"
+        case .social: return "Social"
+        case .finance: return "Finanza"
+        case .travel: return "Viaggio"
+        case .shopping: return "Shopping"
         case .notifications: return "Notifiche"
-        case .promotional: return "Promo/Spam"
+        case .other: return "Altro"
         }
     }
     
@@ -148,8 +160,14 @@ public enum EmailCategory: String, Codable, CaseIterable {
         switch self {
         case .work: return "briefcase.fill"
         case .personal: return "person.fill"
-        case .notifications: return "bell.fill"
         case .promotional: return "megaphone.fill"
+        case .newsletter: return "newspaper.fill"
+        case .social: return "person.3.fill"
+        case .finance: return "dollarsign.circle.fill"
+        case .travel: return "airplane.circle.fill"
+        case .shopping: return "cart.fill"
+        case .notifications: return "bell.fill"
+        case .other: return "folder.fill"
         }
     }
     
@@ -157,8 +175,14 @@ public enum EmailCategory: String, Codable, CaseIterable {
         switch self {
         case .work: return .blue
         case .personal: return .green
+        case .promotional: return .purple
+        case .newsletter: return .orange
+        case .social: return .pink
+        case .finance: return .mint
+        case .travel: return .cyan
+        case .shopping: return .yellow
         case .notifications: return .orange
-        case .promotional: return .red
+        case .other: return .gray
         }
     }
 } 

@@ -3,7 +3,7 @@ import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var selectedTab = 1 // Cambiato da 0 a 1 per avviare su registratore
+    @State private var selectedTab = 1 // 0=Chat, 1=Email, 2=Registratore, 3=Calendario, 4=Profilo
     
     var body: some View {
         GeometryReader { geometry in
@@ -96,10 +96,17 @@ struct iPadLayout: View {
                 )
                 
                 TabButton(
-                    title: "Profilo",
-                    icon: "person.fill",
+                    title: "Calendario",
+                    icon: "calendar.fill",
                     isSelected: selectedTab == 3,
                     action: { selectedTab = 3 }
+                )
+                
+                TabButton(
+                    title: "Profilo",
+                    icon: "person.fill",
+                    isSelected: selectedTab == 4,
+                    action: { selectedTab = 4 }
                 )
             }
             .background(Color(.systemBackground))
@@ -159,6 +166,8 @@ struct iPadLayout: View {
                 // Su iPad, mostra solo la lista senza il pulsante di registrazione
                 RecordingsListView(context: viewContext, recordingService: recordingService, hideRecordButton: true)
             case 3:
+                CalendarView()
+            case 4:
                 ProfiloWrapperView()
                     .padding(.top, 16) // Aggiunto spazio sopra il profilo
             default:
@@ -175,7 +184,7 @@ struct iPhoneLayout: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // Tab 1: Chat AI
-            NavigationView {
+            NavigationStack {
                 ChatsListView()
             }
             .tabItem {
@@ -185,7 +194,7 @@ struct iPhoneLayout: View {
             .tag(0)
             
             // Tab 2: Email
-            NavigationView {
+            NavigationStack {
                 EmailListView()
             }
             .tabItem {
@@ -195,7 +204,7 @@ struct iPhoneLayout: View {
             .tag(1)
             
             // Tab 3: Registratore
-            NavigationView {
+            NavigationStack {
                 RecorderMainView()
             }
             .tabItem {
@@ -204,15 +213,25 @@ struct iPhoneLayout: View {
             }
             .tag(2)
             
-            // Tab 4: Profilo
-            NavigationView {
+            // Tab 4: Calendario
+            NavigationStack {
+                CalendarView()
+            }
+            .tabItem {
+                Image(systemName: "calendar.fill")
+                Text("Calendario")
+            }
+            .tag(3)
+            
+            // Tab 5: Profilo
+            NavigationStack {
                 ProfiloWrapperView()
             }
             .tabItem {
                 Image(systemName: "person.fill")
                 Text("Profilo")
             }
-            .tag(3)
+            .tag(4)
         }
     }
 }

@@ -316,6 +316,17 @@ public enum EmailTone: String, Codable, CaseIterable {
         case .detailed: return "Dettagliato"
         }
     }
+    
+    public var description: String {
+        switch self {
+        case .professional: return "professionale e rispettoso"
+        case .friendly: return "amichevole e cordiale"
+        case .formal: return "formale e protocollare"
+        case .casual: return "informale e rilassato"
+        case .concise: return "conciso e diretto"
+        case .detailed: return "dettagliato e completo"
+        }
+    }
 }
 
 // MARK: - Service Registration Extensions

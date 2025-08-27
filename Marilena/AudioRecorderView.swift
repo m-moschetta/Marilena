@@ -1,7 +1,9 @@
 import SwiftUI
 import AVFoundation
 import CoreData
+#if canImport(UIKit)
 import UIKit
+#endif
 
 struct AudioRecorderView: View {
     @ObservedObject var recordingService: RecordingService
@@ -172,11 +174,10 @@ struct AudioRecorderView: View {
     
     // MARK: - Advanced Liquid Glass Record Button (iOS 26+)
     
-    @available(iOS 26.0, *)
     private var advancedLiquidGlassRecordButton: some View {
         ZStack {
             // Container principale con effetto Liquid Glass massima trasparenza
-            GlassEffectContainer {
+            LiquidGlassCompatibility.glassEffectContainer {
                 VStack(spacing: 0) {
                     // Area principale del pulsante
                     Button(action: {
@@ -187,7 +188,7 @@ struct AudioRecorderView: View {
                             Circle()
                                 .fill(.clear)
                                 .frame(width: 160, height: 160)
-                                .glassEffect(.regular.tint(.white.opacity(0.3)).interactive())
+                                .liquidGlassEffect(style: .regular, tint: .white.opacity(0.3), interactive: true)
                                 .overlay(
                                     // Contorno animato durante la registrazione
                                     Circle()
@@ -309,7 +310,7 @@ struct AudioRecorderView: View {
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(Color.black.opacity(0.4))
-                    .glassEffect(.regular.tint(.white.opacity(0.2)))
+                                                            .liquidGlassEffect(style: .regular, tint: .white.opacity(0.2))
             )
             .scaleEffect(1.0 + CGFloat(recordingService.currentAudioLevel) * 0.05)
             .animation(.easeInOut(duration: 0.1), value: recordingService.currentAudioLevel)

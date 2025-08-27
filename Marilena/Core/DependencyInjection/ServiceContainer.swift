@@ -124,6 +124,7 @@ public class ServiceContainer: ServiceContainerProtocol {
 // MARK: - Service Locator Pattern
 
 /// Service Locator per accesso semplificato ai servizi
+@MainActor
 public enum ServiceLocator {
     
     /// Risolve un servizio dal container principale
@@ -148,6 +149,7 @@ public struct Injected<T> {
         self.type = type
     }
     
+    @MainActor
     public var wrappedValue: T {
         return ServiceLocator.resolve(type)
     }

@@ -19,7 +19,7 @@ public struct AIConfiguration: Codable {
     public init(
         selectedProvider: AIModelProvider = .openai,
         openAIModel: String = "gpt-4.1",
-        anthropicModel: String = "claude-4-sonnet",
+        anthropicModel: String = "claude-sonnet-4-20250514",
         perplexityModel: String = "sonar-pro",
         groqModel: String = "llama-4-maverick",
         temperature: Double = 0.7,

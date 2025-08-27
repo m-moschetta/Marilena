@@ -1,7 +1,9 @@
 import Foundation
 import Combine
 import os.log
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // MARK: - AI Performance Monitor
 @MainActor

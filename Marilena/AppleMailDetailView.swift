@@ -1,6 +1,8 @@
 import SwiftUI
 import WebKit
+#if canImport(MessageUI)
 import MessageUI
+#endif
 import Combine
 
 // MARK: - Apple Mail Style Detail View

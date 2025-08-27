@@ -22,7 +22,7 @@ struct SettingsView: View {
     
     // Anthropic settings
     @State private var anthropicApiKey = ""
-    @State private var selectedAnthropicModel = "claude-3.5-sonnet"
+    @State private var selectedAnthropicModel = "claude-3-5-sonnet-20241022"
     
     // Provider selection
     @State private var selectedProvider = "openai"
@@ -61,11 +61,14 @@ struct SettingsView: View {
     ]
     
     let availableGroqModels = [
-        // DeepSeek R1 Distilled (Advanced Reasoning - BEST CHOICE)
-        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691, AIME 83.3%
+        // DeepSeek R1 Distill (Advanced Reasoning - BEST CHOICE)
         "deepseek-r1-distill-llama-70b",  // 260 T/s, 131K context, CodeForces 1633, MATH 94.5%
+        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691, AIME 83.3%  
+        "deepseek-r1-distill-qwen-14b",   // 500+ T/s, 64K context, AIME 69.7, MATH 93.9%
+        "deepseek-r1-distill-qwen-1.5b",  // 800+ T/s, 32K context, ultra-fast reasoning
         
-        // Qwen 2.5 (Fast and Capable)
+        // Qwen 2.5 (Fast General Purpose with Tool Use)
+        "qwen2.5-72b-instruct",           // Enhanced capabilities, better reasoning
         "qwen2.5-32b-instruct",           // 397 T/s, 128K context, tool calling + JSON mode
         
         // LLaMA 3.3/3.1 (Meta - Versatile and Reliable)
@@ -83,18 +86,18 @@ struct SettingsView: View {
     ]
     
     let availableAnthropicModels = [
-        // Claude 4 series (2025 - latest and most capable)
-        "claude-4-opus",               // Most capable, expensive, 200K context, $15/$75 per 1M tokens
-        "claude-4-sonnet",             // High performance, 200K context, $3/$15 per 1M tokens
+        // Claude 4 series (2025 - Latest and most capable - Maggio 2025)
+        "claude-opus-4-20250514",      // Most powerful model, $15/$75 per 1M tokens, 200K context ✅
+        "claude-sonnet-4-20250514",    // High performance for production, $3/$15 per 1M tokens, 200K context ✅
         
-        // Claude 3.7 series (Hybrid reasoning - Dec 2024)
-        "claude-3.7-sonnet",           // First hybrid reasoning model, enhanced thinking, $6/$22.5 per 1M tokens
+        // Claude 3.7 series (Hybrid reasoning - Febbraio 2025)
+        "claude-3-7-sonnet-20250219",  // First hybrid reasoning model, enhanced thinking, $6/$22.5 per 1M tokens ✅
         
-        // Claude 3.5 series (Proven workhorses)
-        "claude-3.5-sonnet",           // Best balance, 200K context, $3/$15 per 1M tokens
-        "claude-3.5-haiku",            // Fast and lightweight, 200K context, $0.25/$1.25 per 1M tokens
+        // Claude 3.5 series (Proven workhorses - Proven reliable)
+        "claude-3-5-sonnet-20241022",  // Best balance, 200K context, $3/$15 per 1M tokens ✅
+        "claude-3-5-haiku-20241022",   // Fast and lightweight, 200K context, $0.25/$1.25 per 1M tokens ✅
         
-        // Claude 3 series (Still available, lower cost)
+        // Claude 3 series (Legacy but still available)
         "claude-3-sonnet",             // Balanced performance, 200K context
         "claude-3-haiku",              // Fastest and cheapest, 200K context
         "claude-3-opus"                // Most capable legacy model, 200K context
@@ -335,6 +338,11 @@ struct SettingsView: View {
                     }
                     .foregroundColor(.blue)
                 }
+                
+                // Sezione Thinking/Reasoning
+                Section("Thinking & Reasoning") {
+                    ThinkingManager.shared.getSettingsView()
+                }
             }
             .navigationTitle("Impostazioni")
             .onAppear {
@@ -391,7 +399,7 @@ struct SettingsView: View {
         selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
-        selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3.5-sonnet"
+        selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
         temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
         maxTokens = UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000
         selectedTranscriptionMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
@@ -640,15 +648,15 @@ struct SettingsView: View {
     
     private func getAnthropicModelDisplayName(_ model: String) -> String {
         switch model {
-        case "claude-4-opus":
+        case "claude-opus-4-20250514":
             return "👑 Claude 4 Opus (Most Capable)"
-        case "claude-4-sonnet":
+        case "claude-sonnet-4-20250514":
             return "🎯 Claude 4 Sonnet (High Performance)"
-        case "claude-3.7-sonnet":
+        case "claude-3-7-sonnet-20250219":
             return "🧠 Claude 3.7 Sonnet (Hybrid Reasoning)"
-        case "claude-3.5-sonnet":
+        case "claude-3-5-sonnet-20241022":
             return "⚖️ Claude 3.5 Sonnet (Balanced)"
-        case "claude-3.5-haiku":
+        case "claude-3-5-haiku-20241022":
             return "⚡ Claude 3.5 Haiku (Fast)"
         case "claude-3-sonnet":
             return "🔧 Claude 3 Sonnet (Legacy)"

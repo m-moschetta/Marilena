@@ -82,6 +82,13 @@
 	<!-- Support for iOS 26 Speech Analyzer -->
 	<key>NSSpeechAnalyzerUsageDescription</key>
 	<string>Marilena utilizza il nuovo framework di analisi vocale di iOS 26 per fornire trascrizioni più accurate e analisi avanzate del parlato.</string>
+	<!-- Calendar Privacy Permissions -->
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Marilena ha bisogno di accesso completo al tuo calendario per visualizzare, creare e gestire i tuoi eventi. Questo permette all'assistente AI di organizzare automaticamente i tuoi appuntamenti.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Marilena ha bisogno di aggiungere eventi al tuo calendario per creare automaticamente appuntamenti basati sui tuoi input e trascrizioni.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Marilena ha bisogno di accedere al tuo calendario per mostrare e creare eventi. L'assistente AI può organizzare automaticamente i tuoi appuntamenti.</string>
 	<!-- Lock Screen Audio Controls -->
 	<key>UIApplicationExitsOnSuspend</key>
 	<false/>

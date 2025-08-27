@@ -434,7 +434,7 @@ public extension AIModelConfiguration {
         // MARK: - Anthropic Claude Models (2025)
         
         .init(
-            id: "claude-4-sonnet",
+            id: "claude-sonnet-4-20250514",
             name: "Claude 4 Sonnet",
             provider: .anthropic,
             version: "4.0",

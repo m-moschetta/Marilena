@@ -1,0 +1,259 @@
+Guida Completa all'Integrazione del Calendario per iOS in SwiftParte I: Concetti Fondamentali e Decisioni ArchitetturaliSezione 1: Scelta del Backend del Calendario: Una Decisione StrategicaL'integrazione di funzionalità di calendario in un'applicazione iOS non è una mera questione di implementazione tecnica; rappresenta una decisione architetturale fondamentale che influenzerà profondamente l'esperienza utente, il flusso di autenticazione e la scalabilità futura dell'app. Data la presenza di una funzionalità di posta elettronica esistente, la scelta del backend del calendario diventa il fattore più critico da considerare. L'analisi rivela una chiara dicotomia tra l'approccio di minima resistenza, che sfrutta l'integrazione nativa del sistema, e l'approccio orientato al controllo e alla ricchezza di funzionalità, che si basa su API dirette.Questa distinzione tra un client generico, che rispetta la configurazione esistente del dispositivo dell'utente, e un client specializzato, che offre un'integrazione profonda con un singolo ecosistema, è fondamentale. Un'app di uso generale trarrebbe maggiori benefici da un approccio unificato, mentre una funzionalità "assistente" avanzata potrebbe richiedere il controllo granulare offerto da un'integrazione diretta.1.1 Apple EventKit: L'Approccio Nativo e UnificatoIl framework EventKit di Apple funge da proxy per il database centrale del calendario sul dispositivo. Non è un servizio di calendario in sé, ma piuttosto un'API per accedere ai servizi che l'utente ha già configurato nel proprio sistema operativo, come iCloud, Google Calendar o Microsoft Exchange.1Vantaggi:Integrazione Trasparente: Non è richiesta alcuna procedura di login separata. L'app ottiene automaticamente accesso a tutti i calendari che l'utente ha configurato in Impostazioni > Calendario, offrendo un'esperienza utente fluida e immediata.Permessi Semplificati (iOS 17+): L'introduzione di livelli di accesso granulari, come l'accesso in sola scrittura (write-only) e la possibilità di utilizzare EKEventEditViewController senza una richiesta di autorizzazione preventiva, riduce significativamente l'attrito per l'utente durante la creazione di eventi.3 Questo rappresenta un vantaggio sostanziale per il caso d'uso "assistente".UI Unificata: Il framework EventKitUI fornisce interfacce standard e familiari, come EKEventViewController ed EKEventEditViewController, che gli utenti riconoscono e sanno già come utilizzare, garantendo coerenza con il resto del sistema operativo.3Svantaggi:Controllo Limitato: L'applicazione agisce come un "ospite" nel calendario dell'utente. Non può accedere a funzionalità specifiche del provider, come la generazione di un link per una conferenza Google Meet o l'integrazione con Microsoft Teams.Dipendenza dalla Configurazione del Dispositivo: Se l'utente non ha configurato alcun account di calendario sul proprio dispositivo, EventKit non ha dati a cui accedere e risulta inefficace.Limitazioni dei Predicati: Gli sviluppatori sono vincolati ai predicati (NSPredicate) forniti dall'API per la ricerca di eventi e non possono costruire query personalizzate complesse. Questo richiede spesso un filtraggio manuale dei risultati in Swift dopo il recupero iniziale dei dati.61.2 Google Calendar API: L'Approccio Diretto e PotenteL'API di Google Calendar è un'API RESTful che fornisce un accesso programmatico diretto ai dati del calendario di un utente, bypassando il database locale del dispositivo.7Vantaggi:Accesso Completo alle Funzionalità: Consente l'utilizzo di tutte le funzionalità specifiche di Google Calendar, come la creazione di videoconferenze con Google Meet, l'aggiunta di allegati specifici da Google Drive e la gestione di metadati avanzati degli eventi.8Indipendenza dalla Piattaforma: La logica di interazione con il calendario non è legata alla configurazione di un dispositivo Apple e può essere condivisa tra piattaforme iOS, Android e web, garantendo coerenza in un ecosistema multi-piattaforma.Svantaggi:Configurazione Complessa: Richiede una configurazione estesa nella Google Cloud Console, che include la creazione di un progetto, l'abilitazione dell'API di Google Calendar e la configurazione delle credenziali OAuth 2.0.9Autenticazione Google Obbligatoria: L'applicazione deve implementare il Google Sign-In SDK per iOS. Questo introduce un flusso di autenticazione separato che potrebbe risultare disorientante per l'utente se il resto dell'applicazione non utilizza già l'accesso con Google.9Dipendenza da Librerie Esterne: È necessario integrare e mantenere la libreria GoogleAPIClientForREST, aggiungendo una dipendenza esterna al progetto.91.3 Microsoft Graph API: L'Approccio Orientato all'ImpresaL'API Microsoft Graph è un endpoint RESTful unificato per tutti i servizi di Microsoft 365, incluso il calendario di Outlook.13Vantaggi:API Unificata: Offre un singolo punto di integrazione per posta, calendario, contatti, file e altro ancora. Questo è estremamente potente per applicazioni aziendali che necessitano di interagire con l'intero ecosistema Microsoft.Svantaggi:Assenza di un SDK Swift Ufficiale: Un punto critico è la mancanza di un SDK Swift dedicato e in versione stabile. Ciò significa che gli sviluppatori devono effettuare chiamate API REST dirette, gestendo manualmente la costruzione delle richieste, gli header di autenticazione e il parsing delle risposte JSON.13Complessità Elevata: Richiede la registrazione dell'applicazione nel portale Microsoft Entra ID e l'integrazione della Microsoft Authentication Library (MSAL) per Swift, rendendolo l'approccio più complesso tra i tre.16Caso d'Uso di Nicchia: È la scelta migliore quasi esclusivamente per applicazioni che si rivolgono a un pubblico aziendale profondamente integrato nell'ecosistema Microsoft 365.Tabella 1: Confronto tra Funzionalità e Complessità dei Backend di CalendarioBackendCaso d'Uso PrincipaleMetodo di AutenticazioneComponenti UIComplessità di SetupLimitazione ChiaveApple EventKitApp generiche che necessitano di accesso unificato ai calendari configurati sul dispositivo.Gestita dal sistema operativo (nessuna richiesta esplicita).EventKitUI (nativo).Bassa.Accesso limitato alle funzionalità specifiche del provider.Google Calendar APIApp che richiedono un'integrazione profonda con l'ecosistema Google.OAuth 2.0 tramite Google Sign-In SDK.Da costruire o tramite librerie di terze parti.Alta.Richiede un flusso di autenticazione Google separato.Microsoft Graph APIApp aziendali per utenti dell'ecosistema Microsoft 365.OAuth 2.0 tramite MSAL.Da costruire o tramite librerie di terze parti.Molto Alta.Nessun SDK Swift ufficiale; richiede chiamate REST dirette.Sezione 2: L'Interfaccia Utente: Sviluppare vs. AcquistareLa scelta dell'interfaccia utente per la visualizzazione dei dati del calendario è strettamente legata alla decisione sul backend. Ad esempio, l'utilizzo dell'API di Google Calendar preclude l'uso dei componenti EventKitUI di Apple.2.1 Utilizzo di EventKitUI Nativo di AppleEventKitUI è un framework costruito su EventKit che fornisce view controller pre-costruiti per visualizzare e modificare eventi, offrendo un'esperienza utente coerente e familiare.3Componenti Principali:EKEventViewController: Per visualizzare i dettagli di un evento esistente.3EKEventEditViewController: Per creare un nuovo evento o modificarne uno esistente.3EKCalendarChooser: Per permettere all'utente di scegliere in quale calendario salvare un evento.4Integrazione con SwiftUI: Poiché questi componenti sono sottoclassi di UIViewController, la loro integrazione in un'app SwiftUI moderna richiede l'uso di un wrapper UIViewControllerRepresentable.5Il Vantaggio "Senza Prompt" di iOS 17: Una delle innovazioni più significative introdotte con iOS 17 è che la presentazione di un EKEventEditViewController non richiede più una richiesta di autorizzazione preventiva per l'accesso al calendario.3 L'interfaccia utente viene eseguita in un processo separato e sicuro. La conferma dell'utente all'interno di questa interfaccia (toccando "Aggiungi") concede un'autorizzazione di scrittura una tantum. Questo approccio migliora drasticamente la privacy e riduce l'attrito per l'utente. Per la funzionalità "assistente", questo rappresenta il percorso ideale e a più bassa frizione: l'app può pre-compilare tutti i dettagli dell'evento, presentare la schermata di modifica e l'utente deve solo confermare l'aggiunta.2.2 Sfruttare Librerie Open-Source per SwiftUIQuando è necessaria un'interfaccia utente completamente personalizzata, la creazione di un calendario da zero può richiedere molto tempo.21 Le librerie open-source offrono una potente via di mezzo.Analisi delle Librerie:HorizonCalendar (Airbnb): È l'opzione più potente e collaudata. Si tratta di una libreria UIKit con un eccellente supporto per SwiftUI attraverso UIViewRepresentable.22 La sua API dichiarativa si allinea bene con i moderni paradigmi di sviluppo.23 Il suo utilizzo nelle sezioni ad alto traffico dell'app di Airbnb è una forte testimonianza della sua performance e affidabilità.23 Offre un livello di personalizzazione estremamente elevato.22MijickCalendarView: Una libreria puramente SwiftUI, focalizzata sulla facilità d'uso e sulla personalizzazione.21 È una scelta eccellente per progetti che sono al 100% in SwiftUI e necessitano di un'implementazione moderna e pulita.SimpleCalendar (Paul Peelen): Un'altra opzione puramente SwiftUI, progettata per la semplicità e l'integrazione rapida.27 È un buon punto di partenza se i requisiti dell'interfaccia utente sono basilari.Il panorama delle librerie disponibili rappresenta uno spettro che va dalla potenza industriale alla semplicità plug-and-play. HorizonCalendar è un componente robusto, adatto ad applicazioni complesse che richiedono la massima flessibilità.22MijickCalendarView e SimpleCalendar sono soluzioni più leggere e native per SwiftUI.21 La scelta dovrebbe basarsi sulle esigenze specifiche dell'interfaccia utente: se l'obiettivo è replicare l'aspetto e le interazioni dell'app Calendario nativa con alta fedeltà e personalizzazioni complesse, HorizonCalendar è la scelta superiore. Se è necessaria una vista calendario semplice e gradevole in tempi brevi, le altre due opzioni sono eccellenti.Tabella 2: Confronto tra Librerie di Calendario per SwiftUILibreriaArchitettura PrimariaFunzionalità ChiaveLivello di PersonalizzazioneIdeale PerHorizonCalendarUIKit con wrapper SwiftUILayout verticali/orizzontali, range infiniti, API dichiarativa, alta performance.Molto Alto.App complesse che richiedono controllo totale e performance elevate.MijickCalendarViewSwiftUI NativoFacile integrazione, personalizzazione tramite builder, supporto per range di date.Alto.Progetti puramente SwiftUI che necessitano di un'interfaccia personalizzabile.SimpleCalendarSwiftUI NativoIntegrazione con una sola riga di codice, gestione delle azioni di selezione.Medio.App che necessitano di una vista calendario funzionale in modo rapido e semplice.Parte II: Guida all'Implementazione: Apple EventKitSezione 3: Padroneggiare EventKit: Permessi e ConfigurazioneQuesta sezione fornisce una guida definitiva alla configurazione di EventKit, con un'attenzione particolare ai cambiamenti critici nel modello dei permessi introdotti in iOS 17. Una corretta gestione dei permessi è un requisito non negoziabile e una fonte comune di bug e rigetti dall'App Store.3.1 EKEventStore: Il Vostro Gateway ai Dati del CalendarioLa classe EKEventStore è l'hub centrale che media ogni accesso al database del calendario. Un'istanza di questa classe è richiesta per ogni operazione e dovrebbe essere creata una sola volta e riutilizzata per tutto il ciclo di vita dell'applicazione per motivi di performance.13.2 Il Modello Moderno dei Permessi (iOS 17+)La crescente attenzione di Apple per la privacy ha portato a un sistema di permessi più granulare, che rappresenta un cambiamento filosofico che gli sviluppatori devono adottare.4Accesso Completo (Full Access): L'invocazione di $eventStore.requestFullAccessToEvents() è necessaria per le app che devono leggere, scrivere ed eliminare qualsiasi evento nel calendario dell'utente. Questo è il livello più potente e invasivo. Richiede la chiave NSCalendarsFullAccessUsageDescription nel file Info.plist dell'app.4Accesso in Sola Scrittura (Write-Only Access): L'invocazione di $eventStore.requestWriteOnlyAccessToEvents() è pensata per le app che necessitano solo di aggiungere eventi, senza leggerli. È un'opzione meno intrusiva, perfetta per molte app di pianificazione. Richiede la chiave NSCalendarsWriteOnlyAccessUsageDescription in Info.plist.4Aggiunta Senza Prompt (Add-Only): Come discusso in precedenza, l'utilizzo di EKEventEditViewController non richiede una richiesta di permesso esplicita. Il sistema gestisce l'interazione in modo sicuro.3Verifica dello Stato: È fondamentale controllare lo stato di autorizzazione corrente prima di tentare qualsiasi operazione, utilizzando $EKEventStore.authorizationStatus(for:). Questo metodo restituisce valori come .fullAccess, .writeOnly, .denied, o .notDetermined.313.3 Compatibilità all'Indietro (Pre-iOS 17)Per supportare le versioni precedenti di iOS, è necessario implementare il meccanismo di autorizzazione legacy.Il Metodo Tradizionale: Si utilizza $eventStore.requestAccess(to:.event, completion:), che presenta all'utente un'unica richiesta "tutto o niente".4Requisito Info.plist: Questo metodo legacy richiede obbligatoriamente la chiave NSCalendarsUsageDescription. Un'app che tenta di accedere al calendario senza questa chiave andrà in crash all'avvio.4Compilazione Condizionale: È buona norma utilizzare la compilazione condizionale per chiamare le API appropriate in base alla versione del sistema operativo.Swiftimport EventKit
+
+class CalendarManager {
+    let eventStore = EKEventStore()
+
+    func requestAccess() async -> Bool {
+        do {
+            if #available(iOS 17.0, *) {
+                // Per iOS 17+, richiede l'accesso completo (o in sola scrittura)
+                let granted = try await eventStore.requestFullAccessToEvents()
+                return granted
+            } else {
+                // Fallback per versioni precedenti
+                let granted = try await eventStore.requestAccess(to:.event)
+                return granted
+            }
+        } catch {
+            print("Errore durante la richiesta di accesso al calendario: \(error)")
+            return false
+        }
+    }
+}
+303.4 Configurazione Corretta di Info.plistUna configurazione errata del file Info.plist è una delle cause più comuni di crash legati alla privacy. È essenziale fornire stringhe di descrizione chiare e concise che spieghino all'utente perché l'app necessita dell'accesso.32NSCalendarsFullAccessUsageDescription (iOS 17+): "Questa app ha bisogno di accesso completo al tuo calendario per mostrare e gestire tutti i tuoi appuntamenti."NSCalendarsWriteOnlyAccessUsageDescription (iOS 17+): "Questa app ha bisogno di aggiungere eventi al tuo calendario per programmare i tuoi appuntamenti."NSCalendarsUsageDescription (Legacy, richiesto per compatibilità): "Questa app ha bisogno di accedere al tuo calendario per mostrare e creare eventi." 4Un'applicazione ben progettata non dovrebbe richiedere l'accesso completo al primo avvio. Dovrebbe prima tentare di utilizzare il EKEventEditViewController senza prompt. Se la creazione programmatica è necessaria, dovrebbe richiedere l'accesso in sola scrittura. Solo se la funzionalità principale dell'app è la visualizzazione e la gestione dell'intero calendario dell'utente, dovrebbe essere richiesto l'accesso completo. Questa divulgazione progressiva costruisce la fiducia dell'utente e aumenta la probabilità che il permesso venga concesso.Sezione 4: Operazioni Fondamentali sul Calendario con EventKitQuesta sezione fornisce esempi di codice robusti e moderni in Swift per le operazioni CRUD (Create, Read, Update, Delete) fondamentali.4.1 Lettura e Recupero di EventiIl recupero degli eventi avviene tramite predicati. Il metodo principale è events(matching:) su EKEventStore, che è un'operazione sincrona e può bloccare il thread principale se eseguita su un grande intervallo di date. Pertanto, deve essere eseguita in un contesto asincrono.33Creazione del Predicato: Utilizzare $eventStore.predicateForEvents(withStart:end:calendars:) per creare la query di ricerca. Il parametro calendars può essere nil per cercare in tutti i calendari dell'utente o un array di oggetti EKCalendar per limitare la ricerca.20Esecuzione Asincrona: Per evitare di bloccare l'interfaccia utente, la chiamata sincrona può essere avvolta in un task asincrono.Swiftimport EventKit
+
+extension EKEventStore {
+    func fetchEvents(from startDate: Date, to endDate: Date) async throws -> [EKEvent] {
+        // La creazione del predicato è limitata ai metodi forniti da EventKit [6]
+        let predicate = self.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        
+        // events(matching:) è sincrono, quindi lo eseguiamo in un contesto che non blocca il thread principale.
+        return try await withCheckedThrowingContinuation { continuation in
+            // Eseguiamo su un background thread per non bloccare la UI
+            DispatchQueue.global(qos:.userInitiated).async {
+                let events = self.events(matching: predicate)
+                continuation.resume(returning: events)
+            }
+        }
+    }
+}
+344.2 Creazione di EventiEsistono due metodi principali per creare eventi, a seconda del livello di interazione utente desiderato.Metodo 1: Creazione Programmatica (Per l'"Assistente")Questo metodo è ideale per la funzionalità "assistente", dove l'evento viene creato direttamente dal codice.Swiftfunc createEvent(title: String, startDate: Date, durationInHours: Int) async throws -> String? {
+    // È necessario aver già ottenuto l'accesso in scrittura o completo
+    let event = EKEvent(eventStore: eventStore)
+    event.title = title
+    event.startDate = startDate
+
+    // Per i calcoli sulle date, usare Calendar e DateComponents per evitare problemi con l'ora legale [3]
+    var dateComponents = DateComponents()
+    dateComponents.hour = durationInHours
+    if let endDate = Calendar.current.date(byAdding: dateComponents, to: startDate) {
+        event.endDate = endDate
+    } else {
+        // Gestire l'errore se la data di fine non può essere calcolata
+        event.endDate = startDate.addingTimeInterval(TimeInterval(durationInHours * 3600))
+    }
+
+    // Assegna l'evento al calendario predefinito per i nuovi eventi
+    event.calendar = eventStore.defaultCalendarForNewEvents
+
+    // Salva l'evento
+    try eventStore.save(event, span:.thisEvent)
+    return event.eventIdentifier // Restituisce l'ID per riferimenti futuri
+}
+28Metodo 2: Creazione Guidata dall'UI (Per Conferma dell'Utente)Questo metodo utilizza EKEventEditViewController per presentare un'interfaccia standard all'utente, che può quindi rivedere e confermare l'evento.Swiftimport SwiftUI
+import EventKitUI
+
+struct EventEditView: UIViewControllerRepresentable {
+    @Environment(\.presentationMode) var presentationMode
+    let eventStore: EKEventStore
+
+    func makeUIViewController(context: Context) -> EKEventEditViewController {
+        let eventEditVC = EKEventEditViewController()
+        eventEditVC.eventStore = eventStore
+
+        // Pre-compila un nuovo evento
+        let newEvent = EKEvent(eventStore: eventStore)
+        newEvent.title = "Nuovo Meeting Proposto"
+        newEvent.startDate = Date()
+        newEvent.endDate = Date().addingTimeInterval(3600) // 1 ora dopo
+        eventEditVC.event = newEvent
+
+        eventEditVC.editViewDelegate = context.coordinator
+        return eventEditVC
+    }
+
+    func updateUIViewController(_ uiViewController: EKEventEditViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, EKEventEditViewDelegate {
+        var parent: EventEditView
+
+        init(_ parent: EventEditView) {
+            self.parent = parent
+        }
+
+        func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
+            // L'azione può essere.saved,.canceled, o.deleted
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+    }
+}
+34.3 Aggiornamento ed Eliminazione di EventiPer modificare o eliminare un evento, è necessario prima recuperarlo dall'event store, tipicamente tramite il suo identificatore univoco.Aggiornamento: Dopo aver recuperato l'oggetto EKEvent, se ne modificano le proprietà e si richiama $eventStore.save(_:span:commit:). Il parametro span è cruciale per gli eventi ricorrenti: .thisEvent modifica solo l'occorrenza corrente, mentre .futureEvents modifica questa e tutte le successive.35Eliminazione: Si richiama $eventStore.remove(_:span:commit:) sull'evento recuperato.354.4 Rimanere Sincronizzati: Osservare i CambiamentiPer mantenere l'interfaccia utente dell'app aggiornata con eventuali modifiche esterne (ad es. un evento aggiunto tramite l'app Calendario nativa), è essenziale osservare la notifica EKEventStoreChanged.SwiftNotificationCenter.default.addObserver(
+    self,
+    selector: #selector(calendarDidChange),
+    name:.EKEventStoreChanged,
+    object: eventStore
+)
+
+@objc func calendarDidChange() {
+    // Ricarica gli eventi e aggiorna la UI
+}
+36Parte III: Guida all'Implementazione: Servizi di Terze PartiSezione 5: Integrazione di Google Calendar via API5.1 Setup e ConfigurazioneL'integrazione richiede la configurazione di un progetto nella Google Cloud Console. I passaggi includono la creazione di un nuovo progetto, l'abilitazione della "Google Calendar API" dalla libreria delle API e la creazione di credenziali "ID client OAuth 2.0" per un'applicazione iOS. Durante questo processo, è necessario fornire il Bundle ID dell'app. Il risultato finale è un file GoogleService-Info.plist da aggiungere al progetto Xcode e un Client ID da utilizzare nel codice.95.2 Flusso di AutenticazioneL'autenticazione avviene tramite il Google Sign-In SDK. È necessario configurarlo con il Client ID ottenuto e richiedere gli scope appropriati per l'accesso al calendario.Swiftimport GoogleSignIn
+
+// In AppDelegate o SceneDelegate
+func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+    GIDSignIn.sharedInstance.restorePreviousSignIn { user, error in
+        // Gestire l'utente già loggato
+    }
+    return true
+}
+
+// Nel tuo ViewController o ViewModel
+func signInWithGoogle() {
+    guard let clientID = GIDSignIn.sharedInstance.configuration?.clientID else { return }
+    let configuration = GIDConfiguration(clientID: clientID)
+    
+    // Richiedi l'accesso in lettura e scrittura al calendario
+    let calendarScope = "https://www.googleapis.com/auth/calendar"
+    
+    GIDSignIn.sharedInstance.signIn(with: configuration, presenting: self) { user, error in
+        guard error == nil, let user = user else { return }
+        
+        user.addScopes(, presenting: self) { signInResult, error in
+            guard error == nil, let signInResult = signInResult else { return }
+            
+            // Ora l'utente ha concesso l'accesso al calendario.
+            // Puoi usare signInResult.user.authentication per ottenere i token.
+            self.calendarService.authorizer = signInResult.user.fetcherAuthorizer
+        }
+    }
+}
+95.3 Interazione con l'API tramite GoogleAPIClientForRESTLa libreria GoogleAPIClientForREST semplifica le chiamate all'API.Recupero Eventi: Si utilizza un'istanza di GTLRCalendarService per interrogare l'endpoint events.list. L'identificatore primary si riferisce al calendario principale dell'utente loggato.12Creazione Eventi: Si costruisce un oggetto GTLRCalendar_Event, si impostano le sue proprietà (come summary, start, end) e lo si invia all'endpoint events.insert.8Swiftimport GoogleAPIClientForREST_Calendar
+
+class GoogleCalendarService {
+    private let service = GTLRCalendarService()
+    
+    var authorizer: GTMFetcherAuthorizationProtocol? {
+        get { service.authorizer }
+        set { service.authorizer = newValue }
+    }
+    
+    func createGoogleEvent(summary: String, description: String, start: Date, end: Date) {
+        let event = GTLRCalendar_Event()
+        event.summary = summary
+        event.descriptionProperty = description
+        
+        let startTime = GTLRDateTime(date: start)
+        let endTime = GTLRDateTime(date: end)
+        
+        event.start = GTLRCalendar_EventDateTime()
+        event.start?.dateTime = startTime
+        
+        event.end = GTLRCalendar_EventDateTime()
+        event.end?.dateTime = endTime
+        
+        let query = GTLRCalendarQuery_EventsInsert.query(withObject: event, calendarId: "primary")
+        
+        service.executeQuery(query) { (ticket, result, error) in
+            if let error = error {
+                print("Errore nella creazione dell'evento Google: \(error)")
+            } else {
+                print("Evento Google creato con successo.")
+            }
+        }
+    }
+}
+Sezione 6: Integrazione del Calendario di Microsoft 365 via Graph API6.1 Setup e ConfigurazioneÈ necessario registrare un'applicazione nel portale Microsoft Entra admin center. Si deve specificare che si tratta di un'app mobile (iOS/macOS) e fornire il Bundle ID. Questo processo genera un "ID applicazione (client)" e un "ID directory (tenant)" necessari per la configurazione di MSAL.166.2 Flusso di AutenticazioneL'autenticazione è gestita dalla Microsoft Authentication Library (MSAL) per Swift. MSAL si occupa di presentare l'interfaccia di login, gestire il consenso dell'utente e ottenere un token di accesso valido per chiamare l'API Graph.166.3 Interazione con l'API tramite Chiamate REST DiretteLa sfida principale con Microsoft Graph è l'assenza di un SDK Swift ufficiale e stabile.13 Di conseguenza, tutte le interazioni devono essere implementate tramite chiamate REST dirette utilizzando URLRequest.Costruzione della Richiesta: È necessario creare un oggetto URLRequest, impostare l'header di autorizzazione con il token di accesso (Authorization: Bearer <token>) e specificare il metodo HTTP corretto (GET, POST, etc.).18Recupero Eventi: Si effettua una richiesta GET all'endpoint https://graph.microsoft.com/v1.0/me/calendar/events.13Creazione Eventi: Si effettua una richiesta POST allo stesso endpoint, includendo nel corpo della richiesta un oggetto JSON che rappresenta l'evento da creare.38Swiftimport Foundation
+
+struct O365Event: Codable {
+    let subject: String
+    let body: Body
+    let start: DateTimeZone
+    let end: DateTimeZone
+    
+    struct Body: Codable {
+        let contentType: String
+        let content: String
+    }
+    
+    struct DateTimeZone: Codable {
+        let dateTime: String
+        let timeZone: String
+    }
+}
+
+class MicrosoftGraphService {
+    let graphEndpoint = "https://graph.microsoft.com/v1.0/me/calendar/events"
+    
+    func createGraphEvent(accessToken: String, subject: String, content: String, start: Date, end: Date) async throws {
+        guard let url = URL(string: graphEndpoint) else {
+            throw URLError(.badURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let dateFormatter = ISO8601DateFormatter()
+        
+        let eventPayload = O365Event(
+            subject: subject,
+            body:.init(contentType: "HTML", content: content),
+            start:.init(dateTime: dateFormatter.string(from: start), timeZone: "UTC"),
+            end:.init(dateTime: dateFormatter.string(from: end), timeZone: "UTC")
+        )
+        
+        request.httpBody = try JSONEncoder().encode(eventPayload)
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            // Gestire l'errore di risposta
+            throw URLError(.badServerResponse)
+        }
+        
+        print("Evento Microsoft Graph creato con successo.")
+    }
+}
+Parte IV: Argomenti Avanzati e Best PracticeSezione 7: Costruire l'"Assistente": Creazione di Eventi da Linguaggio NaturaleQuesta sezione affronta la parte più innovativa della richiesta dell'utente, dimostrando come costruire una funzionalità intelligente per la creazione di eventi.7.1 I Limiti dell'NLP Nativo per le DateSebbene il framework NaturalLanguage di Apple sia potente per molte attività di NLP 39, il suo supporto per il parsing di date da linguaggio naturale è notoriamente limitato e il suo uso è fortemente sconsigliato in produzione, in quanto può portare a risultati inaspettati.40 Questo è un punto cruciale per evitare di intraprendere un percorso di sviluppo infruttuoso.7.2 Un'Alternativa Potente: SwiftyChronoSwiftyChrono è una libreria open-source robusta, specificamente progettata per il parsing di date da linguaggio naturale in Swift. È un porting di chrono.js e supporta una vasta gamma di formati colloquiali.41Swiftimport SwiftyChrono
+
+func parseEventDetails(from text: String) -> (title: String, date: Date)? {
+    let chrono = Chrono.preferredLanguage(.english) // o.italian se supportato e configurato
+    
+    guard let result = chrono.parse(text: text).first else {
+        return nil
+    }
+    
+    let date = result.start.date
+    // Semplice estrazione del titolo: tutto ciò che precede la data trovata
+    let title = text.prefix(result.index).trimmingCharacters(in:.whitespacesAndNewlines)
+    
+    if!title.isEmpty {
+        return (title, date)
+    }
+    
+    return nil
+}
+
+// Esempio di utilizzo:
+let userInput = "Pianifica una riunione di team per domani alle 15:00"
+if let eventDetails = parseEventDetails(from: userInput) {
+    print("Titolo: \(eventDetails.title)") // "Pianifica una riunione di team"
+    print("Data: \(eventDetails.date)")   // Data corrispondente a domani alle 15:00
+    // Ora si possono usare questi dettagli per creare un evento con EventKit o altre API
+}
+7.3 La Pipeline Completa da NLP a EventoIl flusso di lavoro completo prevede di prendere una stringa di testo dall'utente, utilizzare SwiftyChrono per estrarre una data e un'ora, applicare tecniche di base di NLP o di manipolazione di stringhe per estrarre un titolo probabile, e infine utilizzare i metodi di creazione programmatica degli eventi (descritti nella Sezione 4) per creare e salvare un oggetto EKEvent.Sezione 8: Pattern Architetturali e Raccomandazioni Finali8.1 Progettare un Livello di Servizio Flessibile per il CalendarioPer creare un'architettura robusta e manutenibile, è consigliabile astrarre le operazioni del calendario dietro un protocollo.Il Protocollo CalendarServicing: Questo protocollo definisce le operazioni comuni come fetchEvents, createEvent, etc., disaccoppiando la logica di business dell'app dal backend specifico del calendario.Implementazioni Concrete: Si possono creare classi come EventKitService, GoogleCalendarService, e MicrosoftGraphService, tutte conformi al protocollo CalendarServicing.Il Potere dell'Astrazione: Questo pattern architetturale rende l'app più testabile (utilizzando un MockCalendarService per gli unit test) e permette di supportare potenzialmente più backend in futuro con modifiche minime al codice.8.2 Gestione Completa degli ErroriÈ fondamentale implementare strategie di gestione degli errori per i casi comuni:Permessi Negati: Guidare l'utente verso le Impostazioni del dispositivo per abilitare l'accesso.Errori di Rete: Mostrare messaggi appropriati e implementare meccanismi di re-tentativo.Rate Limiting delle API: Gestire le risposte di errore 429 Too Many Requests con un backoff esponenziale.Dati Invalidi: Validare l'input dell'utente e i dati ricevuti dalle API.8.3 Raccomandazioni FinaliIn base all'analisi, si possono formulare le seguenti raccomandazioni specifiche per il caso d'uso descritto:Percorso 1 (Raccomandato per App Generiche): Utilizzare EventKit. È la soluzione più semplice, nativa e integrata. Per l'interfaccia utente, iniziare con EKEventEditViewController per sfruttare il suo vantaggio di non richiedere un prompt di autorizzazione. Per la funzionalità "assistente", combinare SwiftyChrono per il parsing del linguaggio naturale con la creazione programmatica di eventi tramite EKEvent. Questo percorso offre il miglior equilibrio tra funzionalità, esperienza utente e complessità di sviluppo.Percorso 2 (Per App Centrate su Google): Se la funzionalità di posta elettronica esistente è già profondamente legata a Google Sign-In, utilizzare l'API di Google Calendar. Questo fornirà un'esperienza utente più coerente all'interno dell'ecosistema Google e darà accesso a funzionalità specifiche come la creazione di link per Google Meet.Percorso 3 (Per App Aziendali): Considerare l'API Microsoft Graph solo se l'applicazione si rivolge specificamente a un pubblico aziendale che opera all'interno dell'ecosistema Microsoft 365. È necessario essere preparati alla complessità aggiuntiva di un approccio basato esclusivamente su chiamate REST, data l'assenza di un SDK Swift ufficiale.

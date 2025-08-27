@@ -1,5 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#endif
 import Combine
 
 /// Manager centralizzato per gestire l'accessibilità nell'app

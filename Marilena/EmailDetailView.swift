@@ -2,9 +2,13 @@ import SwiftUI
 import CoreData
 import Foundation
 import WebKit
+#if canImport(MessageUI)
 import MessageUI
+#endif
 import Combine
+#if canImport(PhotosUI)
 import PhotosUI
+#endif
 import UniformTypeIdentifiers
 
 // MARK: - Email Detail View
@@ -254,10 +258,10 @@ public struct EmailDetailView: View {
                             .padding(.horizontal)
                         }
                         
-                        // HTML Content - ora completamente libero di espandersi
-                        DynamicHTMLWebView(htmlContent: email.body)
+                        // HTML Content - Unified Email HTML Renderer
+                        EmailHTMLRenderer(email: email)
                             .onAppear {
-                                print("🔍 EmailDetailView: DynamicHTMLWebView caricato nello ScrollView")
+                                print("🔍 EmailDetailView: EmailHTMLRenderer caricato")
                             }
                     }
                     .padding(.vertical)
@@ -410,11 +414,10 @@ public struct EmailDetailView: View {
     
     private var emailContent: some View {
         Group {
-            if isHTMLContent(email.body) {
-                HTMLWebView(htmlContent: email.body)
-                    .background(Color(.systemBackground))
+            if EmailContentAnalyzer.isHTMLContent(email.body) {
+                EmailHTMLRenderer(email: email)
                     .onAppear {
-                        print("🔍 EmailDetailView: HTMLWebView apparso")
+                        print("🔍 EmailDetailView: EmailHTMLRenderer apparso")
                         debugEmailContent()
                     }
             } else {
@@ -995,6 +998,9 @@ struct ComposeEmailView: View {
                     ComposeFieldRow(label: "Oggetto:", isRequired: true, isValid: hasValidSubject || subject.isEmpty) {
                         TextField("Inserisci oggetto email", text: $subject)
                             .textFieldStyle(.plain)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .submitLabel(.done)
                     }
                     
                     Divider()
@@ -1042,56 +1048,24 @@ struct ComposeEmailView: View {
                     }
                 }
                 
-                // NUOVO: Pulsanti formattazione rapida + Allegati
+                // Menu allegati nella toolbar
                 ToolbarItem(placement: .principal) {
-                    HStack(spacing: 20) {
-                        // Formattazione rapida
-                        if richTextEditorFocused {
-                            HStack(spacing: 15) {
-                                Button {
-                                    // Bold action (sarà gestito dal RichTextEditor)
-                                } label: {
-                                    Image(systemName: "bold")
-                                        .font(.title3)
-                                        .foregroundStyle(.blue)
-                                }
-                                
-                                Button {
-                                    // Italic action
-                                } label: {
-                                    Image(systemName: "italic")
-                                        .font(.title3)
-                                        .foregroundStyle(.blue)
-                                }
-                                
-                                Button {
-                                    // Underline action
-                                } label: {
-                                    Image(systemName: "underline")
-                                        .font(.title3)
-                                        .foregroundStyle(.blue)
-                                }
-                            }
+                    Menu {
+                        Button {
+                            showingImagePicker = true
+                        } label: {
+                            Label("Foto o Video", systemImage: "photo")
                         }
                         
-                        // Menu allegati
-                        Menu {
-                            Button {
-                                showingImagePicker = true
-                            } label: {
-                                Label("Foto o Video", systemImage: "photo")
-                            }
-                            
-                            Button {
-                                showingAttachmentPicker = true
-                            } label: {
-                                Label("Scegli File", systemImage: "doc")
-                            }
+                        Button {
+                            showingAttachmentPicker = true
                         } label: {
-                            Image(systemName: "paperclip")
-                                .font(.title2)
-                                .foregroundStyle(.blue)
+                            Label("Scegli File", systemImage: "doc")
                         }
+                    } label: {
+                        Image(systemName: "paperclip")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
                     }
                 }
                 

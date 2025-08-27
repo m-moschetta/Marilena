@@ -1,6 +1,8 @@
 import SwiftUI
 import WebKit
+#if canImport(MessageUI)
 import MessageUI
+#endif
 import Combine
 
 // MARK: - Apple Mail Clone View
@@ -81,8 +83,17 @@ struct AppleMailCloneView: View {
                 }
             }
         }
-        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
         .background(Color(UIColor.systemBackground))
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    // Swipe da sinistra verso destra per tornare indietro
+                    if value.translation.width > 100 && abs(value.translation.height) < 50 {
+                        dismiss()
+                    }
+                }
+        )
         .onAppear {
             Task {
                 await emailService.markEmailAsRead(email.id)
@@ -431,22 +442,11 @@ struct AppleMailCloneContent: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if isHTMLContent(email.body) {
-                // HTML Content
-                AppleMailCloneWebView(
-                    htmlContent: email.body,
-                    webViewManager: webViewManager
-                )
-                .frame(
-                    minHeight: 200,
-                    idealHeight: webViewManager.contentHeight > 0 ? webViewManager.contentHeight : 300,
-                    maxHeight: webViewManager.contentHeight > 0 ? webViewManager.contentHeight : 2000
-                )
-                .animation(.easeInOut(duration: 0.3), value: webViewManager.contentHeight)
-                .clipped()
-                .onAppear {
-                    webViewManager.resetHeight()
-                }
+            if EmailContentAnalyzer.isHTMLContent(email.body) {
+                // HTML Content - Unified Renderer
+                EmailHTMLRenderer(email: email)
+                    .animation(.easeInOut(duration: 0.3), value: true)
+                    .clipped()
             } else {
                 // Plain Text Content
                 VStack(alignment: .leading, spacing: 16) {

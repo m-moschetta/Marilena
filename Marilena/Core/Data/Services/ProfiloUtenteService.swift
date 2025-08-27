@@ -1,6 +1,8 @@
 import Foundation
 import CoreData
+#if canImport(UIKit)
 import UIKit
+#endif
 
 class ProfiloUtenteService {
     static let shared = ProfiloUtenteService()

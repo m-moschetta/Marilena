@@ -14,10 +14,11 @@ struct EmailSettingsView: View {
     @State private var showingPromptEditor = false
     @State private var selectedPromptType: EmailPromptType = .draft
     @State private var customPrompt = ""
+    @State private var useModernViewer = true  // Default: nuovo viewer moderno
     
     let availableModels = [
         "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini",
-        "claude-3-5-sonnet-20241022", "claude-3-7-sonnet-20250219"
+        "claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"
     ]
     
     var body: some View {
@@ -97,6 +98,49 @@ struct EmailSettingsView: View {
                         }
                         Slider(value: $maxTokens, in: 100...4000, step: 100)
                     }
+                }
+                
+                // MARK: - Email Viewer Section
+                Section("Visualizzazione Email") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(.blue)
+                                .font(.title2)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Nuovo Viewer Moderno")
+                                    .font(.headline)
+                                Text("Design pulito ispirato alle newsletter moderne (Default)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Toggle("", isOn: $useModernViewer)
+                                .labelsHidden()
+                        }
+                        
+                        if useModernViewer {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    Text("Visualizzazione moderna attiva")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Text("• Design pulito e minimalista\n• Rendering HTML semplificato e affidabile\n• Ottimizzato per newsletter e email moderne")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.secondary)
+                                    .padding(.leading, 24)
+                            }
+                            .padding(.top, 8)
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
                 
                 // MARK: - Prompt Management Section
@@ -203,12 +247,21 @@ struct EmailSettingsView: View {
         if temperature == 0 { temperature = 0.7 }
         maxTokens = UserDefaults.standard.double(forKey: "email_ai_max_tokens")
         if maxTokens == 0 { maxTokens = 1000 }
+        // Controlla se l'utente ha mai impostato una preferenza
+        if UserDefaults.standard.object(forKey: "use_modern_email_viewer") != nil {
+            // L'utente ha già scelto, usa la sua preferenza
+            useModernViewer = UserDefaults.standard.bool(forKey: "use_modern_email_viewer")
+        } else {
+            // Prima volta: usa il nuovo viewer moderno come default
+            useModernViewer = true
+        }
     }
     
     private func saveSettings() {
         UserDefaults.standard.set(selectedAIModel, forKey: "email_ai_model")
         UserDefaults.standard.set(temperature, forKey: "email_ai_temperature")
         UserDefaults.standard.set(maxTokens, forKey: "email_ai_max_tokens")
+        UserDefaults.standard.set(useModernViewer, forKey: "use_modern_email_viewer")
         
         // Salva il prompt personalizzato se modificato
         if !customPrompt.isEmpty {
@@ -216,12 +269,21 @@ struct EmailSettingsView: View {
         }
         
         UserDefaults.standard.synchronize()
+        
+        // Notifica il cambiamento per aggiornare l'EmailListView
+        NotificationCenter.default.post(name: .modernViewerSettingChanged, object: nil)
+        
         dismiss()
     }
     
     private func getCurrentPrompt(for type: EmailPromptType) -> String {
         return UserDefaults.standard.string(forKey: "email_prompt_\(type.rawValue)") ?? type.defaultPrompt
     }
+}
+
+// MARK: - Notification Names Extension
+extension Notification.Name {
+    static let modernViewerSettingChanged = Notification.Name("modernViewerSettingChanged")
 }
 
 // MARK: - Email Prompt Types

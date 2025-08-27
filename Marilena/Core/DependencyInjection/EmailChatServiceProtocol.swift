@@ -144,6 +144,7 @@ public extension ServiceContainer {
 public struct EmailChatServiceMigration {
     
     /// Verifica che il servizio esistente implementi il protocollo correttamente
+    @MainActor
     public static func validateService(_ service: any EmailChatServiceProtocol) -> Bool {
         // Verifica che tutti i metodi critici siano implementati
         // Questo sarà utile durante la migrazione
@@ -161,6 +162,7 @@ public struct EmailChatServiceMigration {
     }
     
     /// Migra servizio esistente al nuovo container
+    @MainActor
     public static func migrateToContainer(_ service: any EmailChatServiceProtocol) {
         ServiceContainer.shared.registerEmailChatService(service)
         print("🔄 EmailChatServiceMigration: Service migrated to container")

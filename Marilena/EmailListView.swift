@@ -18,6 +18,7 @@ public struct EmailListView: View {
     @State private var selectedCategory: EmailCategory? = nil // Filtro AI attivo
 
     @State private var useAppleMailStyle = true
+    @State private var useModernViewer = true  // Default: nuovo viewer moderno
     @State private var showingEmailSettings = false
     
     // iOS 26 States
@@ -27,8 +28,14 @@ public struct EmailListView: View {
     // MARK: - Helper Functions
     private func destinationView(for email: EmailMessage) -> some View {
         Group {
-            if useAppleMailStyle {
-                AppleMailCloneView(
+            if useModernViewer {
+                ModernEmailViewer(
+                    email: email,
+                    emailService: emailService,
+                    aiService: aiService
+                )
+            } else if useAppleMailStyle {
+                NativeAppleMailView(
                     email: email,
                     emailService: emailService,
                     aiService: aiService
@@ -289,10 +296,14 @@ public struct EmailListView: View {
             Text(emailService.error ?? "")
         }
         .onAppear {
+            loadViewerSettings()
             // Ripristina l'autenticazione all'avvio
             Task {
                 await emailService.restoreAuthentication()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .modernViewerSettingChanged)) { _ in
+            loadViewerSettings()
         }
     }
     
@@ -672,6 +683,20 @@ public struct EmailListView: View {
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.regularMaterial)
+    }
+    
+    // MARK: - Settings Management
+    
+    private func loadViewerSettings() {
+        // Controlla se l'utente ha mai impostato una preferenza
+        if UserDefaults.standard.object(forKey: "use_modern_email_viewer") != nil {
+            // L'utente ha già scelto, usa la sua preferenza
+            useModernViewer = UserDefaults.standard.bool(forKey: "use_modern_email_viewer")
+        } else {
+            // Prima volta: usa il nuovo viewer moderno come default
+            useModernViewer = true
+            UserDefaults.standard.set(true, forKey: "use_modern_email_viewer")
+        }
     }
 }
 

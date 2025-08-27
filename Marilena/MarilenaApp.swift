@@ -4,7 +4,6 @@ import Speech
 import AppIntents
 import GoogleSignIn
 
-#if os(iOS)
 @main
 struct MarilenaApp: App {
     let persistenceController = PersistenceController.shared
@@ -177,4 +176,3 @@ struct MarilenaApp: App {
         print("✅ Google Sign-In configurato con successo")
     }
 }
-#endif

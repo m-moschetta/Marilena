@@ -60,7 +60,7 @@ public class EmailRepository: EmailRepositoryProtocol {
     public func findAll() async -> [EmailMessage] {
         print("📧 EmailRepository: Finding all emails")
         
-        let allEmails = emailService.emails.sorted { $0.date > $1.date }
+        let allEmails: [EmailMessage] = emailService.emails.sorted { $0.date > $1.date }
         print("📧 EmailRepository: Found \(allEmails.count) emails")
         return allEmails
     }
@@ -105,9 +105,10 @@ public class EmailRepository: EmailRepositoryProtocol {
     public func findBySender(_ sender: String) async -> [EmailMessage] {
         print("📧 EmailRepository: Finding emails by sender: \(sender)")
         
-        let results = emailService.emails.filter { 
+        let filteredEmails: [EmailMessage] = emailService.emails.filter { 
             $0.from.lowercased().contains(sender.lowercased()) 
-        }.sorted { $0.date > $1.date }
+        }
+        let results: [EmailMessage] = filteredEmails.sorted { $0.date > $1.date }
         
         print("📧 EmailRepository: Found \(results.count) emails from sender")
         return results
@@ -116,9 +117,10 @@ public class EmailRepository: EmailRepositoryProtocol {
     public func findByCategory(_ category: EmailCategory) async -> [EmailMessage] {
         print("📧 EmailRepository: Finding emails by category: \(category.displayName)")
         
-        let results = emailService.emails.filter { 
+        let filteredEmails: [EmailMessage] = emailService.emails.filter { 
             $0.category == category 
-        }.sorted { $0.date > $1.date }
+        }
+        let results: [EmailMessage] = filteredEmails.sorted { $0.date > $1.date }
         
         print("📧 EmailRepository: Found \(results.count) emails in category")
         return results
@@ -127,9 +129,10 @@ public class EmailRepository: EmailRepositoryProtocol {
     public func findByDateRange(from: Date, to: Date) async -> [EmailMessage] {
         print("📧 EmailRepository: Finding emails in date range: \(from) to \(to)")
         
-        let results = emailService.emails.filter { 
+        let filteredEmails: [EmailMessage] = emailService.emails.filter { 
             $0.date >= from && $0.date <= to 
-        }.sorted { $0.date > $1.date }
+        }
+        let results: [EmailMessage] = filteredEmails.sorted { $0.date > $1.date }
         
         print("📧 EmailRepository: Found \(results.count) emails in date range")
         return results
@@ -139,11 +142,12 @@ public class EmailRepository: EmailRepositoryProtocol {
         print("📧 EmailRepository: Searching emails with query: \(query)")
         
         let queryLower = query.lowercased()
-        let results = emailService.emails.filter { email in
+        let filteredEmails: [EmailMessage] = emailService.emails.filter { email in
             email.subject.lowercased().contains(queryLower) ||
             email.body.lowercased().contains(queryLower) ||
             email.from.lowercased().contains(queryLower)
-        }.sorted { $0.date > $1.date }
+        }
+        let results: [EmailMessage] = filteredEmails.sorted { $0.date > $1.date }
         
         print("📧 EmailRepository: Found \(results.count) emails matching search")
         return results
@@ -163,7 +167,8 @@ public class EmailRepository: EmailRepositoryProtocol {
     public func findUnread() async -> [EmailMessage] {
         print("📧 EmailRepository: Finding unread emails")
         
-        let results = emailService.emails.filter { !$0.isRead }.sorted { $0.date > $1.date }
+        let filteredEmails: [EmailMessage] = emailService.emails.filter { !$0.isRead }
+        let results: [EmailMessage] = filteredEmails.sorted { $0.date > $1.date }
         print("📧 EmailRepository: Found \(results.count) unread emails")
         return results
     }
@@ -173,10 +178,11 @@ public class EmailRepository: EmailRepositoryProtocol {
         print("📧 EmailRepository: Finding high priority emails")
         
         // Note: EmailMessage non ha priority, usiamo criteri alternativi
-        let results = emailService.emails.filter { email in
+        let filteredEmails: [EmailMessage] = emailService.emails.filter { email in
             // Considera priorità alta: email non lette o con categoria work
             !email.isRead || email.category == .work
-        }.sorted { $0.date > $1.date }
+        }
+        let results: [EmailMessage] = filteredEmails.sorted { $0.date > $1.date }
         
         print("📧 EmailRepository: Found \(results.count) high priority emails")
         return results

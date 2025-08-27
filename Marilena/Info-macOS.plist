@@ -2,64 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
+    <string>Mario.Marilena.macOS</string>
     <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>Marilena</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
-
-    <!-- Privacy Usage Descriptions (macOS) -->
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Marilena ha bisogno dell'accesso al microfono per registrare audio e creare trascrizioni.</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Marilena utilizza il riconoscimento vocale per trascrivere le tue registrazioni audio in testo.</string>
-    <key>NSCalendarsUsageDescription</key>
-    <string>Marilena ha bisogno di accedere al tuo calendario per mostrare e creare eventi.</string>
-    <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>Marilena ha bisogno di accesso completo al tuo calendario per gestire gli eventi.</string>
-    <key>NSCalendarsWriteOnlyAccessUsageDescription</key>
-    <string>Marilena ha bisogno di aggiungere eventi al tuo calendario.</string>
-
-    <!-- URL Schemes (OAuth/Widget-like deep links se usati su macOS) -->
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>com.marilena.email.oauth</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>com.marilena.email</string>
-            </array>
-        </dict>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>com.googleusercontent.apps</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>com.googleusercontent.apps.123456789-abcdefghijklmnopqrstuvwxyz</string>
-            </array>
-        </dict>
-    </array>
-
-    <!-- ATS -->
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
-        <true/>
+        <false/>
     </dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Marilena richiede l’accesso al microfono per registrare audio.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Marilena richiede l’accesso al calendario per creare e gestire eventi.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Marilena può usare la fotocamera per allegare immagini.</string>
 </dict>
 </plist>
 

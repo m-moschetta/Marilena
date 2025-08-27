@@ -25,7 +25,7 @@ public struct ModularChatView: View {
     @State private var selectedPerplexityModel = "sonar-pro"
     @State private var selectedProvider = "openai"
     @State private var selectedGroqModel = "deepseek-r1-distill-qwen-32b"
-    @State private var selectedAnthropicModel = "claude-3.5-sonnet"
+    @State private var selectedAnthropicModel = "claude-3-5-sonnet-20241022"
     
     private let openAIService = OpenAIService.shared
     private let profiloService = ProfiloUtenteService.shared
@@ -57,10 +57,13 @@ public struct ModularChatView: View {
         "gpt-3.5-turbo"              // Cost-effective option
     ]
     
-    // Modelli Groq disponibili (aggiornati secondo documentazione ufficiale 2025)
+    // Modelli Groq disponibili (2025 - Aggiornati da documentazione ufficiale)
     private let availableGroqModels = [
-        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691, AIME 83.3%
         "deepseek-r1-distill-llama-70b",  // 260 T/s, 131K context, CodeForces 1633, MATH 94.5%
+        "deepseek-r1-distill-qwen-32b",   // 388 T/s, 128K context, CodeForces 1691, AIME 83.3%  
+        "deepseek-r1-distill-qwen-14b",   // 500+ T/s, 64K context, AIME 69.7, MATH 93.9%
+        "deepseek-r1-distill-qwen-1.5b",  // 800+ T/s, 32K context, ultra-fast reasoning
+        "qwen2.5-72b-instruct",           // Enhanced capabilities, better reasoning
         "qwen2.5-32b-instruct",           // 397 T/s, 128K context, tool calling + JSON mode
         "llama-3.3-70b-versatile",        // General purpose, balanced performance
         "llama-3.1-405b-reasoning",       // Largest model, best for complex tasks
@@ -73,14 +76,12 @@ public struct ModularChatView: View {
     
     // Modelli Anthropic disponibili
     private let availableAnthropicModels = [
-        "claude-4-opus",               // Most capable, expensive, 200K context
-        "claude-4-sonnet",             // High performance, 200K context
-        "claude-3.7-sonnet",           // First hybrid reasoning model, enhanced thinking
-        "claude-3.5-sonnet",           // Best balance, 200K context
-        "claude-3.5-haiku",            // Fast and lightweight, 200K context
-        "claude-3-sonnet",             // Balanced performance, 200K context
-        "claude-3-haiku",              // Fastest and cheapest, 200K context
-        "claude-3-opus"                // Most capable legacy model, 200K context
+        "claude-opus-4-20250514",      // Most capable, expensive, 200K context ✅ NOME API REALE
+        "claude-sonnet-4-20250514",    // High performance, 200K context ✅ NOME API REALE
+        "claude-3-7-sonnet-20250219",  // First hybrid reasoning model, enhanced thinking ✅ NOME API REALE
+        "claude-3-5-sonnet-20241022",  // Best balance, 200K context ✅ NOME API REALE
+        "claude-3-5-haiku-20241022",   // Fast and lightweight, 200K context ✅ NOME API REALE
+        "claude-3-opus-20240229"       // Most capable legacy model, 200K context ✅ NOME API REALE
     ]
     
     // MARK: - Configuration
@@ -656,7 +657,7 @@ public struct ModularChatView: View {
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
         selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
-        selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3.5-sonnet"
+        selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
     }
     
     // Modelli dinamici basati sul provider selezionato
@@ -708,17 +709,17 @@ public struct ModularChatView: View {
     
     func getAnthropicModelDisplayName(_ model: String) -> String {
         switch model {
-        case "claude-4-opus":
+        case "claude-opus-4-20250514":
             return "💎 Claude 4 Opus (Most Capable)"
-        case "claude-4-sonnet":
+        case "claude-sonnet-4-20250514":
             return "🎯 Claude 4 Sonnet (High Performance)"
-        case "claude-3.7-sonnet":
+        case "claude-3-7-sonnet-20250219":
             return "🧠 Claude 3.7 Sonnet (Hybrid Reasoning)"
-        case "claude-3.5-sonnet":
+        case "claude-3-5-sonnet-20241022":
             return "⚖️ Claude 3.5 Sonnet (Balanced)"
-        case "claude-3.5-haiku":
+        case "claude-3-5-haiku-20241022":
             return "⚡ Claude 3.5 Haiku (Fast)"
-        case "claude-3-opus":
+        case "claude-3-opus-20240229":
             return "💎 Claude 3 Opus (Legacy Premium)"
         case "claude-3-sonnet":
             return "🎯 Claude 3 Sonnet (Legacy Balanced)"
@@ -1105,28 +1106,33 @@ struct ModularMessageRow: View {
                                 )
                             }
                             
-                            Text(messaggio.contenuto ?? "")
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(
-                                            isEmailResponseDraft ? Color.blue.opacity(0.05) :
-                                            isEmailConfirmation ? Color.green.opacity(0.05) :
-                                            Color(.systemGray6)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 20)
-                                                .stroke(
-                                                    isEmailResponseDraft ? Color.blue.opacity(0.3) :
-                                                    isEmailConfirmation ? Color.green.opacity(0.3) :
-                                                    Color.clear,
-                                                    lineWidth: 1
-                                                )
-                                        )
-                                        .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
-                                )
-                                .foregroundColor(.primary)
+                            VStack(alignment: .leading, spacing: 8) {
+                                // TODO: Add thinking support when MessaggioMarilena model is updated with metadata field
+                                
+                                
+                                Text(messaggio.contenuto ?? "")
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .fill(
+                                                isEmailResponseDraft ? Color.blue.opacity(0.05) :
+                                                isEmailConfirmation ? Color.green.opacity(0.05) :
+                                                Color(.systemGray6)
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 20)
+                                                    .stroke(
+                                                        isEmailResponseDraft ? Color.blue.opacity(0.3) :
+                                                        isEmailConfirmation ? Color.green.opacity(0.3) :
+                                                        Color.clear,
+                                                        lineWidth: 1
+                                                    )
+                                            )
+                                            .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+                                    )
+                                    .foregroundColor(.primary)
+                            }
                                 .textSelection(.enabled)
                                 // NUOVO: Haptic Touch per email drafts
                                 .onLongPressGesture(minimumDuration: 0.5) {
@@ -1575,7 +1581,7 @@ struct GlassBackground: View {
             if #available(iOS 26.0, *) {
                 // Vero Liquid Glass iOS 26 con API ufficiali
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .glassEffect(variant == .regular ? .regular.tint(.white.opacity(opacity)) : .clear)
+                                                    .liquidGlassEffect(style: variant == .regular ? .regular : .subtle, tint: .white.opacity(opacity))
             } else {
                 // Fallback per iOS < 26
                 legacyGlassBackground

@@ -237,6 +237,22 @@ public class EmailAIService: ObservableObject {
             .replacingOccurrences(of: "{BOZZA_RIFERIMENTO}", with: draftContent)
     }
     
+    /// Genera una risposta AI da un prompt personalizzato
+    public func generateResponse(prompt: String) async throws -> String {
+        isGenerating = true
+        error = nil
+        
+        do {
+            let response = try await sendToAI(prompt: prompt)
+            isGenerating = false
+            return response
+        } catch {
+            self.error = error.localizedDescription
+            isGenerating = false
+            throw error
+        }
+    }
+    
     private func sendToAI(prompt: String) async throws -> String {
         // Usa il provider AI configurato
         let provider = AIProviderManager.shared.getBestChatProvider()
@@ -256,7 +272,7 @@ public class EmailAIService: ObservableObject {
             case .anthropic:
                 let content = AnthropicContent(type: "text", text: prompt)
                 let message = AnthropicMessage(role: "user", content: [content])
-                anthropicService.sendMessage(messages: [message], model: "claude-3-5-sonnet-20240620", maxTokens: maxTokens, temperature: temperature) { result in
+                anthropicService.sendMessage(messages: [message], model: "claude-sonnet-4-20250514", maxTokens: maxTokens, temperature: temperature) { result in
                     switch result {
                     case .success(let response):
                         continuation.resume(returning: response)
