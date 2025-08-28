@@ -82,8 +82,8 @@ public class ChatRepository: ChatRepositoryProtocol {
     
     public func delete(_ entity: ChatMarilena) async throws {
         print("💬 ChatRepository: Deleting chat: \(entity.id?.uuidString ?? "unknown")")
-        
-        let chatId = entity.id
+
+        _ = entity.id
         context.delete(entity)
         
         do {

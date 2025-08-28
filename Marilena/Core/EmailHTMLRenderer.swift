@@ -128,7 +128,7 @@ struct EmailHTMLWebView: UIViewRepresentable {
         webView.scrollView.backgroundColor = UIColor.systemBackground
         
         // Set minimum frame to prevent zero-size issues
-        webView.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 300)
+        webView.frame = CGRect(x: 0, y: 0, width: 320, height: 300) // Use fixed width instead of deprecated UIScreen.main
         
         print("📧 EmailHTMLWebView: WebView created successfully")
         return webView

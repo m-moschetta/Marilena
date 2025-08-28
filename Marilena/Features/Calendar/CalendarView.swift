@@ -258,7 +258,8 @@ struct CalendarView: View {
         for provider in providers {
             if provider.canLoadObject(ofClass: NSString.self) {
                 _ = provider.loadObject(ofClass: NSString.self) { object, _ in
-                    guard let keyString = object as String? else { return }
+                    guard let nsString = object as? NSString else { return }
+                    let keyString = nsString as String
                     DispatchQueue.main.async {
                         if let event = calendarManager.eventForKey(keyString) {
                             let isCompleted = calendarManager.isCompleted(event)

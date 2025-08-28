@@ -39,7 +39,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				macOS/MarilenaMacApp.swift,
 			);
 			target = ED82CABD2E2A4B5200BB5506 /* Marilena */;
 		};
@@ -109,7 +108,6 @@
 				ED82CABE2E2A4B5200BB5506 /* Marilena.app */,
 				ED82CAD22E2A4B5300BB5506 /* MarilenaTests.xctest */,
 				ED82CADC2E2A4B5300BB5506 /* MarilenaUITests.xctest */,
-				EDMACPROD0001 /* Marilena-macOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";

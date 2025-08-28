@@ -39,7 +39,7 @@ struct CreateEventView: View {
                 // Date and Time Section
                 Section(header: Text("Data e Ora")) {
                     Toggle("Tutto il giorno", isOn: $isAllDay)
-                        .onChange(of: isAllDay) { newValue in
+                        .onChange(of: isAllDay) { oldValue, newValue in
                             if newValue {
                                 // Per eventi tutto il giorno, imposta orari di default
                                 let calendar = Calendar.current
@@ -49,7 +49,7 @@ struct CreateEventView: View {
                         }
                     
                     DatePicker("Inizio", selection: $startDate, displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
-                        .onChange(of: startDate) { newValue in
+                        .onChange(of: startDate) { oldValue, newValue in
                             // Assicurati che la data di fine sia sempre dopo l'inizio
                             if endDate <= newValue {
                                 endDate = newValue.addingTimeInterval(isAllDay ? 86400 : 3600) // 1 day or 1 hour
@@ -57,7 +57,7 @@ struct CreateEventView: View {
                         }
                     
                     DatePicker("Fine", selection: $endDate, displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute])
-                        .onChange(of: endDate) { newValue in
+                        .onChange(of: endDate) { oldValue, newValue in
                             // Assicurati che la data di fine sia sempre dopo l'inizio
                             if newValue <= startDate {
                                 startDate = newValue.addingTimeInterval(isAllDay ? -86400 : -3600) // 1 day or 1 hour before
