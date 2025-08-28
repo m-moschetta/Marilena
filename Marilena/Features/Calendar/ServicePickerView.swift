@@ -44,6 +44,9 @@ struct ServicePickerView: View {
                 }
                 .padding(.horizontal)
                 
+                // Preferences
+                PreferencesSection()
+                    .padding(.horizontal)
                 Spacer()
                 
                 // Action Buttons
@@ -225,4 +228,35 @@ struct SecondaryButtonStyle: ButtonStyle {
 
 #Preview {
     ServicePickerView(calendarManager: CalendarManager())
+}
+
+// MARK: - Preferences Section
+
+private struct PreferencesSection: View {
+    @State private var defaultDuration: Int = CalendarPreferences.defaultDurationMinutes
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Preferenze")
+                .font(.headline)
+            HStack {
+                Text("Durata predefinita nuovo evento")
+                Spacer()
+                Picker("Durata", selection: $defaultDuration) {
+                    Text("15m").tag(15)
+                    Text("30m").tag(30)
+                    Text("60m").tag(60)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 200)
+            }
+            .onChange(of: defaultDuration) { _, newValue in
+                CalendarPreferences.defaultDurationMinutes = newValue
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6))
+        )
+    }
 }

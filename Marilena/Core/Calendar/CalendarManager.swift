@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import CoreData
 
 // MARK: - Calendar Manager
 // Classe principale per gestire tutte le operazioni del calendario nell'app
@@ -17,12 +18,14 @@ public class CalendarManager: ObservableObject {
     @Published public var currentService: CalendarServiceProtocol?
     @Published public var availableServices: [CalendarServiceProtocol] = []
     @Published public var completedEventKeys: Set<String> = []
+    private let migrationFlagKey = "CalendarCompletedEventsMigratedV1"
     
     // MARK: - Private Properties
     
     private let serviceFactory: CalendarServiceFactory
     private var cancellables = Set<AnyCancellable>()
     private let completedDefaultsKey = "CalendarCompletedEvents"
+    private let completionStore = CalendarCompletionStore(context: PersistenceController.shared.container.viewContext)
     
     // MARK: - Configuration
     
@@ -90,6 +93,7 @@ public class CalendarManager: ObservableObject {
     public func loadInitialData() async {
         await loadEvents()
         await loadCalendars()
+        await migrateCompletedStateIfNeeded()
     }
     
     /// Carica gli eventi in un intervallo di date
@@ -202,6 +206,20 @@ public class CalendarManager: ObservableObject {
         // Ricarica gli eventi per aggiornare la UI
         await loadEvents()
     }
+
+    /// Aggiorna un evento esistente
+    @discardableResult
+    public func updateEvent(_ event: CalendarEvent) async throws {
+        guard let service = currentService else {
+            throw CalendarServiceError.notAuthenticated
+        }
+        try await service.updateEvent(event)
+
+        // Refresh solo il giorno impattato per efficienza
+        let dayStart = Calendar.current.startOfDay(for: event.startDate)
+        let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? event.endDate
+        await loadEvents(from: dayStart, to: dayEnd)
+    }
     
     // MARK: - Auto Sync
     
@@ -265,7 +283,11 @@ public class CalendarManager: ObservableObject {
 
     /// Restituisce true se l'evento è marcato come completato
     public func isCompleted(_ event: CalendarEvent) -> Bool {
-        completedEventKeys.contains(eventKey(for: event))
+        // Prefer remote metadata when present; fallback to local persisted state
+        if let state = CalendarCompletionMetadata.parse(from: event.description) {
+            return state.isCompleted
+        }
+        return completedEventKeys.contains(eventKey(for: event))
     }
 
     /// Trova un evento a partire dalla sua chiave
@@ -278,8 +300,10 @@ public class CalendarManager: ObservableObject {
         let key = eventKey(for: event)
         if completed {
             completedEventKeys.insert(key)
+            completionStore.upsert(key: key)
         } else {
             completedEventKeys.remove(key)
+            completionStore.remove(key: key)
         }
         persistCompletedState()
         objectWillChange.send()
@@ -287,17 +311,121 @@ public class CalendarManager: ObservableObject {
 
     /// Inverte lo stato di completamento di un evento
     public func toggleCompleted(_ event: CalendarEvent) {
-        markCompleted(event, completed: !isCompleted(event))
+        let target = !isCompleted(event)
+        // Optimistic local update for snappy UI
+        markCompleted(event, completed: target)
+        Task { [weak self] in
+            await self?.setCompletedOnProvider(event, completed: target)
+        }
     }
 
     private func loadCompletedState() {
+        var keys = Set<String>()
         if let saved = UserDefaults.standard.array(forKey: completedDefaultsKey) as? [String] {
-            completedEventKeys = Set(saved)
+            keys.formUnion(saved)
         }
+        // Merge with Core Data store if available
+        let coreDataKeys = completionStore.loadAllKeys()
+        keys.formUnion(coreDataKeys)
+        completedEventKeys = keys
     }
 
     private func persistCompletedState() {
         UserDefaults.standard.set(Array(completedEventKeys), forKey: completedDefaultsKey)
+    }
+
+    // MARK: - Remote Sync of Completion State
+
+    /// Writes the completion state into the event's notes/description via the active provider
+    private func setCompletedOnProvider(_ event: CalendarEvent, completed: Bool) async {
+        guard let service = currentService else { return }
+        do {
+            // Rebuild the event with updated description notes
+            let newNotes = CalendarCompletionMetadata.write(to: event.description, completed: completed)
+            let updated = CalendarEvent(
+                id: event.id,
+                title: event.title,
+                description: newNotes,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                location: event.location,
+                isAllDay: event.isAllDay,
+                recurrenceRule: event.recurrenceRule,
+                attendees: event.attendees,
+                calendarId: event.calendarId,
+                url: event.url,
+                providerId: event.providerId,
+                providerType: event.providerType,
+                lastModified: Date()
+            )
+            try await service.updateEvent(updated)
+
+            // Success: rely on remote metadata; clear local key for this event
+            let key = eventKey(for: event)
+            if completedEventKeys.contains(key) {
+                completedEventKeys.remove(key)
+                persistCompletedState()
+            }
+            // Refresh a narrow window (same day) to reflect updated notes
+            let dayStart = Calendar.current.startOfDay(for: event.startDate)
+            let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? event.endDate
+            await loadEvents(from: dayStart, to: dayEnd)
+        } catch {
+            await MainActor.run {
+                self.error = "Errore aggiornamento stato evento: \(error.localizedDescription)"
+            }
+            // Keep local fallback already set by optimistic update
+        }
+    }
+
+    // MARK: - Migration from local keys to remote metadata
+    private func migrateCompletedStateIfNeeded() async {
+        let already = UserDefaults.standard.bool(forKey: migrationFlagKey)
+        guard !already else { return }
+        guard let service = currentService else { return }
+
+        // Work on currently loaded events only (configurable window)
+        let candidates = events
+
+        for ev in candidates {
+            let key = eventKey(for: ev)
+            let hasLocal = completedEventKeys.contains(key)
+            let remote = CalendarCompletionMetadata.parse(from: ev.description)?.isCompleted ?? false
+
+            if hasLocal && !remote {
+                // Attempt to push remote metadata; failure will leave local state as fallback
+                do {
+                    let newNotes = CalendarCompletionMetadata.write(to: ev.description, completed: true)
+                    let updated = CalendarEvent(
+                        id: ev.id,
+                        title: ev.title,
+                        description: newNotes,
+                        startDate: ev.startDate,
+                        endDate: ev.endDate,
+                        location: ev.location,
+                        isAllDay: ev.isAllDay,
+                        recurrenceRule: ev.recurrenceRule,
+                        attendees: ev.attendees,
+                        calendarId: ev.calendarId,
+                        url: ev.url,
+                        providerId: ev.providerId,
+                        providerType: ev.providerType,
+                        lastModified: Date()
+                    )
+                    try await service.updateEvent(updated)
+                    // On success, remove local marker
+                    completedEventKeys.remove(key)
+                } catch {
+                    // Ignore; keep local fallback
+                }
+            } else if remote && hasLocal {
+                // Remote already authoritative; clean local
+                completedEventKeys.remove(key)
+            }
+        }
+
+        persistCompletedState()
+        UserDefaults.standard.set(true, forKey: migrationFlagKey)
     }
 }
 

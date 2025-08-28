@@ -12,7 +12,7 @@ struct CreateEventView: View {
     @State private var title: String = ""
     @State private var description: String = ""
     @State private var startDate: Date = Date()
-    @State private var endDate: Date = Date().addingTimeInterval(3600) // 1 hour later
+    @State private var endDate: Date = Date().addingTimeInterval(TimeInterval(CalendarPreferences.defaultDurationMinutes * 60))
     @State private var location: String = ""
     @State private var isAllDay: Bool = false
     @State private var attendeeEmails: String = ""
@@ -110,6 +110,19 @@ struct CreateEventView: View {
                 Text(errorMessage)
             }
         }
+    }
+
+    // Custom initializer to prefill suggested values (e.g., from DayTimeline selection)
+    init(calendarManager: CalendarManager, suggestedStart: Date? = nil, suggestedEnd: Date? = nil, suggestedTitle: String? = nil) {
+        self._calendarManager = ObservedObject(initialValue: calendarManager)
+        let now = Date()
+        let start = suggestedStart ?? now
+        let end = suggestedEnd ?? start.addingTimeInterval(TimeInterval(CalendarPreferences.defaultDurationMinutes * 60))
+        self._startDate = State(initialValue: start)
+        self._endDate = State(initialValue: end > start ? end : start.addingTimeInterval(TimeInterval(CalendarPreferences.defaultDurationMinutes * 60)))
+        self._title = State(initialValue: suggestedTitle ?? "")
+        self._description = State(initialValue: "")
+        self._location = State(initialValue: "")
     }
     
     // MARK: - Helper Methods

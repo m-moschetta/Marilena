@@ -12,35 +12,43 @@ struct CalendarView: View {
     @State private var showingServicePicker = false
     @State private var naturalLanguageInput = ""
     @State private var showingNaturalLanguageInput = false
+    @State private var mode: CalendarMode = .day
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             
-            // Header con informazioni servizio
-            serviceHeaderView
-            
-            // Buttons principali
-            actionButtonsView
-            
-            // Lista eventi
-            if calendarManager.isLoading {
-                loadingView
-            } else if calendarManager.events.isEmpty {
-                emptyStateView
-            } else {
-                eventsListView
+            // Switch Giorno/Settimana (compatto)
+            Picker("", selection: $mode) {
+                Text("Giorno").tag(CalendarMode.day)
+                Text("Settimana").tag(CalendarMode.week)
             }
-            
-            Spacer()
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 12)
+            .padding(.top, 6)
+
+            // Vista principale
+            if mode == .day {
+                DayTimelineView(calendarManager: calendarManager)
+            } else {
+                WeekTimelineView(calendarManager: calendarManager)
+            }
         }
-        .padding()
         .navigationTitle("Calendario")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Impostazioni") {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button {
+                    showingNaturalLanguageInput = true
+                } label: { Image(systemName: "brain.head.profile") }
+                Button {
+                    showingCreateEvent = true
+                } label: { Image(systemName: "plus") }
+                Button {
+                    Task { await calendarManager.loadEvents() }
+                } label: { Image(systemName: "arrow.clockwise") }
+                Button {
                     showingServicePicker = true
-                }
+                } label: { Image(systemName: "gearshape") }
             }
         }
         .alert("Errore", isPresented: .constant(calendarManager.error != nil)) {
@@ -64,92 +72,7 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - Service Header
-    
-    private var serviceHeaderView: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Image(systemName: "calendar")
-                    .foregroundColor(.blue)
-                Text("Servizio Attivo:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            
-            HStack {
-                Text(calendarManager.currentService?.providerName ?? "Nessuno")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                Circle()
-                    .fill(calendarManager.currentService?.isAuthenticated == true ? .green : .red)
-                    .frame(width: 12, height: 12)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-    
-    // MARK: - Action Buttons
-    
-    private var actionButtonsView: some View {
-        VStack(spacing: 12) {
-            
-            // Smart Assistant Button
-            Button(action: {
-                showingNaturalLanguageInput = true
-            }) {
-                HStack {
-                    Image(systemName: "brain.head.profile")
-                    Text("Crea Evento con AI")
-                        .fontWeight(.medium)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
-            }
-            
-            HStack(spacing: 12) {
-                // Create Event Button
-                Button(action: {
-                    showingCreateEvent = true
-                }) {
-                    HStack {
-                        Image(systemName: "plus.circle")
-                        Text("Nuovo Evento")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                }
-                
-                // Refresh Button
-                Button(action: {
-                    Task {
-                        await calendarManager.loadEvents()
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.clockwise")
-                        Text("Aggiorna")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.orange)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                }
-            }
-        }
-    }
+    // Removed big header/buttons to maximize timeline space
     
     // MARK: - Loading View
     
@@ -285,6 +208,11 @@ struct CalendarView: View {
     }
 }
 
+enum CalendarMode: Hashable {
+    case day
+    case week
+}
+
 // MARK: - Event Row View
 
 struct EventRowView: View {
@@ -379,10 +307,16 @@ struct ReminderRow: View {
     
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Button(action: { manager.toggleCompleted(event) }) {
+            Button(action: {
+                let wasCompleted = manager.isCompleted(event)
+                if wasCompleted { Haptics.selection() } else { Haptics.success() }
+                manager.toggleCompleted(event)
+            }) {
                 Image(systemName: manager.isCompleted(event) ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(manager.isCompleted(event) ? .green : .secondary)
-                    .font(.title3)
+                    .font(.title2)
+                    .frame(width: 34, height: 34)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             

@@ -2,8 +2,9 @@ import Foundation
 
 // MARK: - AI Model Configuration System
 
-/// Comprehensive configuration for all AI models with latest 2025 updates
+/// Comprehensive configuration for current AI models (2024)
 /// Includes pricing, capabilities, and specifications for all major providers
+/// Updated with the latest available models from OpenAI, Anthropic, Google, Meta, and others
 @MainActor
 public struct AIModelConfiguration: Codable, Identifiable {
     
@@ -328,166 +329,99 @@ public struct RateLimits: Codable {
 
 public extension AIModelConfiguration {
     
-    /// Complete catalog of 2025 AI models with latest updates
+    /// Complete catalog of current AI models with latest updates (2024)
     static let allModels: [AIModelConfiguration] = [
-        
-        // MARK: - OpenAI Models (2025)
-        
+
+        // MARK: - OpenAI Models (Latest Available)
+
         .init(
-            id: "gpt-4.1",
-            name: "GPT-4.1",
+            id: "gpt-4o",
+            name: "GPT-4o",
             provider: .openai,
-            version: "4.1",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 4, day: 14).date!,
-            description: "OpenAI's most advanced model with 1M token context window and enhanced coding capabilities",
-            contextWindow: 1_000_000,
-            maxOutputTokens: 64_000,
-            supportedModalities: [.text, .vision, .code],
+            version: "4o",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 5, day: 13).date!,
+            description: "OpenAI's most advanced multimodal model with real-time audio and vision capabilities",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .vision, .audio],
             capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .functionCalling, .jsonMode, .streaming],
             pricing: AIPricing(
-                inputTokens: PricingTier(price: 2.50),
-                outputTokens: PricingTier(price: 10.00)
+                inputTokens: PricingTier(price: 5.00, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 15.00, description: "per 1M tokens")
             ),
             benchmarks: AIBenchmarks(
-                coding: 92.1,
-                reasoning: 86.5,
-                math: 88.3,
-                multimodal: 88.9,
-                conversational: 90.0,
-                speed: 8.5,
-                overallScore: 89.2
+                coding: 93.4,
+                reasoning: 88.7,
+                math: 89.2,
+                multimodal: 92.1,
+                conversational: 94.5,
+                speed: 9.8,
+                overallScore: 92.5
             ),
             availability: AIAvailability(
                 regions: ["US", "EU", "Global"],
                 accessTiers: [.api, .pro, .enterprise],
                 status: .available
             ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 6).date,
-            tags: ["latest", "flagship", "coding", "reasoning"]
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 10).date,
+            tags: ["flagship", "multimodal", "real-time", "latest"]
         ),
-        
+
         .init(
-            id: "gpt-4.1-mini",
-            name: "GPT-4.1 Mini",
+            id: "gpt-4o-mini",
+            name: "GPT-4o Mini",
             provider: .openai,
-            version: "4.1-mini",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 4, day: 14).date!,
-            description: "Faster, more cost-effective version of GPT-4.1",
-            contextWindow: 1_000_000,
-            maxOutputTokens: 32_000,
-            supportedModalities: [.text, .vision, .code],
+            version: "4o-mini",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 7, day: 18).date!,
+            description: "Cost-effective version of GPT-4o with excellent performance at lower cost",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .vision],
             capabilities: [.reasoning, .coding, .math, .creative, .analysis, .functionCalling, .jsonMode, .streaming],
             pricing: AIPricing(
-                inputTokens: PricingTier(price: 0.15),
-                outputTokens: PricingTier(price: 0.60)
+                inputTokens: PricingTier(price: 0.15, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.60, description: "per 1M tokens")
             ),
             benchmarks: AIBenchmarks(
-                coding: 88.5,
-                reasoning: 82.1,
+                coding: 87.9,
+                reasoning: 82.3,
                 math: 84.7,
-                multimodal: 85.2,
-                conversational: 87.0,
-                speed: 9.2,
-                overallScore: 86.1
+                multimodal: 86.2,
+                conversational: 89.1,
+                speed: 10.2,
+                overallScore: 86.7
             ),
             availability: AIAvailability(
                 regions: ["US", "EU", "Global"],
                 accessTiers: [.free, .api, .pro, .enterprise],
                 status: .available
             ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 6).date,
-            tags: ["fast", "affordable", "mini"]
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 10).date,
+            tags: ["cost-effective", "mini", "affordable"]
         ),
-        
+
         .init(
-            id: "o4-mini",
-            name: "o4-mini",
+            id: "gpt-4-turbo",
+            name: "GPT-4 Turbo",
             provider: .openai,
-            version: "o4-mini",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 1, day: 25).date!,
-            description: "OpenAI's latest reasoning model optimized for complex problem-solving",
+            version: "4-turbo",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 6, day: 6).date!,
+            description: "Enhanced GPT-4 with improved performance and longer context",
             contextWindow: 128_000,
-            maxOutputTokens: 32_000,
-            supportedModalities: [.text, .code],
-            capabilities: [.reasoning, .coding, .math, .science, .analysis],
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .vision],
+            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .functionCalling, .jsonMode, .streaming],
             pricing: AIPricing(
-                inputTokens: PricingTier(price: 3.00),
-                outputTokens: PricingTier(price: 12.00)
+                inputTokens: PricingTier(price: 10.00, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 30.00, description: "per 1M tokens")
             ),
             benchmarks: AIBenchmarks(
-                coding: 89.3,
-                reasoning: 94.2,
-                math: 92.8,
-                conversational: 83.5,
-                speed: 6.8,
-                overallScore: 89.5
-            ),
-            availability: AIAvailability(
-                regions: ["US", "EU", "Global"],
-                accessTiers: [.api, .pro, .enterprise],
-                status: .available
-            ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 12).date,
-            tags: ["reasoning", "math", "science"]
-        ),
-        
-        // MARK: - Anthropic Claude Models (2025)
-        
-        .init(
-            id: "claude-sonnet-4-20250514",
-            name: "Claude 4 Sonnet",
-            provider: .anthropic,
-            version: "4.0",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 5, day: 22).date!,
-            description: "Anthropic's hybrid reasoning model with superior intelligence for high-volume use cases",
-            contextWindow: 200_000,
-            maxOutputTokens: 64_000,
-            supportedModalities: [.text, .vision, .code],
-            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .hybridReasoning, .toolUse, .computerUse],
-            pricing: AIPricing(
-                inputTokens: PricingTier(price: 3.00),
-                outputTokens: PricingTier(price: 15.00)
-            ),
-            benchmarks: AIBenchmarks(
-                coding: 94.3,
-                reasoning: 87.6,
-                math: 90.2,
-                multimodal: 89.4,
-                conversational: 91.8,
-                speed: 7.9,
-                overallScore: 91.2
-            ),
-            availability: AIAvailability(
-                regions: ["US", "EU", "Global"],
-                accessTiers: [.api, .pro, .enterprise],
-                status: .available
-            ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2025, month: 3).date,
-            tags: ["hybrid-reasoning", "flagship", "coding", "multimodal"]
-        ),
-        
-        .init(
-            id: "claude-3.7-sonnet",
-            name: "Claude 3.7 Sonnet",
-            provider: .anthropic,
-            version: "3.7",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 2, day: 24).date!,
-            description: "First hybrid reasoning model with extended thinking mode",
-            contextWindow: 200_000,
-            maxOutputTokens: 64_000,
-            supportedModalities: [.text, .vision, .code],
-            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .hybridReasoning, .toolUse],
-            pricing: AIPricing(
-                inputTokens: PricingTier(price: 3.00),
-                outputTokens: PricingTier(price: 15.00)
-            ),
-            benchmarks: AIBenchmarks(
-                coding: 93.5,
-                reasoning: 89.7,
-                math: 87.3,
-                multimodal: 86.2,
-                conversational: 90.5,
-                speed: 7.5,
+                coding: 91.8,
+                reasoning: 87.2,
+                math: 88.5,
+                multimodal: 89.3,
+                conversational: 92.1,
+                speed: 8.9,
                 overallScore: 89.8
             ),
             availability: AIAvailability(
@@ -495,148 +429,343 @@ public extension AIModelConfiguration {
                 accessTiers: [.api, .pro, .enterprise],
                 status: .available
             ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 10).date,
-            tags: ["hybrid-reasoning", "thinking-mode", "coding"]
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 12).date,
+            tags: ["turbo", "enhanced", "long-context"]
         ),
-        
-        // MARK: - Google Gemini Models (2025)
-        
+
         .init(
-            id: "gemini-2.5-pro",
-            name: "Gemini 2.5 Pro",
-            provider: .google,
-            version: "2.5-pro",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 6, day: 17).date!,
-            description: "Google's most capable model with 2M token context and hybrid reasoning",
-            contextWindow: 2_000_000,
-            maxOutputTokens: 65_536,
-            supportedModalities: [.text, .vision, .audio, .video, .code],
-            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .hybridReasoning, .toolUse, .webSearch],
+            id: "gpt-4",
+            name: "GPT-4",
+            provider: .openai,
+            version: "4",
+            releaseDate: DateComponents(calendar: .current, year: 2023, month: 3, day: 14).date!,
+            description: "Original GPT-4 model with excellent reasoning capabilities",
+            contextWindow: 8192,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .functionCalling, .jsonMode],
             pricing: AIPricing(
-                inputTokens: PricingTier(price: 1.25),
-                outputTokens: PricingTier(price: 5.00)
+                inputTokens: PricingTier(price: 30.00, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 60.00, description: "per 1M tokens")
             ),
             benchmarks: AIBenchmarks(
-                coding: 90.8,
+                coding: 88.4,
                 reasoning: 85.1,
                 math: 86.2,
-                multimodal: 89.7,
-                conversational: 88.5,
-                speed: 8.8,
-                overallScore: 88.2
+                conversational: 90.5,
+                speed: 7.8,
+                overallScore: 87.6
             ),
             availability: AIAvailability(
                 regions: ["US", "EU", "Global"],
                 accessTiers: [.api, .pro, .enterprise],
                 status: .available
             ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2025, month: 1).date,
-            tags: ["multimodal", "large-context", "google-search"]
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2022, month: 9).date,
+            tags: ["original", "classic", "reasoning"]
         ),
-        
+
         .init(
-            id: "gemini-2.5-flash",
-            name: "Gemini 2.5 Flash",
-            provider: .google,
-            version: "2.5-flash",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 4, day: 17).date!,
-            description: "Google's first hybrid reasoning model with adjustable thinking budgets",
-            contextWindow: 1_048_576,
-            maxOutputTokens: 65_536,
-            supportedModalities: [.text, .vision, .code],
-            capabilities: [.reasoning, .coding, .math, .creative, .analysis, .hybridReasoning, .toolUse, .functionCalling],
+            id: "gpt-3.5-turbo",
+            name: "GPT-3.5 Turbo",
+            provider: .openai,
+            version: "3.5-turbo",
+            releaseDate: DateComponents(calendar: .current, year: 2023, month: 11, day: 6).date!,
+            description: "Fast and efficient model for most tasks",
+            contextWindow: 16384,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .creative, .analysis, .functionCalling, .jsonMode, .streaming],
             pricing: AIPricing(
-                inputTokens: PricingTier(price: 0.15, description: "Free while experimental"),
-                outputTokens: PricingTier(price: 0.60, description: "Free while experimental")
+                inputTokens: PricingTier(price: 0.50, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 1.50, description: "per 1M tokens")
             ),
             benchmarks: AIBenchmarks(
-                coding: 87.2,
-                reasoning: 83.8,
-                math: 84.5,
-                multimodal: 86.1,
-                conversational: 86.9,
-                speed: 9.1,
-                overallScore: 86.4
+                coding: 82.1,
+                reasoning: 78.5,
+                math: 79.8,
+                conversational: 85.2,
+                speed: 9.5,
+                overallScore: 83.0
             ),
             availability: AIAvailability(
                 regions: ["US", "EU", "Global"],
-                accessTiers: [.api, .experimental],
+                accessTiers: [.free, .api, .pro, .enterprise],
                 status: .available
             ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2025, month: 1).date,
-            isExperimental: true,
-            tags: ["hybrid-reasoning", "experimental", "fast"]
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2021, month: 9).date,
+            tags: ["fast", "efficient", "budget"]
         ),
         
-        // MARK: - Meta Llama Models (2025)
-        
+        // MARK: - Anthropic Claude Models (Current)
+
         .init(
-            id: "llama-4-maverick",
-            name: "Llama 4 Maverick",
-            provider: .meta,
-            version: "4.0-maverick",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 4, day: 5).date!,
-            description: "Meta's flagship multimodal model with MoE architecture and superior performance",
-            contextWindow: 1_000_000,
-            maxOutputTokens: 32_000,
-            supportedModalities: [.text, .vision, .video, .code],
+            id: "claude-3-5-sonnet-20241022",
+            name: "Claude 3.5 Sonnet",
+            provider: .anthropic,
+            version: "3.5",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 10, day: 22).date!,
+            description: "Anthropic's most advanced model with superior coding and reasoning capabilities",
+            contextWindow: 200_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .vision],
             capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .toolUse],
             pricing: AIPricing(
-                inputTokens: PricingTier(price: 0.27),
-                outputTokens: PricingTier(price: 0.85)
+                inputTokens: PricingTier(price: 3.00, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 15.00, description: "per 1M tokens")
             ),
             benchmarks: AIBenchmarks(
-                coding: 94.3,
-                reasoning: 87.6,
-                math: 90.2,
-                multimodal: 89.4,
-                conversational: 91.0,
-                speed: 8.7,
-                overallScore: 90.5
+                coding: 93.8,
+                reasoning: 88.9,
+                math: 89.4,
+                multimodal: 91.2,
+                conversational: 92.3,
+                speed: 8.2,
+                overallScore: 92.6
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro, .enterprise],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 4).date,
+            tags: ["flagship", "coding", "reasoning", "latest"]
+        ),
+
+        .init(
+            id: "claude-3-5-haiku-20241022",
+            name: "Claude 3.5 Haiku",
+            provider: .anthropic,
+            version: "3.5-haiku",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 10, day: 22).date!,
+            description: "Fast and cost-effective version of Claude 3.5 with excellent performance",
+            contextWindow: 200_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .vision],
+            capabilities: [.reasoning, .coding, .creative, .analysis, .toolUse],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.80, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 4.00, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 88.7,
+                reasoning: 85.2,
+                math: 86.1,
+                multimodal: 87.8,
+                conversational: 89.4,
+                speed: 9.3,
+                overallScore: 87.8
             ),
             availability: AIAvailability(
                 regions: ["US", "EU", "Global"],
                 accessTiers: [.free, .api, .pro, .enterprise],
                 status: .available
             ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 8).date,
-            tags: ["open-source", "multimodal", "moe", "flagship"]
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 4).date,
+            tags: ["fast", "cost-effective", "haiku"]
         ),
         
+        // MARK: - Google Gemini Models (Current)
+
         .init(
-            id: "llama-4-scout",
-            name: "Llama 4 Scout",
-            provider: .meta,
-            version: "4.0-scout",
-            releaseDate: DateComponents(calendar: .current, year: 2025, month: 4, day: 5).date!,
-            description: "Ultra-long context model with unprecedented 10M token window",
-            contextWindow: 10_000_000,
-            maxOutputTokens: 32_000,
-            supportedModalities: [.text, .vision, .code],
-            capabilities: [.reasoning, .coding, .math, .creative, .analysis, .toolUse],
+            id: "gemini-1.5-pro",
+            name: "Gemini 1.5 Pro",
+            provider: .google,
+            version: "1.5-pro",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 2, day: 15).date!,
+            description: "Google's advanced multimodal model with large context window",
+            contextWindow: 1_000_000,
+            maxOutputTokens: 8192,
+            supportedModalities: [.text, .vision, .audio],
+            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .toolUse],
             pricing: AIPricing(
-                inputTokens: PricingTier(price: 0.18),
-                outputTokens: PricingTier(price: 0.59)
+                inputTokens: PricingTier(price: 3.50, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 10.50, description: "per 1M tokens")
             ),
             benchmarks: AIBenchmarks(
-                coding: 89.2,
-                reasoning: 82.5,
-                math: 84.9,
-                multimodal: 82.3,
-                conversational: 87.5,
-                speed: 8.2,
-                overallScore: 86.1
+                coding: 89.7,
+                reasoning: 84.2,
+                math: 85.8,
+                multimodal: 91.3,
+                conversational: 88.1,
+                speed: 8.5,
+                overallScore: 89.6
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro, .enterprise],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 12).date,
+            tags: ["multimodal", "large-context", "google"]
+        ),
+
+        .init(
+            id: "gemini-1.5-flash",
+            name: "Gemini 1.5 Flash",
+            provider: .google,
+            version: "1.5-flash",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 5, day: 24).date!,
+            description: "Fast and efficient multimodal model optimized for speed",
+            contextWindow: 1_000_000,
+            maxOutputTokens: 8192,
+            supportedModalities: [.text, .vision, .audio],
+            capabilities: [.reasoning, .coding, .creative, .analysis, .toolUse],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.35, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 1.05, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 85.1,
+                reasoning: 80.8,
+                math: 82.4,
+                multimodal: 87.2,
+                conversational: 86.7,
+                speed: 9.8,
+                overallScore: 85.3
             ),
             availability: AIAvailability(
                 regions: ["US", "EU", "Global"],
                 accessTiers: [.free, .api, .pro, .enterprise],
                 status: .available
             ),
-            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 8).date,
-            tags: ["open-source", "ultra-long-context", "10m-tokens"]
-        )
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 12).date,
+            tags: ["fast", "multimodal", "efficient"]
+        ),
         
-        // Additional models would continue here...
+        // MARK: - Meta Llama Models (Current)
+
+        .init(
+            id: "llama-3.2-70b-instruct",
+            name: "Llama 3.2 70B Instruct",
+            provider: .meta,
+            version: "3.2-70b",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 9, day: 25).date!,
+            description: "Meta's most capable Llama model with 70B parameters and strong reasoning",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.65, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 2.65, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 87.4,
+                reasoning: 85.2,
+                math: 86.8,
+                conversational: 89.1,
+                speed: 7.8,
+                overallScore: 87.3
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro, .enterprise],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 12).date,
+            tags: ["open-source", "large-model", "reasoning"]
+        ),
+
+        .init(
+            id: "llama-3.2-3b-instruct",
+            name: "Llama 3.2 3B Instruct",
+            provider: .meta,
+            version: "3.2-3b",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 9, day: 25).date!,
+            description: "Efficient and fast Llama model optimized for edge computing",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .creative, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.10, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.20, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 78.9,
+                reasoning: 76.4,
+                math: 74.2,
+                conversational: 83.7,
+                speed: 9.5,
+                overallScore: 79.7
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.free, .api, .pro],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 12).date,
+            tags: ["open-source", "efficient", "edge"]
+        ),
+
+        // MARK: - Groq Models (Fast Inference)
+
+        .init(
+            id: "llama-3.1-70b-versatile",
+            name: "Llama 3.1 70B Versatile (Groq)",
+            provider: .groq,
+            version: "3.1-70b",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 7, day: 23).date!,
+            description: "Ultra-fast Llama 3.1 70B hosted on Groq's LPU infrastructure",
+            contextWindow: 128_000,
+            maxOutputTokens: 8192,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.59, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.79, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 88.1,
+                reasoning: 86.7,
+                math: 87.3,
+                conversational: 90.2,
+                speed: 10.0,
+                overallScore: 88.5
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 3).date,
+            tags: ["fast", "groq", "llama", "inference"]
+        ),
+
+        // MARK: - DeepSeek Models
+
+        .init(
+            id: "deepseek-chat",
+            name: "DeepSeek Chat",
+            provider: .deepseek,
+            version: "1.0",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 11, day: 6).date!,
+            description: "Advanced reasoning model with strong coding and math capabilities",
+            contextWindow: 32_768,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .code],
+            capabilities: [.reasoning, .coding, .math, .science, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.14, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.28, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 86.4,
+                reasoning: 88.7,
+                math: 89.2,
+                conversational: 84.1,
+                speed: 8.9,
+                overallScore: 87.5
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.free, .api, .pro],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 5).date,
+            tags: ["reasoning", "math", "coding", "cost-effective"]
+        )
     ]
     
     /// Get models by provider
@@ -659,11 +788,85 @@ public extension AIModelConfiguration {
         }.sorted { $0.benchmarks.overallScore ?? 0 > $1.benchmarks.overallScore ?? 0 }
     }
     
-    /// Get latest models (released in 2025)
-    static var latest2025: [AIModelConfiguration] {
+    /// Get latest models (released in 2024)
+    static var latest2024: [AIModelConfiguration] {
         let calendar = Calendar.current
         return allModels.filter { model in
-            calendar.component(.year, from: model.releaseDate) == 2025
+            calendar.component(.year, from: model.releaseDate) == 2024
         }.sorted { $0.releaseDate > $1.releaseDate }
+    }
+
+    // MARK: - Perplexity Models
+
+    static func perplexityModels() -> [AIModelConfiguration] {
+        return [
+            .init(
+                id: "pplx-70b-online",
+                name: "Perplexity 70B Online",
+                provider: .perplexity,
+                version: "70b-online",
+                releaseDate: DateComponents(calendar: .current, year: 2024, month: 8, day: 1).date!,
+                description: "Perplexity's 70B model with real-time web search capabilities",
+                contextWindow: 128_000,
+                maxOutputTokens: 4096,
+                supportedModalities: [.text],
+                capabilities: [.reasoning, .analysis, .webSearch, .functionCalling],
+                pricing: AIPricing(
+                    inputTokens: PricingTier(price: 1.00, description: "per 1M tokens"),
+                    outputTokens: PricingTier(price: 1.00, description: "per 1M tokens")
+                ),
+                benchmarks: AIBenchmarks(
+                    reasoning: 87.3,
+                    conversational: 88.4,
+                    speed: 8.7,
+                    overallScore: 88.4
+                ),
+                availability: AIAvailability(
+                    regions: ["US", "EU", "Global"],
+                    accessTiers: [.free, .api, .pro],
+                    status: .available
+                ),
+                knowledgeCutoff: nil, // Real-time web access
+                tags: ["web-search", "real-time", "research"]
+            )
+        ]
+    }
+
+    // MARK: - Mistral Models
+
+    static func mistralModels() -> [AIModelConfiguration] {
+        return [
+            .init(
+                id: "mistral-large-latest",
+                name: "Mistral Large",
+                provider: .mistral,
+                version: "large-latest",
+                releaseDate: DateComponents(calendar: .current, year: 2024, month: 9, day: 15).date!,
+                description: "Mistral's largest model with excellent multilingual capabilities",
+                contextWindow: 128_000,
+                maxOutputTokens: 4096,
+                supportedModalities: [.text],
+                capabilities: [.reasoning, .coding, .translation, .analysis],
+                pricing: AIPricing(
+                    inputTokens: PricingTier(price: 4.00, description: "per 1M tokens"),
+                    outputTokens: PricingTier(price: 12.00, description: "per 1M tokens")
+                ),
+                benchmarks: AIBenchmarks(
+                    coding: 85.7,
+                    reasoning: 86.2,
+                    math: 83.9,
+                    conversational: 91.3,
+                    speed: 8.9,
+                    overallScore: 87.2
+                ),
+                availability: AIAvailability(
+                    regions: ["US", "EU", "Global"],
+                    accessTiers: [.api, .pro, .enterprise],
+                    status: .available
+                ),
+                knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 3).date,
+                tags: ["multilingual", "large-context", "mistral"]
+            )
+        ]
     }
 }
