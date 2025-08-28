@@ -30,9 +30,9 @@ public class AIProviderManager {
         let selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-sonnet-4-20250514"
         
         // Verifica quali provider hanno API keys configurate
-        let hasOpenAI = hasValidAPIKey(for: "openaiApiKey")
-        let hasAnthropic = hasValidAPIKey(for: "anthropicApiKey")
-        let hasGroq = hasValidAPIKey(for: "groqApiKey")
+        let hasOpenAI = hasValidAPIKey(for: "openai")
+        let hasAnthropic = hasValidAPIKey(for: "anthropic")
+        let hasGroq = hasValidAPIKey(for: "groq")
         
         // Logica di priorità: usa il provider che ha sia API key che modello non-default
         if hasOpenAI && selectedChatModel != "gpt-4.1" {
@@ -57,7 +57,7 @@ public class AIProviderManager {
     func getBestSearchProvider() -> (provider: SearchProvider, model: String)? {
         let selectedSearchModel = UserDefaults.standard.string(forKey: "selectedSearchModel") ?? "sonar-pro"
         
-        if hasValidAPIKey(for: "perplexityApiKey") {
+        if hasValidAPIKey(for: "perplexity") {
             return (.perplexity, selectedSearchModel)
         }
         
@@ -71,13 +71,13 @@ public class AIProviderManager {
         
         // Determina il provider basato sul modello selezionato
         if selectedTranscriptionModel.contains("whisper-large-v3-turbo") || selectedTranscriptionModel.contains("distil-whisper") {
-            if hasValidAPIKey(for: "groqApiKey") {
+            if hasValidAPIKey(for: "groq") {
                 return (.groq, selectedTranscriptionModel)
             }
         }
         
         if selectedTranscriptionModel.contains("whisper") {
-            if hasValidAPIKey(for: "openaiApiKey") {
+            if hasValidAPIKey(for: "openai") {
                 return (.openai, selectedTranscriptionModel)
             }
         }
@@ -119,7 +119,8 @@ public class AIProviderManager {
     // MARK: - Helper Methods
     
     private func hasValidAPIKey(for key: String) -> Bool {
-        guard let apiKey = UserDefaults.standard.string(forKey: key), !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard let apiKey = KeychainManager.shared.getAPIKey(for: key),
+              !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return false
         }
         return true

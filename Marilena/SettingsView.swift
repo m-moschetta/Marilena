@@ -364,8 +364,8 @@ struct SettingsView: View {
         let perplexitySuccess = PerplexityService.shared.saveAPIKey(perplexityApiKey)
         
         // Salva API keys per tutti i provider
-        UserDefaults.standard.set(groqApiKey, forKey: "groqApiKey")
-        UserDefaults.standard.set(anthropicApiKey, forKey: "anthropicAPIKey")
+        _ = KeychainManager.shared.saveAPIKey(groqApiKey, for: "groq")
+        _ = KeychainManager.shared.saveAPIKey(anthropicApiKey, for: "anthropic")
         
         // Salva provider selezionato e modelli
         UserDefaults.standard.set(selectedProvider, forKey: "selectedProvider")
@@ -392,8 +392,8 @@ struct SettingsView: View {
     private func loadSettings() {
         apiKey = KeychainManager.shared.load(key: "openai_api_key") ?? ""
         perplexityApiKey = KeychainManager.shared.load(key: "perplexity_api_key") ?? ""
-        groqApiKey = UserDefaults.standard.string(forKey: "groqApiKey") ?? ""
-        anthropicApiKey = UserDefaults.standard.string(forKey: "anthropicAPIKey") ?? ""
+        groqApiKey = KeychainManager.shared.getAPIKey(for: "groq") ?? ""
+        anthropicApiKey = KeychainManager.shared.getAPIKey(for: "anthropic") ?? ""
         
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
         selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
@@ -575,7 +575,7 @@ struct SettingsView: View {
     
     private func testGroqConnection() {
         // Salva la chiave prima di testare
-        UserDefaults.standard.set(groqApiKey, forKey: "groqApiKey")
+        _ = KeychainManager.shared.saveAPIKey(groqApiKey, for: "groq")
         
         Task {
             do {
@@ -599,7 +599,7 @@ struct SettingsView: View {
     
     private func testAnthropicConnection() {
         // Salva la chiave prima di testare
-        UserDefaults.standard.set(anthropicApiKey, forKey: "anthropicApiKey")
+        _ = KeychainManager.shared.saveAPIKey(anthropicApiKey, for: "anthropic")
         
         Task {
             await MainActor.run {

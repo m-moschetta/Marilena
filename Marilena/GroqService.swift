@@ -8,7 +8,7 @@ public class GroqService: ObservableObject {
     private init() {}
     
     private var apiKey: String {
-        return UserDefaults.standard.string(forKey: "groqApiKey") ?? ""
+        return KeychainManager.shared.getAPIKey(for: "groq") ?? ""
     }
     
     private var selectedModel: String {

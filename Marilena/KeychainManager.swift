@@ -60,15 +60,28 @@ class KeychainManager {
     
     // MARK: - API Key Methods (Compatibilità con EmailService)
     
+    private func normalizedKey(_ key: String) -> String {
+        // Accept both full keys (e.g., "openai_api_key") and short names (e.g., "openai")
+        let lower = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if lower.hasSuffix("_api_key") { return lower }
+        switch lower {
+        case "openai": return "openai_api_key"
+        case "anthropic": return "anthropic_api_key"
+        case "groq": return "groq_api_key"
+        case "perplexity": return "perplexity_api_key"
+        default: return lower
+        }
+    }
+    
     func saveAPIKey(_ value: String, for key: String) -> Bool {
-        return save(key: key, value: value)
+        return save(key: normalizedKey(key), value: value)
     }
     
     func getAPIKey(for key: String) -> String? {
-        return load(key: key)
+        return load(key: normalizedKey(key))
     }
     
     func deleteAPIKey(for key: String) -> Bool {
-        return delete(key: key)
+        return delete(key: normalizedKey(key))
     }
 }

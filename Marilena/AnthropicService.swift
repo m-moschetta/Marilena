@@ -77,7 +77,7 @@ class AnthropicService {
     
     // MARK: - API Key Management
     private func getAPIKey() -> String? {
-        return KeychainManager.shared.load(key: "anthropicApiKey")
+        return KeychainManager.shared.getAPIKey(for: "anthropic")
     }
     
     func hasAPIKey() -> Bool {
