@@ -27,29 +27,7 @@ struct SettingsView: View {
     // Provider selection
     @State private var selectedProvider = "openai"
     
-    let availableModels = [
-        // GPT-4o series (flagship models, multimodal)
-        "gpt-4o",                    // Latest GPT-4o, 128K context, $5/$15 per 1M tokens
-        "gpt-4o-mini",               // Fast and affordable, 128K context, $0.15/$0.60 per 1M tokens
-        "chatgpt-4o-latest",         // Latest used in ChatGPT
-        
-        // GPT-4.1 series (April 2025 release, 1M context window)
-        "gpt-4.1",                   // Full model, 1M context, $2.00/$8.00 per 1M tokens  
-        "gpt-4.1-mini",              // Compact version, 1M context, $0.40/$1.60 per 1M tokens
-        "gpt-4.1-nano",              // Ultra-light version, optimized for speed
-        
-        // GPT-4.5 (Feb 2025 - research preview, large and expensive)
-        "gpt-4.5-preview",           // Largest model, $75/$150 per 1M tokens, creative tasks
-        
-        // o-series (reasoning models, advanced problem-solving)
-        "o1",                        // Latest reasoning model (alias to o1-2024-12-17)
-        "o1-mini",                   // Faster reasoning model
-        "o3-mini",                   // Latest small reasoning model
-        
-        // Legacy but stable
-        "gpt-4-turbo",               // Previous generation flagship
-        "gpt-3.5-turbo"              // Cost-effective option
-    ]
+    let availableModels = OpenAIModels.availableModels
     
     let availablePerplexityModels = [
         // Sonar Online
