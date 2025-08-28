@@ -134,5 +134,14 @@
         <attribute name="testoCompleto" optional="YES" attributeType="String"/>
         <attribute name="versione" optional="YES" attributeType="String" defaultValueString="1.0"/>
         <relationship name="registrazione" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="RegistrazioneAudio" inverseName="trascrizioni" inverseEntity="RegistrazioneAudio"/>
+</entity>
+    <entity name="CompletedEvent" representedClassName="CompletedEvent" syncable="YES" codeGenerationType="class">
+        <attribute name="key" optional="YES" attributeType="String"/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="key"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
     </entity>
 </model>
