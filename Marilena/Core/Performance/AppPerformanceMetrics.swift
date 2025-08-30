@@ -1,30 +1,37 @@
 import Foundation
-import os.signpost
+import OSLog
 
 #if DEBUG
 @MainActor
 final class AppPerformanceMetrics: ObservableObject {
     static let shared = AppPerformanceMetrics()
 
-    private let log = OSLog(subsystem: "com.marilena.app", category: "performance")
-    private let signposter = OSSignposter()
+    private let logger = Logger(subsystem: "com.marilena.app", category: "performance")
+    private lazy var signposter = OSSignposter(logger: logger)
 
     private var appLaunchTime: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()
+    private var appInitSignpostID: OSSignpostID?
+
     @Published var firstFrameTime: CFAbsoluteTime?
     @Published var startupDuration: TimeInterval?
 
     func markAppInit() {
         appLaunchTime = CFAbsoluteTimeGetCurrent()
-        os_signpost(.begin, log: log, name: "AppInit")
+        let id = signposter.makeSignpostID()
+        appInitSignpostID = id
+        signposter.beginInterval("AppInit", id: id)
     }
 
     func markFirstFrame() {
         guard firstFrameTime == nil else { return }
         firstFrameTime = CFAbsoluteTimeGetCurrent()
         startupDuration = (firstFrameTime ?? 0) - appLaunchTime
-        os_signpost(.end, log: log, name: "AppInit")
+        if let id = appInitSignpostID {
+            signposter.endInterval("AppInit", id: id)
+            appInitSignpostID = nil
+        }
         if let startupDuration {
-            os_log("🚀 First frame in %{public}.2f s", log: log, type: .info, startupDuration)
+            logger.info("🚀 First frame in \(startupDuration, format: .fixed(precision: 2)) s")
         }
     }
 
@@ -39,4 +46,3 @@ final class AppPerformanceMetrics: ObservableObject {
     }
 }
 #endif
-

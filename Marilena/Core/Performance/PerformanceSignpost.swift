@@ -1,13 +1,15 @@
 import Foundation
-import os.signpost
+import OSLog
 
 enum PerformanceSignpost {
-    private static let log = OSLog(subsystem: "com.marilena.app", category: "performance")
+    #if DEBUG
+    private static let logger = Logger(subsystem: "com.marilena.app", category: "performance")
+    private static let signposter = OSSignposter(logger: logger)
+    #endif
 
     static func event(_ name: StaticString) {
         #if DEBUG
-        os_signpost(.event, log: log, name: name)
+        signposter.emitEvent(name)
         #endif
     }
 }
-
