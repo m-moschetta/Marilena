@@ -25,7 +25,7 @@ public class AIProviderManager {
     
     func getBestChatProvider() -> (provider: ChatProvider, model: String)? {
         // Ottieni le impostazioni salvate
-        let selectedChatModel = UserDefaults.standard.string(forKey: "selectedChatModel") ?? "gpt-4.1"
+        let selectedChatModel = UserDefaults.standard.string(forKey: "selectedChatModel") ?? "gpt-5"
         let selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
         let selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-sonnet-4-20250514"
         

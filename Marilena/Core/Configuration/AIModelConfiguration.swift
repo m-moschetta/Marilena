@@ -334,6 +334,79 @@ public extension AIModelConfiguration {
 
         // MARK: - OpenAI Models (Latest Available)
 
+        // GPT-5 family (as shown in official Models page)
+        .init(
+            id: "gpt-5",
+            name: "GPT-5",
+            provider: .openai,
+            version: "5",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 6, day: 1).date ?? Date(),
+            description: "OpenAI GPT-5 general model for coding and agentic tasks",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .math, .science, .creative, .analysis, .functionCalling, .jsonMode, .streaming],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 15.0),
+                outputTokens: PricingTier(price: 45.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro, .enterprise],
+                status: .available
+            ),
+            tags: ["gpt-5", "reasoning", "coding"]
+        ),
+
+        .init(
+            id: "gpt-5-mini",
+            name: "GPT-5 Mini",
+            provider: .openai,
+            version: "5-mini",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 6, day: 1).date ?? Date(),
+            description: "Cost‑efficient GPT-5 for well‑defined tasks",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .creative, .analysis, .jsonMode, .streaming],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 1.5),
+                outputTokens: PricingTier(price: 6.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .free, .pro],
+                status: .available
+            ),
+            tags: ["gpt-5", "mini", "affordable"]
+        ),
+
+        .init(
+            id: "gpt-5-nano",
+            name: "GPT-5 Nano",
+            provider: .openai,
+            version: "5-nano",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 6, day: 1).date ?? Date(),
+            description: "Fastest, most cost‑efficient version of GPT‑5",
+            contextWindow: 64_000,
+            maxOutputTokens: 2048,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .creative, .analysis, .jsonMode, .streaming],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.3),
+                outputTokens: PricingTier(price: 1.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .free, .pro],
+                status: .available
+            ),
+            tags: ["gpt-5", "nano", "fast"]
+        ),
+
         .init(
             id: "gpt-4o",
             name: "GPT-4o",
@@ -398,6 +471,200 @@ public extension AIModelConfiguration {
             ),
             knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 10).date,
             tags: ["cost-effective", "mini", "affordable"]
+        ),
+
+        // o-series (reasoning)
+        .init(
+            id: "o3",
+            name: "o3",
+            provider: .openai,
+            version: "o3",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 5, day: 1).date ?? Date(),
+            description: "Reasoning model for complex tasks",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .math, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 5.0),
+                outputTokens: PricingTier(price: 15.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro, .enterprise],
+                status: .available
+            ),
+            tags: ["o-series", "reasoning"]
+        ),
+
+        .init(
+            id: "o3-pro",
+            name: "o3 Pro",
+            provider: .openai,
+            version: "o3-pro",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 5, day: 1).date ?? Date(),
+            description: "o3 version with more compute for better responses",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .math, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 12.0),
+                outputTokens: PricingTier(price: 36.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .enterprise],
+                status: .available
+            ),
+            tags: ["o-series", "pro"]
+        ),
+
+        .init(
+            id: "o3-deep-research",
+            name: "o3 Deep Research",
+            provider: .openai,
+            version: "o3-deep-research",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 5, day: 1).date ?? Date(),
+            description: "Most powerful deep research model",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .analysis, .webSearch],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 20.0),
+                outputTokens: PricingTier(price: 60.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .enterprise],
+                status: .available
+            ),
+            tags: ["o-series", "deep-research"]
+        ),
+
+        .init(
+            id: "o3-mini",
+            name: "o3 Mini",
+            provider: .openai,
+            version: "o3-mini",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 5, day: 1).date ?? Date(),
+            description: "Fast, cost‑efficient reasoning model",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.5),
+                outputTokens: PricingTier(price: 1.5)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .free, .pro],
+                status: .available
+            ),
+            tags: ["o-series", "mini"]
+        ),
+
+        .init(
+            id: "o4-mini",
+            name: "o4 Mini",
+            provider: .openai,
+            version: "o4-mini",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 3, day: 1).date ?? Date(),
+            description: "Fast, cost‑efficient reasoning model, succeeded by GPT‑5 mini",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.6),
+                outputTokens: PricingTier(price: 1.8)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            tags: ["o4", "mini"]
+        ),
+
+        .init(
+            id: "o4-mini-deep-research",
+            name: "o4‑mini Deep Research",
+            provider: .openai,
+            version: "o4-mini-deep-research",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 3, day: 1).date ?? Date(),
+            description: "Faster, more affordable deep research model",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .analysis, .webSearch],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 1.0),
+                outputTokens: PricingTier(price: 3.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            tags: ["o4", "deep-research"]
+        ),
+
+        // Realtime/Audio families (for completeness)
+        .init(
+            id: "gpt-realtime",
+            name: "GPT Realtime",
+            provider: .openai,
+            version: "realtime",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 5, day: 1).date ?? Date(),
+            description: "Realtime multimodal inputs/outputs",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .audio, .vision],
+            capabilities: [.streaming],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 5.0),
+                outputTokens: PricingTier(price: 15.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            tags: ["realtime", "multimodal"]
+        ),
+
+        .init(
+            id: "gpt-audio",
+            name: "GPT Audio",
+            provider: .openai,
+            version: "audio",
+            releaseDate: DateComponents(calendar: .current, year: 2025, month: 5, day: 1).date ?? Date(),
+            description: "Most capable models for audio inputs and outputs",
+            contextWindow: 128_000,
+            maxOutputTokens: 4096,
+            supportedModalities: [.text, .audio],
+            capabilities: [.streaming],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 5.0),
+                outputTokens: PricingTier(price: 15.0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            tags: ["audio"]
         ),
 
         .init(

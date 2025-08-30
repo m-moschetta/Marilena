@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - Shared Types for AI Services
 
 // Unified ModelInfo structure for all AI services
-public struct AIModelInfo {
+public struct AIModelInfo: Equatable {
     let name: String
     let description: String
     let contextTokens: Int

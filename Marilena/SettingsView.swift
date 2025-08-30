@@ -109,10 +109,92 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(MenuPickerStyle())
-                    
+
                     Text("💡 I modelli del provider selezionato saranno disponibili nel long press della chat")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+
+                // Sezione dedicata alla gestione dei modelli
+                Section("🔄 Gestione Modelli AI") {
+                    VStack(spacing: 12) {
+                        // Pulsante principale per aggiornare tutti i modelli
+                        Button(action: {
+                            Task {
+                                await ModelCatalog.shared.fetchAllModels(forceRefresh: true)
+                                // Mostra notifica di completamento
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    let updatedProviders = AIModelProvider.allCases.filter {
+                                        !ModelCatalog.shared.models(for: $0).isEmpty
+                                    }
+                                    if !updatedProviders.isEmpty {
+                                        alertMessage = "✅ Aggiornamento completato!\n\nModelli aggiornati per \(updatedProviders.count) provider"
+                                        showAlert = true
+                                    }
+                                }
+                            }
+                        }) {
+                            HStack {
+                                Label("Aggiorna tutti i modelli", systemImage: "arrow.clockwise.circle.fill")
+                                    .foregroundColor(.blue)
+                                    .font(.headline)
+
+                                Spacer()
+
+                                if ModelCatalog.shared.isLoading.values.contains(true) {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                } else if ModelCatalog.shared.isLoading.values.allSatisfy({ !$0 }) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                } else {
+                                    Image(systemName: "circle")
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+
+                        // Stato dettagliato per ciascun provider
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Stato modelli per provider:")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+
+                            ForEach(AIModelProvider.allCases, id: \.self) { provider in
+                                HStack {
+                                    Text(provider.displayName)
+                                        .font(.caption)
+
+                                    Spacer()
+
+                                    if ModelCatalog.shared.isLoading[provider] ?? false {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle())
+                                            .scaleEffect(0.6)
+                                    } else if ModelCatalog.shared.errors[provider] != nil {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundColor(.orange)
+                                            .font(.caption)
+                                    } else if !ModelCatalog.shared.models(for: provider).isEmpty {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundColor(.green)
+                                                .font(.caption)
+                                            Text("\(ModelCatalog.shared.models(for: provider).count)")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    } else {
+                                        Image(systemName: "circle")
+                                            .foregroundColor(.gray)
+                                            .font(.caption)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
                 }
                 
                 // Sezione dinamica per il provider selezionato
@@ -121,24 +203,16 @@ struct SettingsView: View {
                         SecureField("OpenAI API Key", text: $apiKey)
                             .textContentType(.password)
                         
-                        Picker("Modello OpenAI", selection: $selectedModel) {
-                            ForEach(availableModels, id: \.self) { model in
-                                Text(getOpenAIModelDisplayName(model)).tag(model)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
+                        // Picker dinamico basato sul catalogo
+                        ModelPickerView(provider: .openai, selectedModel: $selectedModel)
                     }
                 } else if selectedProvider == "anthropic" {
                     Section("Anthropic Claude Configuration") {
                         SecureField("Anthropic API Key", text: $anthropicApiKey)
                             .textContentType(.password)
                         
-                        Picker("Modello Claude", selection: $selectedAnthropicModel) {
-                            ForEach(availableAnthropicModels, id: \.self) { model in
-                                Text(getAnthropicModelDisplayName(model)).tag(model)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
+                        // Picker dinamico basato sul catalogo
+                        ModelPickerView(provider: .anthropic, selectedModel: $selectedAnthropicModel)
                         
                         Button("Test Connessione Anthropic") {
                             testAnthropicConnection()
@@ -154,12 +228,8 @@ struct SettingsView: View {
                         SecureField("Groq API Key", text: $groqApiKey)
                             .textContentType(.password)
                         
-                        Picker("Modello Groq", selection: $selectedGroqModel) {
-                            ForEach(availableGroqModels, id: \.self) { model in
-                                Text(getGroqModelDisplayName(model)).tag(model)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
+                        // Picker dinamico basato sul catalogo
+                        ModelPickerView(provider: .groq, selectedModel: $selectedGroqModel)
                         
                         Button("Test Connessione Groq") {
                             testGroqConnection()
@@ -323,8 +393,27 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Impostazioni")
+            .navigationBarItems(trailing:
+                Button(action: {
+                    Task {
+                        await ModelCatalog.shared.fetchAllModels(forceRefresh: true)
+                    }
+                }) {
+                    if ModelCatalog.shared.isLoading.values.contains(true) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                    } else {
+                        Image(systemName: "arrow.clockwise.circle")
+                            .foregroundColor(.blue)
+                    }
+                }
+            )
             .onAppear {
                 loadSettings()
+                // Carica i modelli in background se non già presenti
+                Task {
+                    await ModelCatalog.shared.fetchAllModels()
+                }
             }
             .sheet(isPresented: $showingOAuthConfig) {
                 OAuthConfigView()

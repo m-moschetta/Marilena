@@ -16,24 +16,25 @@ struct OpenAIModels {
 
     // Reasoning/o-series (kept for compatibility)
     static let oSeries: [String] = [
-        "o1",
-        "o1-mini",
-        "o3-mini"
+        "o3",
+        "o3-pro",
+        "o3-deep-research",
+        "o3-mini",
+        "o4-mini",
+        "o4-mini-deep-research"
     ]
 
-    // Placeholder GPT-5 variants (to be verified against official docs when available)
-    static let gpt5SeriesPlaceholders: [String] = [
+    // GPT-5 family
+    static let gpt5Series: [String] = [
         "gpt-5",
         "gpt-5-mini",
-        "gpt-5o",
-        "gpt-5.1",
-        "gpt-5.1-mini"
+        "gpt-5-nano"
     ]
 
     static var availableModels: [String] {
         // Merge and keep unique order
         var seen = Set<String>()
-        let merged = gpt5SeriesPlaceholders + gpt4Series + oSeries
+        let merged = gpt5Series + gpt4Series + oSeries + ["gpt-realtime", "gpt-audio", "gpt-image-1", "text-embedding-3-large", "text-embedding-3-small"]
         return merged.filter { seen.insert($0).inserted }
     }
 }

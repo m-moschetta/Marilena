@@ -1,69 +1,172 @@
-# Marilena – Documentazione Progetto
+# Marilena – Developer Guide
 
-Benvenuto nella documentazione ufficiale di Marilena, l’assistente AI personale per iOS!
+Guida unica e aggiornata per sviluppatori: architettura, moduli principali, configurazione OAuth, stile e testing.
 
----
+—
 
-## 🚀 Introduzione
-Marilena è un’app iOS che integra registrazione audio avanzata, trascrizione automatica, chat AI multimodello e ricerca online. Il progetto è pensato per essere facilmente estendibile sia da sviluppatori umani che da AI.
+## Architettura
+- SwiftUI per UI modulare e reattiva.
+- Core Data per persistenza di registrazioni, trascrizioni e conversazioni.
+- `AIProviderManager` per selezione dinamica provider (OpenAI, Anthropic, Perplexity, Groq) con fallback.
+- Servizi dedicati: `OpenAIService`, `AnthropicService`, `PerplexityService`, `GroqService`.
+- `SpeechTranscriptionService` per trascrizione (Speech Framework, SpeechAnalyzer, Whisper API).
+- `PromptManager` per gestione centralizzata dei prompt.
 
----
+—
 
-## 🏗️ Architettura
-- **SwiftUI** per l’interfaccia utente modulare e reattiva
-- **Core Data** per la persistenza di registrazioni e trascrizioni
-- **AIProviderManager** per la selezione dinamica dei provider AI (OpenAI, Anthropic, Groq, Perplexity)
-- **SpeechTranscriptionService** per la trascrizione audio (SpeechAnalyzer iOS 26+, Speech Framework, Whisper API)
-- **PromptManager** per la gestione centralizzata dei prompt AI
+## Provider AI e Modelli
+- OpenAI: modelli chat e trascrizione; supporto streaming; limiti token variabili.
+- Anthropic: Claude per contesti grandi e risposte strutturate.
+- Perplexity: ricerca online e modelli Sonar/Llama/Mixtral.
+- Groq: esecuzione veloce di modelli open-source (es. Llama 3, Mixtral).
 
----
+Imposta le API key nell’app (Keychain). Evita di inserirle in codice/sorgente.
 
-## 🧠 Tecnologie Moderne
-- **iOS 26+**: SpeechAnalyzer, GlassEffectContainer, compatibilità avanzata
-- **OpenAI GPT-4.1, o3, o3 mini, o4 mini**: modelli AI di ultima generazione
-- **Anthropic Claude**: modelli Opus 4, Sonnet 4, ecc.
-- **Perplexity**: ricerca online, modelli Sonar, Llama, Mixtral
-- **Groq**: supporto per modelli open-source (Llama 3, Mixtral)
+—
 
----
+## Chat Module (riusabile)
+Funzionalità: chat in tempo reale, sessioni salvabili, statistiche token/tempi, esportazione conversazioni, fallback provider, UI moderna.
 
-## ❓ FAQ
-- **Serve una API key?** Sì, per le funzioni AI avanzate (chat, trascrizione cloud, ricerca online).
-- **Come cambio modello AI?** Da Impostazioni, scegli provider e modello. Il limite token si aggiorna in automatico.
-- **Come faccio una ricerca online?** Premi il mappamondo nella chat AI.
-- **L’app è pronta per iOS 26?** Sì, già compatibile e aggiornata.
-- **Posso contribuire?** Sì! Segui la guida qui sotto.
+Uso base:
+```swift
+import SwiftUI
 
----
-
-## 🤝 Guida Rapida Contributor
-1. Clona il repo: `git clone https://github.com/m-moschetta/Marilena.git`
-2. Apri in Xcode: `open Marilena.xcodeproj`
-3. Configura le API key nelle impostazioni app
-4. Crea un branch: `git checkout -b feature/il-tuo-nome-feature`
-5. Sviluppa, commenta, aggiorna la documentazione
-6. Commit e push: `git add . && git commit -m "feature" && git push origin feature/il-tuo-nome-feature`
-7. Apri una Pull Request
-
----
-
-## 📊 Flusso Architetturale
-```mermaid
-graph TD;
-    A[Utente preme "Registra"] --> B[AudioRecorderView avvia registrazione]
-    B --> C[RecordingService salva audio in Core Data]
-    C --> D[SpeechTranscriptionService avvia trascrizione]
-    D -->|iOS 26+| E[SpeechAnalyzer]
-    D -->|iOS 13-25| F[Speech Framework]
-    D -->|API| G[Whisper/OpenAI]
-    E & F & G --> H[Trascrizione salvata in Core Data]
-    H --> I[UI aggiornata automaticamente con @FetchRequest]
-    I --> J[L’utente può avviare chat AI sulla trascrizione]
-    J --> K[AIProviderManager seleziona provider migliore]
-    K --> L[OpenAIService/AnthropicService/PerplexityService/GroqService]
-    L --> M[Risposta AI mostrata in ChatView]
+struct MyAppView: View {
+    var body: some View {
+        NavigationView {
+            ModularChatView(title: "Chat AI")
+        }
+    }
+}
 ```
 
----
+Configurazione avanzata:
+```swift
+let config = ChatConfiguration(
+    maxTokens: 8000,
+    temperature: 0.7,
+    model: "gpt-4o-mini",
+    systemPrompt: "Sei un assistente esperto...",
+    contextWindow: 16000
+)
 
-Per dettagli, esempi di codice e approfondimenti consulta il [README](../README.md) o apri una issue! 
+ModularChatView(title: "Chat Pro", configuration: config, showSettings: true)
+```
+
+Statistiche:
+```swift
+let stats = chatService.getConversationStats()
+print(stats.totalMessages, stats.totalTokens)
+```
+
+—
+
+## Transcription Module (riusabile)
+Funzionalità: multi-framework (SpeechAnalyzer iOS 26+, Speech Framework, Whisper API), multilingua, risultati con confidenza/timestamp/segmenti, UI e statistiche.
+
+Uso base:
+```swift
+import SwiftUI
+
+struct MyTranscriber: View {
+    var body: some View {
+        ModularTranscriptionView(title: "Trascrizione")
+    }
+}
+```
+
+Configurazione:
+```swift
+let config = ModularTranscriptionConfiguration(
+  mode: .auto, language: "it-IT",
+  enableTimestamps: true, enableConfidence: true, enableSegments: true,
+  maxProcessingTime: 300, retryCount: 3
+)
+
+ModularTranscriptionView(title: "Avanzata", configuration: config, showSettings: true)
+```
+
+Permessi Info.plist:
+```xml
+<key>NSSpeechRecognitionUsageDescription</key>
+<string>Trascrizione dell'audio</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>Registrazione dell'audio</string>
+```
+
+—
+
+## Email: Cache e Offline
+- Cache: limite elementi e durata configurati; riduce chiamate di rete.
+- Offline Sync: accoda operazioni (es. invio/cancellazione), riprende al ripristino connessione; indicatori UI e log.
+
+Uso tipico:
+```swift
+await emailService.sendEmail(to: "test@example.com", subject: "Ciao", body: "Messaggio")
+// offline → accodato; online → inviato
+```
+
+—
+
+## OAuth Google (passi sicuri)
+Obiettivo: abilitare autenticazione Google per email/servizi protetti.
+
+1) Google Cloud Console → configura OAuth consent screen (Testing o Publishing) e abilita Gmail API se necessario.
+2) Aggiungi il tuo account come Test User oppure pubblica l’app (richiede revisione).
+3) Imposta Client ID/Redirect URI coerenti con il bundle; non includere credenziali nel repo.
+4) In app, aggiorna impostazioni OAuth e verifica il flusso.
+
+Helper: `bash Marilena/scripts/setup_oauth.sh` (segui le istruzioni a terminale). Non inserire ID o segreti qui nel codice.
+
+—
+
+## Build e Test
+```bash
+# Apri in Xcode
+open Marilena.xcodeproj
+
+# iOS
+xcodebuild -scheme Marilena \
+  -destination 'platform=iOS Simulator,name=iPhone 15' build test
+
+# macOS
+xcodebuild -scheme Marilena-Mac -destination 'platform=macOS' build test
+```
+
+—
+
+## Stile & Linee Guida
+- Swift, indentazione 2 spazi; seguire Swift API Design Guidelines.
+- Tipi `UpperCamelCase`; proprietà/metodi `lowerCamelCase`.
+- Viste con suffisso `View`, servizi con suffisso `Service`.
+- Preferire `struct` e `async/await`. Marcare `final` dove appropriato.
+- File piccoli e focalizzati; test co-locati in `*Tests`.
+
+—
+
+## Testing
+- Unit: Swift Testing (`import Testing`); UI: XCTest.
+- Nomi test: `FeatureNameTests.swift`; un comportamento per `@Test`.
+- Copertura significativa su servizi AI, speech e persistenza.
+
+—
+
+## Sicurezza
+- Nessuna API key hard-coded; usa Keychain via impostazioni in-app.
+- Non committare credenziali personali; rivedi sempre le modifiche a `Info.plist` (iOS/macOS).
+
+—
+
+## Contributi
+- Branch: `feature/<slug>`, `fix/<slug>`, `chore/<slug>`.
+- PR: descrizione chiara, issue collegate, screenshot/GIF per UI, passi di validazione, note su migrazioni o `Info.plist`.
+
+Consulta il README alla radice per un Quick Start.
+
+—
+
+## Refactoring
+- Piano operativo e aggiornato: `docs/REFACTORING_PLAN.md`.
+
+## Performance
+- Il piano performance è integrato nel refactoring (sezione M7 – Performance) con KPI, misurazione, aree di ottimizzazione e criteri di accettazione.

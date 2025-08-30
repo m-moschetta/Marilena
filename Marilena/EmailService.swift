@@ -37,6 +37,11 @@ public class EmailService: ObservableObject {
     // Variabili per gestire il rate limiting
     private var lastRequestTime: Date?
     private let minimumRequestInterval: TimeInterval = 2.0 // 2 secondi tra le richieste
+
+    // Sistema di debouncing per evitare richieste duplicate
+    private var lastEmailLoadTime: Date?
+    private let minimumEmailLoadInterval: TimeInterval = 30.0 // 30 secondi tra i caricamenti email
+    private var isLoadingEmails = false // Flag per evitare caricamenti concorrenti
     
     // MARK: - Email Providers
     private let gmailIMAPHost = "imap.gmail.com"
@@ -158,16 +163,42 @@ public class EmailService: ObservableObject {
         isLoading = false
     }
     
-    /// Carica le email per l'account specificato
+    /// Forza il caricamento delle email ignorando il debouncing
+    public func forceLoadEmails(for account: EmailAccount) async {
+        print("🔄 EmailService: Forzando caricamento email (ignorando debouncing)")
+        await loadEmailsInternal(for: account)
+    }
+
+    /// Carica le email per l'account specificato (con debouncing)
     public func loadEmails(for account: EmailAccount) async {
+        // Controllo debouncing: evita caricamenti troppo frequenti
+        if let lastLoad = lastEmailLoadTime,
+           Date().timeIntervalSince(lastLoad) < minimumEmailLoadInterval {
+            print("⏳ EmailService: Caricamento email saltato (debouncing attivo)")
+            return
+        }
+
+        // Controllo concorrenza: evita caricamenti simultanei
+        if isLoadingEmails {
+            print("⏳ EmailService: Caricamento email già in corso, saltato")
+            return
+        }
+
+        await loadEmailsInternal(for: account)
+    }
+
+    /// Implementazione privata del caricamento email (senza debouncing)
+    private func loadEmailsInternal(for account: EmailAccount) async {
+        isLoadingEmails = true
         isLoading = true
         error = nil
-        
+        lastEmailLoadTime = Date()
+
         print("📧 EmailService: Caricamento email per \(account.email)")
-        
+
         do {
             let messages: [EmailMessage]
-            
+
             switch account.provider {
             case .google:
                 // Usa Gmail API per Google
@@ -176,62 +207,63 @@ public class EmailService: ObservableObject {
                 // Usa Microsoft Graph API per Microsoft
                 messages = try await fetchEmailsWithMicrosoftGraph(accessToken: account.accessToken)
             }
-            
+
             // Carica prima le email senza categorizzazione per UI reattiva
             self.emails = messages
             self.currentAccount = account
             self.isAuthenticated = true
-            
+
             // Notifica SOLO nuove email ricevute (non già viste)
             let previousEmailIds = Set(self.emails.map { $0.id })
             let newEmails = messages.filter { !previousEmailIds.contains($0.id) && $0.emailType == .received }
-            
+
             for email in newEmails {
                 print("📧 EmailService: Nuova email ricevuta da \(email.from) - Invio notifica")
                 NotificationCenter.default.post(name: .newEmailReceived, object: email)
             }
-            
+
             if !newEmails.isEmpty {
                 print("✅ EmailService: Inviate \(newEmails.count) notifiche per nuove email")
             }
-            
+
             // Salva in cache
             await cacheService.cacheEmails(messages, for: account.email)
-            
+
                         // Sincronizza lo stato di categorizzazione con il service
             categorizationService.syncWithEmailCache(messages)
-            
+
             // Adatta automaticamente la configurazione al numero di email
             await EmailCategorizationConfigManager.shared.adaptToEmailCount(messages.count)
-            
+
             print("✅ EmailService: Caricate \(messages.count) email per \(account.email)")
-            
+
             // Organizza le email in conversazioni
             await organizeEmailsIntoConversations()
-            
+
             // Categorizza le email in background con strategia ibrida intelligente
             Task {
                 await categorizeEmailsInBackground(messages)
             }
-            
+
             // Resetta contatori di sessione per grandi caricamenti (nuovo account)
             if messages.count > 100 {
                 categorizationService.resetSessionCounters()
                 print("🔄 EmailService: Reset contatori AI per nuovo caricamento di \(messages.count) email")
             }
-            
+
         } catch {
             print("❌ EmailService: Errore caricamento email: \(error)")
             self.error = error.localizedDescription
-            
+
             // Se l'errore è dovuto a token scaduto, prova a fare refresh
             if error.localizedDescription.contains("401") || error.localizedDescription.contains("unauthorized") {
                 print("🔄 EmailService: Token scaduto, tentativo di refresh...")
                 await refreshTokenIfNeeded()
             }
         }
-        
+
         isLoading = false
+        isLoadingEmails = false
     }
     
     /// Aggiorna il token di accesso se necessario
