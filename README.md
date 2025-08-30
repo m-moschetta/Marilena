@@ -34,8 +34,8 @@ Esegui da terminale o Xcode.
 open Marilena.xcodeproj
 
 # iOS build + test
-xcodebuild -scheme Marilena \
-  -destination 'platform=iOS Simulator,name=iPhone 15' build test
+xcodebuild -scheme Marilena-iOS \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build test
 
 # macOS build + test
 xcodebuild -scheme Marilena-Mac \
@@ -59,4 +59,3 @@ xcodebuild -scheme Marilena-Mac \
 
 ## Documentazione
 La guida completa per sviluppatori, moduli (Chat, Transcription), OAuth, stile e test si trova in: `docs/index.md`.
-

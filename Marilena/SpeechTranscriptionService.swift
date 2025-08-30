@@ -151,6 +151,7 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
         
         super.init()
         
+        // PERF: Valutare lazy setup della pipeline (solo al primo utilizzo) per ridurre startup cost.
         setupSpeechRecognition()
         checkPermissions()
         
@@ -1339,4 +1340,3 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
 }
 
 // MARK: - Supporting Types
-

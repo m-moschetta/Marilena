@@ -1,4 +1,6 @@
 import SwiftUI
+// PERF: Verificare ricomposizioni frequenti; considerare `EquatableView` o estrarre sotto-viste con `@StateObject` dove opportuno.
+// PERF: Evitare calcoli costosi dentro `body`; memoizzare valori derivati da `geometry` se riusabile.
 import CoreData
 
 struct ContentView: View {
@@ -22,6 +24,7 @@ struct ContentView: View {
         .accentColor(.blue)
         .onAppear {
             print("📱 iPadLayout: caricato")
+            PerformanceSignpost.event("HomeAppear")
         }
     }
 }

@@ -1,4 +1,6 @@
 import SwiftUI
+// PERF: Streaming UI: aggiornare in modo incrementale; evitare copie di stringhe grandi; usare buffering per chunk.
+// PERF: Valutare `@StateObject` per view model e ridurre ricomposizioni di tutta la vista.
 import Combine
 import CoreData
 
@@ -306,6 +308,9 @@ public struct ModularChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 loadChatSettings()
+            }
+            .onAppear {
+                PerformanceSignpost.event("ChatViewAppear")
             }
         }
     }

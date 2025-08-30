@@ -1,4 +1,6 @@
 import SwiftUI
+// PERF: List rendering: ottimizzare diffing identificando righe con `id` stabile; considerare `EquatableView` per celle statiche.
+// PERF: Integrare cache con TTL/size cap dal servizio per ridurre fetch frequenti.
 import Combine
 import CoreData
 
@@ -301,6 +303,7 @@ public struct EmailListView: View {
             Task {
                 await emailService.restoreAuthentication()
             }
+            PerformanceSignpost.event("EmailListAppear")
         }
         .onReceive(NotificationCenter.default.publisher(for: .modernViewerSettingChanged)) { _ in
             loadViewerSettings()

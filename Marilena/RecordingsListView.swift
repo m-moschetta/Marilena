@@ -1,4 +1,6 @@
 import SwiftUI
+// PERF: Caricamenti di liste grandi: valutare `@FetchRequest` con limiti/paginazione e prefetch per ridurre memoria.
+// PERF: Evitare lavoro pesante in `onAppear` di ogni cella; usare immagini/audio downsampled.
 import CoreData
 import AVFoundation
 import Combine
@@ -140,6 +142,7 @@ struct RecordingsListView: View {
         }
         .onAppear {
             debugCoreDataState()
+            PerformanceSignpost.event("RecordingsListAppear")
         }
     }
     

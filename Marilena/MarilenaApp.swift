@@ -10,18 +10,20 @@ struct MarilenaApp: App {
     @StateObject private var transcriptionService: SpeechTranscriptionService
     @StateObject private var recordingService: RecordingService
     @StateObject private var emailChatService: EmailChatService
+    @StateObject private var deferredInitService = DeferredInitializationService()
     
     @State private var shouldStartRecording = false
     @State private var shouldStopRecording = false
 
     init() {
+        #if DEBUG
+        AppPerformanceMetrics.shared.markAppInit()
+        #endif
         // Inizializza i servizi
         self._transcriptionService = StateObject(wrappedValue: SpeechTranscriptionService(context: PersistenceController.shared.container.viewContext))
         self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
         self._emailChatService = StateObject(wrappedValue: EmailChatService(context: PersistenceController.shared.container.viewContext))
-        
-        // Configura Google Sign-In dopo l'inizializzazione
-        setupGoogleSignIn()
+        // Spostato: la configurazione Google Sign-In viene deferita post-first-frame
     }
 
     var body: some Scene {
@@ -30,10 +32,20 @@ struct MarilenaApp: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(recordingService)
                 .onAppear {
-                    // Richiedi i permessi per il riconoscimento vocale all'avvio
-                    requestSpeechPermissions()
-                    
-                    // Controlla se ci sono intents pendenti
+                    #if DEBUG
+                    AppPerformanceMetrics.shared.markFirstFrame()
+                    #endif
+                    // Defer startup work per migliorare il first-frame
+                    deferredInitService.schedule([
+                        .init(name: "google-signin", delay: 0.15) {
+                            setupGoogleSignIn()
+                        },
+                        .init(name: "speech-permissions", delay: 0.30) {
+                            requestSpeechPermissions()
+                        }
+                    ])
+
+                    // Controlla intents pendenti subito (leggero)
                     checkPendingIntents()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
