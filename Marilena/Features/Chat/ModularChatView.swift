@@ -969,17 +969,8 @@ public struct ModularChatView: View {
         }
     }
     
-    // Funzione dinamica per ottenere il display name basato sul provider
-    func getCurrentProviderModelDisplayName(_ model: String) -> String {
-        switch selectedProvider {
-        case "groq":
-            return getGroqModelDisplayName(model)
-        case "anthropic":
-            return getAnthropicModelDisplayName(model)
-        default: // "openai"
-            return getOpenAIModelDisplayName(model)
-        }
-    }
+    // Mostra sempre l'ID esatto del modello (quello inviato alle API)
+    func getCurrentProviderModelDisplayName(_ model: String) -> String { model }
 }
 
 // MARK: - Modular Message Row (COPIA ESATTA COMPLETA)
