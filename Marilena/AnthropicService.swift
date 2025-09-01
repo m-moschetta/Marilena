@@ -63,14 +63,12 @@ class AnthropicService {
     
     private let baseURL = "https://api.anthropic.com/v1"
     
-    // Modelli supportati da Anthropic (2025 - Ufficiali da documentazione Anthropic)
+    // Modelli supportati da Anthropic (nomi API confermati)
     static let claudeModels = [
-        "claude-opus-4-20250514",             // Claude 4 Opus - Il più potente (Maggio 2025) ✅ NOME API REALE
-        "claude-sonnet-4-20250514",           // Claude 4 Sonnet - High performance (Maggio 2025) ✅ NOME API REALE
-        "claude-3-7-sonnet-20250219",         // Claude 3.7 - Hybrid reasoning (Feb 2025) ✅ NOME API REALE
-        "claude-3-5-sonnet-20241022",         // Claude 3.5 Sonnet - Bilanciato e affidabile ✅ NOME API REALE
-        "claude-3-5-haiku-20241022",          // Claude 3.5 Haiku - Veloce ed economico ✅ NOME API REALE
-        "claude-3-opus-20240229"              // Claude 3 Opus - Legacy fallback
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        "claude-3-haiku-20240307",
+        "claude-3-opus-20240229"
     ]
     
     public init() {}
@@ -89,9 +87,37 @@ class AnthropicService {
     
     // MARK: - Chat Methods
     
+    public func testConnection() async throws -> Bool {
+        guard let apiKey = getAPIKey(), !apiKey.isEmpty else {
+            throw AnthropicError.noAPIKey
+        }
+
+        let model = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
+        let messages = [
+            createMessage(role: "user", content: "Hello")
+        ]
+
+        let url = URL(string: "\(baseURL)/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+        // Usa un max_tokens valido per il test
+        let body = AnthropicRequest(model: model, maxTokens: 64, messages: messages, temperature: 0.2)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            return false
+        }
+        return true
+    }
+
     func sendMessage(messages: [AnthropicMessage], completion: @escaping (Result<String, Error>) -> Void) {
-        // Usa le impostazioni specifiche per Chat AI
-        let selectedModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-sonnet-4-20250514"
+        // Usa modello selezionato dall'utente oppure un fallback sicuro
+        let selectedModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
         let maxTokens = Int(UserDefaults.standard.double(forKey: "maxChatTokens"))
         let temperature = UserDefaults.standard.double(forKey: "temperature")
         
@@ -99,9 +125,25 @@ class AnthropicService {
     }
     
     func sendMessage(messages: [AnthropicMessage], model: String, maxTokens: Int, temperature: Double, completion: @escaping (Result<String, Error>) -> Void) {
-        guard let apiKey = getAPIKey(), !apiKey.isEmpty else {
-            DispatchQueue.main.async {
-                completion(.failure(AnthropicError.noAPIKey))
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        guard let apiKey = getAPIKey(), !apiKey.isEmpty, !forceGateway else {
+            // Fallback/force: usa Cloudflare Gateway con formato OpenAI-compatibile
+            let openAIMessages: [OpenAIMessage] = messages.map { msg in
+                let text = msg.content.map { $0.text }.joined(separator: "\n\n")
+                return OpenAIMessage(role: msg.role, content: text)
+            }
+            Task {
+                do {
+                    let text = try await CloudflareGatewayClient.shared.sendChat(
+                        messages: openAIMessages,
+                        model: model,
+                        maxTokens: maxTokens == 0 ? nil : maxTokens,
+                        temperature: temperature == 0 ? nil : temperature
+                    )
+                    DispatchQueue.main.async { completion(.success(text)) }
+                } catch {
+                    DispatchQueue.main.async { completion(.failure(error)) }
+                }
             }
             return
         }
@@ -112,10 +154,12 @@ class AnthropicService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        
+        // Imposta un default sicuro per max_tokens (> 0) se non configurato
+        let safeMaxTokens = maxTokens > 0 ? maxTokens : 1024
+
         let requestBody = AnthropicRequest(
             model: model,
-            maxTokens: maxTokens,
+            maxTokens: safeMaxTokens,
             messages: messages,
             temperature: temperature
         )

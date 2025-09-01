@@ -18,14 +18,23 @@ struct SettingsView: View {
     
     // Groq settings
     @State private var groqApiKey = ""
-    @State private var selectedGroqModel = "deepseek-r1-distill-qwen-32b"
+    @State private var selectedGroqModel = "llama-3.1-8b-instant"
     
     // Anthropic settings
     @State private var anthropicApiKey = ""
     @State private var selectedAnthropicModel = "claude-3-5-sonnet-20241022"
-    
+
+    // DeepSeek settings
+    @State private var deepSeekApiKey = ""
+    @State private var selectedDeepSeekModel = "deepseek-chat"
+
+    // Email categorization model selection
+    @State private var selectedEmailCategorizationModel: AIModelConfiguration?
+
     // Provider selection
     @State private var selectedProvider = "openai"
+    // Routing
+    @State private var forceGateway = false
     
     let availableModels = OpenAIModels.availableModels
     
@@ -64,21 +73,11 @@ struct SettingsView: View {
     ]
     
     let availableAnthropicModels = [
-        // Claude 4 series (2025 - Latest and most capable - Maggio 2025)
-        "claude-opus-4-20250514",      // Most powerful model, $15/$75 per 1M tokens, 200K context ✅
-        "claude-sonnet-4-20250514",    // High performance for production, $3/$15 per 1M tokens, 200K context ✅
-        
-        // Claude 3.7 series (Hybrid reasoning - Febbraio 2025)
-        "claude-3-7-sonnet-20250219",  // First hybrid reasoning model, enhanced thinking, $6/$22.5 per 1M tokens ✅
-        
-        // Claude 3.5 series (Proven workhorses - Proven reliable)
-        "claude-3-5-sonnet-20241022",  // Best balance, 200K context, $3/$15 per 1M tokens ✅
-        "claude-3-5-haiku-20241022",   // Fast and lightweight, 200K context, $0.25/$1.25 per 1M tokens ✅
-        
-        // Claude 3 series (Legacy but still available)
-        "claude-3-sonnet",             // Balanced performance, 200K context
-        "claude-3-haiku",              // Fastest and cheapest, 200K context
-        "claude-3-opus"                // Most capable legacy model, 200K context
+        // Claude 3.5/3 series (ID API)
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        "claude-3-haiku-20240307",
+        "claude-3-opus-20240229"
     ]
     
     let transcriptionModes = [
@@ -92,12 +91,23 @@ struct SettingsView: View {
     let availableProviders = [
         ("openai", "OpenAI", "Modelli GPT più avanzati e versatili"),
         ("anthropic", "Anthropic Claude", "Modelli Claude per ragionamento profondo"),
-        ("groq", "Groq", "Velocità ultra-rapida con Qwen 3 e DeepSeek R1")
+        ("groq", "Groq", "Velocità ultra-rapida con Qwen 3 e DeepSeek R1"),
+        ("deepseek", "DeepSeek", "Modelli molto economici per ragionamento avanzato")
     ]
     
     var body: some View {
         NavigationView {
             Form {
+                Section("Instradamento") {
+                    Toggle(isOn: $forceGateway) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Forza uso Gateway Cloudflare")
+                            Text("Instrada tutte le chat via gateway anche con API key presenti")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
                 Section("🎯 Selettore Provider AI") {
                     Picker("Provider AI", selection: $selectedProvider) {
                         ForEach(availableProviders, id: \.0) { provider in
@@ -214,12 +224,27 @@ struct SettingsView: View {
                         // Picker dinamico basato sul catalogo
                         ModelPickerView(provider: .anthropic, selectedModel: $selectedAnthropicModel)
                         
-                        Button("Test Connessione Anthropic") {
-                            testAnthropicConnection()
-                        }
+                        Button("Test Connessione Anthropic") { testAnthropicConnection() }
                         .foregroundColor(.blue)
                         
                         Text("🧠 Anthropic Claude: Eccellente per ragionamento e analisi profonda")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else if selectedProvider == "deepseek" {
+                    Section("DeepSeek AI Configuration") {
+                        SecureField("DeepSeek API Key", text: $deepSeekApiKey)
+                            .textContentType(.password)
+
+                        // Picker dinamico basato sul catalogo
+                        ModelPickerView(provider: .deepseek, selectedModel: $selectedDeepSeekModel)
+
+                        Button("Test Connessione DeepSeek") {
+                            testDeepSeekConnection()
+                        }
+                        .foregroundColor(.blue)
+
+                        Text("🧠 DeepSeek: Modelli molto economici per ragionamento avanzato")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -379,6 +404,85 @@ struct SettingsView: View {
                         Label("Prompt Email", systemImage: "envelope.badge.person.crop")
                     }
                 }
+
+                // NUOVO: Sezione Categorizzazione Email
+                Section("🤖 Modello Categorizzazione Email") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Seleziona il modello AI per la categorizzazione automatica delle email:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        // Picker per selezionare il modello
+                        ModelPickerForCategorizationView(selectedModel: $selectedEmailCategorizationModel)
+
+                        // Informazioni sul modello selezionato
+                        if let model = selectedEmailCategorizationModel {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Modello selezionato:")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(model.name)
+                                        .font(.subheadline)
+                                        .foregroundColor(.primary)
+                                }
+
+                                HStack {
+                                    Text("Provider:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(model.provider.displayName)
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                }
+
+                                HStack {
+                                    Text("Costo:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("$\(model.pricing.inputTokens.price) input / $\(model.pricing.outputTokens.price) output")
+                                        .font(.caption)
+                                        .foregroundColor(.green)
+                                }
+
+                                HStack {
+                                    Text("Contesto:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("\(model.contextWindow) tokens")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+
+                        // Suggerimenti sui modelli economici
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("💡 Modelli consigliati per risparmio:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            Text("• DeepSeek Chat: $0.14/$0.28 (molto economico)")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("• GPT-4o Mini: $0.15/$0.60 (buon compromesso)")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("• Claude 3.5 Haiku: $0.80/$4.00 (veloce)")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("• Groq Llama 3.1: $0.59/$0.79 (veloce)")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
                 
                 Section {
                     Button("Salva Configurazione") {
@@ -433,16 +537,24 @@ struct SettingsView: View {
         // Salva API keys per tutti i provider
         _ = KeychainManager.shared.saveAPIKey(groqApiKey, for: "groq")
         _ = KeychainManager.shared.saveAPIKey(anthropicApiKey, for: "anthropic")
+        _ = KeychainManager.shared.saveAPIKey(deepSeekApiKey, for: "deepseek")
         
         // Salva provider selezionato e modelli
         UserDefaults.standard.set(selectedProvider, forKey: "selectedProvider")
+        UserDefaults.standard.set(forceGateway, forKey: "force_gateway")
         UserDefaults.standard.set(selectedModel, forKey: "selected_model")
         UserDefaults.standard.set(selectedPerplexityModel, forKey: "selected_perplexity_model")
         UserDefaults.standard.set(selectedGroqModel, forKey: "selectedGroqChatModel")
         UserDefaults.standard.set(selectedAnthropicModel, forKey: "selectedAnthropicModel")
+        UserDefaults.standard.set(selectedDeepSeekModel, forKey: "selectedDeepSeekModel")
         UserDefaults.standard.set(temperature, forKey: "temperature")
         UserDefaults.standard.set(maxTokens, forKey: "max_tokens")
         UserDefaults.standard.set(selectedTranscriptionMode, forKey: "transcription_mode")
+
+        // Salva il modello selezionato per la categorizzazione email
+        if let emailModel = selectedEmailCategorizationModel {
+            UserDefaults.standard.set(emailModel.id, forKey: "emailCategorizationModel")
+        }
         
         // Forza la sincronizzazione e notifica il cambiamento
         UserDefaults.standard.synchronize()
@@ -461,15 +573,23 @@ struct SettingsView: View {
         perplexityApiKey = KeychainManager.shared.load(key: "perplexity_api_key") ?? ""
         groqApiKey = KeychainManager.shared.getAPIKey(for: "groq") ?? ""
         anthropicApiKey = KeychainManager.shared.getAPIKey(for: "anthropic") ?? ""
-        
+        deepSeekApiKey = KeychainManager.shared.getAPIKey(for: "deepseek") ?? ""
+
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
+        forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
         selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
-        selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
+        selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.1-8b-instant"
         selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
+        selectedDeepSeekModel = UserDefaults.standard.string(forKey: "selectedDeepSeekModel") ?? "deepseek-chat"
         temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
         maxTokens = UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000
         selectedTranscriptionMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
+
+        // Carica il modello selezionato per la categorizzazione email
+        if let modelId = UserDefaults.standard.string(forKey: "emailCategorizationModel") {
+            selectedEmailCategorizationModel = AIModelConfiguration.allModels.first(where: { $0.id == modelId })
+        }
     }
     
     private func testTranscriptionPermissions() {
@@ -643,6 +763,9 @@ struct SettingsView: View {
     private func testGroqConnection() {
         // Salva la chiave prima di testare
         _ = KeychainManager.shared.saveAPIKey(groqApiKey, for: "groq")
+        // Assicura che il modello selezionato in UI sia persistito prima del test
+        UserDefaults.standard.set(selectedGroqModel, forKey: "selectedGroqChatModel")
+        UserDefaults.standard.synchronize()
         
         Task {
             do {
@@ -665,19 +788,51 @@ struct SettingsView: View {
     }
     
     private func testAnthropicConnection() {
-        // Salva la chiave prima di testare
+        // Salva la chiave prima di testare e persisti il modello selezionato
         _ = KeychainManager.shared.saveAPIKey(anthropicApiKey, for: "anthropic")
-        
+        UserDefaults.standard.set(selectedAnthropicModel, forKey: "selectedAnthropicModel")
+        UserDefaults.standard.synchronize()
+
         Task {
-            await MainActor.run {
-                // Per ora mostra un messaggio di placeholder
-                // TODO: Implementare AnthropicService per test reale
-                if !anthropicApiKey.isEmpty {
-                    alertMessage = "✅ Test Anthropic configurato:\n\n• API Key salvata\n• Modelli Claude disponibili\n• Integrazione da completare"
-                } else {
-                    alertMessage = "❌ Test Anthropic fallito:\n\nInserisci una API Key valida"
+            do {
+                let ok = try await AnthropicService.shared.testConnection()
+                await MainActor.run {
+                    if ok {
+                        alertMessage = "✅ Test Anthropic riuscito:\n\n• API Key valida\n• Connessione diretta OK"
+                    } else {
+                        alertMessage = "❌ Test Anthropic fallito: risposta non valida (controlla modello e chiave)"
+                    }
+                    showAlert = true
                 }
-                showAlert = true
+            } catch {
+                await MainActor.run {
+                    alertMessage = "❌ Test Anthropic fallito:\n\nErrore: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
+    }
+
+    private func testDeepSeekConnection() {
+        // Salva la chiave prima di testare
+        _ = KeychainManager.shared.saveAPIKey(deepSeekApiKey, for: "deepseek")
+
+        Task {
+            do {
+                let success = try await DeepSeekService.shared.testConnection()
+                await MainActor.run {
+                    if success {
+                        alertMessage = "✅ Test DeepSeek riuscito:\n\n• API Key valida\n• Connessione a DeepSeek OK\n• Modelli disponibili per categorizzazione"
+                    } else {
+                        alertMessage = "❌ Test DeepSeek fallito:\n\nImpossibile connettersi a DeepSeek."
+                    }
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    alertMessage = "❌ Test DeepSeek fallito:\n\nErrore: \(error.localizedDescription)"
+                    showAlert = true
+                }
             }
         }
     }

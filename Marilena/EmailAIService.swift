@@ -261,7 +261,9 @@ public class EmailAIService: ObservableObject {
             switch provider?.provider {
             case .openai:
                 let message = OpenAIMessage(role: "user", content: prompt)
-                openAIService.sendMessage(messages: [message], model: selectedModel) { result in
+                // Usa il modello scelto nel provider dinamico se presente
+                let model = provider?.model ?? selectedModel
+                openAIService.sendMessage(messages: [message], model: model) { result in
                     switch result {
                     case .success(let response):
                         continuation.resume(returning: response)
@@ -272,11 +274,23 @@ public class EmailAIService: ObservableObject {
             case .anthropic:
                 let content = AnthropicContent(type: "text", text: prompt)
                 let message = AnthropicMessage(role: "user", content: [content])
-                anthropicService.sendMessage(messages: [message], model: "claude-sonnet-4-20250514", maxTokens: maxTokens, temperature: temperature) { result in
+                let model = provider?.model ?? (UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022")
+                anthropicService.sendMessage(messages: [message], model: model, maxTokens: maxTokens, temperature: temperature) { result in
                     switch result {
                     case .success(let response):
                         continuation.resume(returning: response)
                     case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+            case .groq:
+                let message = OpenAIMessage(role: "user", content: prompt)
+                let model = provider?.model ?? (UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.1-8b-instant")
+                Task {
+                    do {
+                        let text = try await GroqService.shared.sendMessage(messages: [message], model: model)
+                        continuation.resume(returning: text)
+                    } catch {
                         continuation.resume(throwing: error)
                     }
                 }

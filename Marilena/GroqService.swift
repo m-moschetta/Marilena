@@ -12,7 +12,17 @@ public class GroqService: ObservableObject {
     }
     
     private var selectedModel: String {
-        return UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
+        // 1) Preferisci scelta utente
+        if let ud = UserDefaults.standard.string(forKey: "selectedGroqChatModel"), !ud.isEmpty {
+            return ud
+        }
+        // 2) Se abbiamo lista live (quando API key locale è presente), usa il primo valido
+        let liveModels = ModelCatalog.shared.models(for: .groq)
+        if let live = liveModels.first?.name, !live.isEmpty {
+            return live
+        }
+        // 3) Fallback generico supportato da Groq
+        return "llama-3.1-8b-instant"
     }
     
     // Modelli Groq supportati (2025 - Aggiornati da documentazione ufficiale)
@@ -54,8 +64,9 @@ public class GroqService: ObservableObject {
             OpenAIMessage(role: "user", content: "Hello")
         ]
         
+        // Esegui un test diretto (ignora il gateway per diagnosi)
         do {
-            let _ = try await sendMessage(messages: testMessages, model: selectedModel)
+            let _ = try await sendMessageDirect(messages: testMessages, model: selectedModel)
             return true
         } catch {
             throw error
@@ -66,10 +77,22 @@ public class GroqService: ObservableObject {
     
     /// Invia messaggi a Groq (compatibile con ChatService)
     public func sendMessage(messages: [OpenAIMessage], model: String) async throws -> String {
-        guard !apiKey.isEmpty else {
-            throw GroqError.missingAPIKey
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        if forceGateway || apiKey.isEmpty {
+            // Fallback/force: Cloudflare gateway
+            let temperature = UserDefaults.standard.double(forKey: "temperature")
+            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens"))
+            return try await CloudflareGatewayClient.shared.sendChat(
+                messages: messages,
+                model: model,
+                maxTokens: maxTokens == 0 ? nil : maxTokens,
+                temperature: temperature == 0 ? nil : temperature
+            )
         }
-        
+        return try await sendMessageDirect(messages: messages, model: model)
+    }
+
+    private func sendMessageDirect(messages: [OpenAIMessage], model: String) async throws -> String {
         let requestBody = GroqRequest(
             model: model,
             messages: messages,
@@ -93,7 +116,7 @@ public class GroqService: ObservableObject {
         
         guard httpResponse.statusCode == 200 else {
             if let errorMessage = String(data: data, encoding: .utf8) {
-                throw GroqError.apiError("HTTP \(httpResponse.statusCode): \(errorMessage)")
+                throw GroqError.apiError("HTTP \(httpResponse.statusCode) model=\(model): \(errorMessage)")
             } else {
                 throw GroqError.apiError("HTTP \(httpResponse.statusCode)")
             }

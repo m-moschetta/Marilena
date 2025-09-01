@@ -51,9 +51,10 @@ public final class ModelCatalog: ObservableObject {
         do {
             let models = try await fetchFromAPI(for: provider)
             let modelInfos = models.map { apiModel in
+                // Usa sempre l'ID del provider come valore selezionato e inviato alle API
                 AIModelInfo(
-                    name: apiModel.name,
-                    description: apiModel.description ?? "Modello \(apiModel.name)",
+                    name: apiModel.id,
+                    description: apiModel.description ?? apiModel.name,
                     contextTokens: getDefaultContextTokens(for: provider),
                     supportsStreaming: true
                 )
@@ -74,8 +75,8 @@ public final class ModelCatalog: ObservableObject {
             if !staticModels.isEmpty {
                 let modelInfos = staticModels.map { apiModel in
                     AIModelInfo(
-                        name: apiModel.name,
-                        description: apiModel.description ?? "Modello \(apiModel.name)",
+                        name: apiModel.id,
+                        description: apiModel.description ?? apiModel.name,
                         contextTokens: getDefaultContextTokens(for: provider),
                         supportsStreaming: true
                     )
@@ -194,7 +195,7 @@ extension ModelCatalog {
         let url = URL(string: "https://api.anthropic.com/v1/models")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("x-api-key: \(apiKey)", forHTTPHeaderField: "x-api-key")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
         let (data, response) = try await URLSession.shared.data(for: request)

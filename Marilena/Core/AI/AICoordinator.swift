@@ -160,11 +160,8 @@ class AICoordinator: ObservableObject {
             return existingService
         }
         
-        // Create new service instance
-        guard let apiKey = getAPIKey(for: type) else {
-            logger.error("API key non trovata per \(type.rawValue)")
-            return nil
-        }
+        // Create new service instance; se manca la key, alcuni servizi gestiscono fallback
+        let apiKey = getAPIKey(for: type) ?? ""
         
         // Create service based on type
         let service: AIServiceProtocol

@@ -24,32 +24,55 @@ public class AIProviderManager {
     // MARK: - Chat Provider Selection
     
     func getBestChatProvider() -> (provider: ChatProvider, model: String)? {
-        // Ottieni le impostazioni salvate
-        let selectedChatModel = UserDefaults.standard.string(forKey: "selectedChatModel") ?? "gpt-5"
-        let selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
-        let selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-sonnet-4-20250514"
-        
         // Verifica quali provider hanno API keys configurate
         let hasOpenAI = hasValidAPIKey(for: "openai")
         let hasAnthropic = hasValidAPIKey(for: "anthropic")
         let hasGroq = hasValidAPIKey(for: "groq")
-        
-        // Logica di priorità: usa il provider che ha sia API key che modello non-default
-        if hasOpenAI && selectedChatModel != "gpt-4.1" {
-            return (.openai, selectedChatModel)
-        } else if hasAnthropic && selectedAnthropicModel != "claude-sonnet-4-20250514" {
-            return (.anthropic, selectedAnthropicModel)
-        } else if hasGroq && selectedGroqModel != "deepseek-r1-distill-qwen-32b" {
-            return (.groq, selectedGroqModel)
-        } else if hasOpenAI {
-            return (.openai, selectedChatModel)
-        } else if hasAnthropic {
-            return (.anthropic, selectedAnthropicModel)
-        } else if hasGroq {
-            return (.groq, selectedGroqModel)
+
+        // Scegli il modello preferito: UserDefaults -> ModelCatalog live -> fallback sicuro
+        func preferredModel(for provider: ChatProvider) -> String? {
+            switch provider {
+            case .openai:
+                if let ud = UserDefaults.standard.string(forKey: "selectedChatModel"), !ud.isEmpty { return ud }
+                if let live = ModelCatalog.shared.models(for: .openai).first?.name { return live }
+                return "gpt-4o"
+            case .anthropic:
+                if let ud = UserDefaults.standard.string(forKey: "selectedAnthropicModel"), !ud.isEmpty { return normalize(model: ud, provider: .anthropic) }
+                if let live = ModelCatalog.shared.models(for: .anthropic).first?.name { return live }
+                return "claude-3-5-sonnet-20241022"
+            case .groq:
+                if let ud = UserDefaults.standard.string(forKey: "selectedGroqChatModel"), !ud.isEmpty { return normalize(model: ud, provider: .groq) }
+                if let live = ModelCatalog.shared.models(for: .groq).first?.name { return live }
+                return "llama-3.1-8b-instant"
+            }
         }
-        
+
+        // Logica di priorità semplice: OpenAI > Anthropic > Groq (quando disponibili)
+        if hasOpenAI, let model = preferredModel(for: .openai) { return (.openai, model) }
+        if hasAnthropic, let model = preferredModel(for: .anthropic) { return (.anthropic, model) }
+        if hasGroq, let model = preferredModel(for: .groq) { return (.groq, model) }
+
         return nil // Nessun provider configurato
+    }
+
+    // Normalizza selezioni legacy che salvavano display name invece di ID
+    private func normalize(model: String, provider: AIModelProvider) -> String {
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Se sembra già un ID (niente spazi o slash), mantienilo
+        if !trimmed.contains(" ") && !trimmed.contains("/") { return trimmed }
+        // Prova a mappare usando la description (spesso contiene il display name)
+        let candidates = ModelCatalog.shared.models(for: provider)
+        if let match = candidates.first(where: { $0.description.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return match.name // name ora è l'ID
+        }
+        // Fallback: primo modello live o un default sicuro
+        if let first = candidates.first?.name { return first }
+        switch provider {
+        case .anthropic: return "claude-3-5-sonnet-20241022"
+        case .groq: return "llama-3.1-8b-instant"
+        case .openai: return "gpt-4o"
+        default: return trimmed
+        }
     }
     
     // MARK: - Search Provider Selection

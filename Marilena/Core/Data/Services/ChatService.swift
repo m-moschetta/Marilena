@@ -76,6 +76,69 @@ public class ChatService: ObservableObject {
         // Salva il messaggio utente in Core Data
         saveCoreDataMessage(userMessage)
         
+        // Fallback streaming via Cloudflare Gateway se manca la chiave OpenAI
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasOpenAIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        if forceGateway || !hasOpenAIKey {
+            let assistantId = UUID()
+            let userContext = getUserContext()
+            var assistantMessage = ModularChatMessage(
+                id: assistantId,
+                content: "",
+                role: .assistant,
+                metadata: MessageMetadata(
+                    model: selectedModel,
+                    context: userContext,
+                    provider: "CloudflareGateway"
+                )
+            )
+            messages.append(assistantMessage)
+
+            // Costruisci cronologia
+            let conversationHistory = buildConversationHistory(newMessage: text, context: userContext)
+            let temperature = UserDefaults.standard.double(forKey: "temperature")
+            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens"))
+
+            CloudflareGatewayClient.shared.streamChat(
+                messages: conversationHistory,
+                model: selectedModel,
+                maxTokens: maxTokens == 0 ? nil : maxTokens,
+                temperature: temperature == 0 ? nil : temperature,
+                onChunk: { [weak self] delta in
+                    guard let self = self else { return }
+                    if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                        let updated = ModularChatMessage(
+                            id: assistantId,
+                            content: self.messages[idx].content + delta,
+                            role: .assistant,
+                            timestamp: self.messages[idx].timestamp,
+                            metadata: self.messages[idx].metadata
+                        )
+                        self.messages[idx] = updated
+                    }
+                },
+                onComplete: { [weak self] in
+                    guard let self = self else { return }
+                    self.isProcessing = false
+                    self.processingStartTime = nil
+                    // Salva la risposta finale in Core Data
+                    if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                        self.saveCoreDataMessage(self.messages[idx])
+                    }
+                    self.updateCurrentSession()
+                    self.updateCoreDataSession()
+                },
+                onError: { [weak self] error in
+                    guard let self = self else { return }
+                    self.error = error.localizedDescription
+                    self.isProcessing = false
+                    self.processingStartTime = nil
+                    print("❌ ChatService: Errore streaming gateway: \(error)")
+                }
+            )
+            return
+        }
+
         do {
             // Ottieni il contesto utente dal profilo
             let userContext = getUserContext()

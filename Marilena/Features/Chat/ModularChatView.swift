@@ -26,8 +26,11 @@ public struct ModularChatView: View {
     @State private var selectedModel = "gpt-4o-mini"
     @State private var selectedPerplexityModel = "sonar-pro"
     @State private var selectedProvider = "openai"
-    @State private var selectedGroqModel = "deepseek-r1-distill-qwen-32b"
+    @State private var selectedGroqModel = "llama-3.1-8b-instant"
     @State private var selectedAnthropicModel = "claude-3-5-sonnet-20241022"
+    // Gateway error alert
+    @State private var showGatewayErrorAlert = false
+    @State private var gatewayErrorMessage = ""
     
     private let openAIService = OpenAIService.shared
     private let profiloService = ProfiloUtenteService.shared
@@ -78,12 +81,10 @@ public struct ModularChatView: View {
     
     // Modelli Anthropic disponibili
     private let availableAnthropicModels = [
-        "claude-opus-4-20250514",      // Most capable, expensive, 200K context ✅ NOME API REALE
-        "claude-sonnet-4-20250514",    // High performance, 200K context ✅ NOME API REALE
-        "claude-3-7-sonnet-20250219",  // First hybrid reasoning model, enhanced thinking ✅ NOME API REALE
-        "claude-3-5-sonnet-20241022",  // Best balance, 200K context ✅ NOME API REALE
-        "claude-3-5-haiku-20241022",   // Fast and lightweight, 200K context ✅ NOME API REALE
-        "claude-3-opus-20240229"       // Most capable legacy model, 200K context ✅ NOME API REALE
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        "claude-3-haiku-20240307",
+        "claude-3-opus-20240229"
     ]
     
     // MARK: - Configuration
@@ -306,6 +307,11 @@ public struct ModularChatView: View {
             }
             .navigationTitle(chat.titolo ?? "Chat")
             .navigationBarTitleDisplayMode(.inline)
+            .alert("Errore Gateway", isPresented: $showGatewayErrorAlert) {
+                Button("OK") { showGatewayErrorAlert = false }
+            } message: {
+                Text(gatewayErrorMessage)
+            }
             .onAppear {
                 loadChatSettings()
             }
@@ -382,39 +388,95 @@ public struct ModularChatView: View {
         
         switch selectedProvider {
         case "groq":
-            Task {
-                do {
-                    let risposta = try await groqService.sendMessage(messages: conversationHistory, model: selectedGroqModel)
-                    
-                    await MainActor.run {
-                        let messaggioAI = MessaggioMarilena(context: viewContext)
-                        messaggioAI.id = UUID()
-                        messaggioAI.contenuto = risposta
-                        messaggioAI.isUser = false
-                        messaggioAI.dataCreazione = Date()
-                        messaggioAI.chat = chat
-                        
-                        try? viewContext.save()
+            let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+            let hasGroqKey = (KeychainManager.shared.getAPIKey(for: "groq") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            if forceGateway || !hasGroqKey {
+                let assistantId = UUID()
+                let assistantMessage = MessaggioMarilena(context: viewContext)
+                assistantMessage.id = assistantId
+                assistantMessage.contenuto = ""
+                assistantMessage.isUser = false
+                assistantMessage.dataCreazione = Date()
+                assistantMessage.chat = chat
+                try? viewContext.save()
+
+                CloudflareGatewayClient.shared.streamChat(
+                    messages: conversationHistory,
+                    model: selectedGroqModel,
+                    onChunk: { delta in
+                        if let obj = fetchMessage(by: assistantId) {
+                            obj.contenuto = (obj.contenuto ?? "") + delta
+                            try? viewContext.save()
+                        }
+                    },
+                    onComplete: {
                         isLoading = false
+                    },
+                    onError: { error in
+                        print("Errore streaming gateway (Groq): \(error)")
+                        // Fallback non-streaming via gateway
+                        Task {
+                            do {
+                                let full = try await CloudflareGatewayClient.shared.sendChat(
+                                    messages: conversationHistory,
+                                    model: selectedGroqModel
+                                )
+                                if let obj = fetchMessage(by: assistantId) {
+                                    obj.contenuto = full
+                                    try? viewContext.save()
+                                }
+                                isLoading = false
+                            } catch {
+                                gatewayErrorMessage = error.localizedDescription
+                                showGatewayErrorAlert = true
+                                let messaggioErrore = MessaggioMarilena(context: viewContext)
+                                messaggioErrore.id = UUID()
+                                messaggioErrore.contenuto = "Mi dispiace, c'è stato un problema. Riprova."
+                                messaggioErrore.isUser = false
+                                messaggioErrore.dataCreazione = Date()
+                                messaggioErrore.chat = chat
+                                try? viewContext.save()
+                                isLoading = false
+                            }
+                        }
                     }
-                } catch {
-                    await MainActor.run {
-                        print("Errore Groq: \(error)")
-                        let messaggioErrore = MessaggioMarilena(context: viewContext)
-                        messaggioErrore.id = UUID()
-                        messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con Groq. Riprova tra poco."
-                        messaggioErrore.isUser = false
-                        messaggioErrore.dataCreazione = Date()
-                        messaggioErrore.chat = chat
+                )
+            } else {
+                Task {
+                    do {
+                        let risposta = try await groqService.sendMessage(messages: conversationHistory, model: selectedGroqModel)
                         
-                        try? viewContext.save()
-                        isLoading = false
+                        await MainActor.run {
+                            let messaggioAI = MessaggioMarilena(context: viewContext)
+                            messaggioAI.id = UUID()
+                            messaggioAI.contenuto = risposta
+                            messaggioAI.isUser = false
+                            messaggioAI.dataCreazione = Date()
+                            messaggioAI.chat = chat
+                            
+                            try? viewContext.save()
+                            isLoading = false
+                        }
+                    } catch {
+                        await MainActor.run {
+                            print("Errore Groq: \(error)")
+                            let messaggioErrore = MessaggioMarilena(context: viewContext)
+                            messaggioErrore.id = UUID()
+                            messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con Groq. Riprova tra poco."
+                            messaggioErrore.isUser = false
+                            messaggioErrore.dataCreazione = Date()
+                            messaggioErrore.chat = chat
+                            
+                            try? viewContext.save()
+                            isLoading = false
+                        }
                     }
                 }
             }
             
         case "anthropic":
             // Converti OpenAIMessage in AnthropicMessage
+            let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
             let anthropicMessages = conversationHistory.filter { $0.role != "system" }.map { openAIMsg in
                 AnthropicMessage(
                     role: openAIMsg.role,
@@ -422,68 +484,186 @@ public struct ModularChatView: View {
                 )
             }
             
-            anthropicService.sendMessage(messages: anthropicMessages, model: selectedAnthropicModel, maxTokens: 4096, temperature: 0.7) { result in
-                DispatchQueue.main.async {
-                    isLoading = false
-                    
-                    switch result {
-                    case .success(let risposta):
-                        let messaggioAI = MessaggioMarilena(context: viewContext)
-                        messaggioAI.id = UUID()
-                        messaggioAI.contenuto = risposta
-                        messaggioAI.isUser = false
-                        messaggioAI.dataCreazione = Date()
-                        messaggioAI.chat = chat
+            let hasAnthropicKey = (KeychainManager.shared.getAPIKey(for: "anthropic") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            if forceGateway || !hasAnthropicKey {
+                // Usa direttamente il conversationHistory (OpenAI-format) per il gateway
+                let assistantId = UUID()
+                let assistantMessage = MessaggioMarilena(context: viewContext)
+                assistantMessage.id = assistantId
+                assistantMessage.contenuto = ""
+                assistantMessage.isUser = false
+                assistantMessage.dataCreazione = Date()
+                assistantMessage.chat = chat
+                try? viewContext.save()
+
+                CloudflareGatewayClient.shared.streamChat(
+                    messages: conversationHistory,
+                    model: selectedAnthropicModel,
+                    onChunk: { delta in
+                        if let obj = fetchMessage(by: assistantId) {
+                            obj.contenuto = (obj.contenuto ?? "") + delta
+                            try? viewContext.save()
+                        }
+                    },
+                    onComplete: {
+                        isLoading = false
+                    },
+                    onError: { error in
+                        print("Errore streaming gateway (Anthropic): \(error)")
+                        // Fallback non-streaming via gateway
+                        Task {
+                            do {
+                                let full = try await CloudflareGatewayClient.shared.sendChat(
+                                    messages: conversationHistory,
+                                    model: selectedAnthropicModel
+                                )
+                                if let obj = fetchMessage(by: assistantId) {
+                                    obj.contenuto = full
+                                    try? viewContext.save()
+                                }
+                                isLoading = false
+                            } catch {
+                                gatewayErrorMessage = error.localizedDescription
+                                showGatewayErrorAlert = true
+                                let messaggioErrore = MessaggioMarilena(context: viewContext)
+                                messaggioErrore.id = UUID()
+                                messaggioErrore.contenuto = "Mi dispiace, c'è stato un problema. Riprova."
+                                messaggioErrore.isUser = false
+                                messaggioErrore.dataCreazione = Date()
+                                messaggioErrore.chat = chat
+                                try? viewContext.save()
+                                isLoading = false
+                            }
+                        }
+                    }
+                )
+            } else {
+                anthropicService.sendMessage(messages: anthropicMessages, model: selectedAnthropicModel, maxTokens: 4096, temperature: 0.7) { result in
+                    DispatchQueue.main.async {
+                        isLoading = false
                         
-                        try? viewContext.save()
-                        
-                    case .failure(let error):
-                        print("Errore Anthropic: \(error)")
-                        let messaggioErrore = MessaggioMarilena(context: viewContext)
-                        messaggioErrore.id = UUID()
-                        messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con Anthropic. Riprova tra poco."
-                        messaggioErrore.isUser = false
-                        messaggioErrore.dataCreazione = Date()
-                        messaggioErrore.chat = chat
-                        
-                        try? viewContext.save()
+                        switch result {
+                        case .success(let risposta):
+                            let messaggioAI = MessaggioMarilena(context: viewContext)
+                            messaggioAI.id = UUID()
+                            messaggioAI.contenuto = risposta
+                            messaggioAI.isUser = false
+                            messaggioAI.dataCreazione = Date()
+                            messaggioAI.chat = chat
+                            
+                            try? viewContext.save()
+                            
+                        case .failure(let error):
+                            print("Errore Anthropic: \(error)")
+                            let messaggioErrore = MessaggioMarilena(context: viewContext)
+                            messaggioErrore.id = UUID()
+                            messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con Anthropic. Riprova tra poco."
+                            messaggioErrore.isUser = false
+                            messaggioErrore.dataCreazione = Date()
+                            messaggioErrore.chat = chat
+                            
+                            try? viewContext.save()
+                        }
                     }
                 }
             }
             
         default: // "openai"
-            openAIService.sendMessage(
-                messages: conversationHistory,
-                model: selectedModel
-            ) { result in
-                DispatchQueue.main.async {
-                    isLoading = false
-                    
-                    switch result {
-                    case .success(let risposta):
-                        let messaggioAI = MessaggioMarilena(context: viewContext)
-                        messaggioAI.id = UUID()
-                        messaggioAI.contenuto = risposta
-                        messaggioAI.isUser = false
-                        messaggioAI.dataCreazione = Date()
-                        messaggioAI.chat = chat
+            // Se manca la chiave OpenAI, usa streaming via Cloudflare Gateway
+            let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+            let hasOpenAIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            if forceGateway || !hasOpenAIKey {
+                let assistantId = UUID()
+                let assistantMessage = MessaggioMarilena(context: viewContext)
+                assistantMessage.id = assistantId
+                assistantMessage.contenuto = ""
+                assistantMessage.isUser = false
+                assistantMessage.dataCreazione = Date()
+                assistantMessage.chat = chat
+                try? viewContext.save()
+
+                CloudflareGatewayClient.shared.streamChat(
+                    messages: conversationHistory,
+                    model: selectedModel,
+                    onChunk: { delta in
+                        if let obj = fetchMessage(by: assistantId) {
+                            obj.contenuto = (obj.contenuto ?? "") + delta
+                            try? viewContext.save()
+                        }
+                    },
+                    onComplete: {
+                        isLoading = false
+                    },
+                    onError: { error in
+                        print("Errore streaming gateway: \(error)")
+                        // Fallback non-streaming via gateway
+                        Task {
+                            do {
+                                let full = try await CloudflareGatewayClient.shared.sendChat(
+                                    messages: conversationHistory,
+                                    model: selectedModel
+                                )
+                                if let obj = fetchMessage(by: assistantId) {
+                                    obj.contenuto = full
+                                    try? viewContext.save()
+                                }
+                                isLoading = false
+                            } catch {
+                                gatewayErrorMessage = error.localizedDescription
+                                showGatewayErrorAlert = true
+                                let messaggioErrore = MessaggioMarilena(context: viewContext)
+                                messaggioErrore.id = UUID()
+                                messaggioErrore.contenuto = "Mi dispiace, c'è stato un problema. Riprova."
+                                messaggioErrore.isUser = false
+                                messaggioErrore.dataCreazione = Date()
+                                messaggioErrore.chat = chat
+                                try? viewContext.save()
+                                isLoading = false
+                            }
+                        }
+                    }
+                )
+            } else {
+                openAIService.sendMessage(
+                    messages: conversationHistory,
+                    model: selectedModel
+                ) { result in
+                    DispatchQueue.main.async {
+                        isLoading = false
                         
-                        try? viewContext.save()
-                        
-                    case .failure(let error):
-                        print("Errore OpenAI: \(error)")
-                        let messaggioErrore = MessaggioMarilena(context: viewContext)
-                        messaggioErrore.id = UUID()
-                        messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con OpenAI. Riprova tra poco."
-                        messaggioErrore.isUser = false
-                        messaggioErrore.dataCreazione = Date()
-                        messaggioErrore.chat = chat
-                        
-                        try? viewContext.save()
+                        switch result {
+                        case .success(let risposta):
+                            let messaggioAI = MessaggioMarilena(context: viewContext)
+                            messaggioAI.id = UUID()
+                            messaggioAI.contenuto = risposta
+                            messaggioAI.isUser = false
+                            messaggioAI.dataCreazione = Date()
+                            messaggioAI.chat = chat
+                            
+                            try? viewContext.save()
+                            
+                        case .failure(let error):
+                            print("Errore OpenAI: \(error)")
+                            let messaggioErrore = MessaggioMarilena(context: viewContext)
+                            messaggioErrore.id = UUID()
+                            messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con OpenAI. Riprova tra poco."
+                            messaggioErrore.isUser = false
+                            messaggioErrore.dataCreazione = Date()
+                            messaggioErrore.chat = chat
+                            
+                            try? viewContext.save()
+                        }
                     }
                 }
             }
         }
+    }
+
+    private func fetchMessage(by id: UUID) -> MessaggioMarilena? {
+        let req: NSFetchRequest<MessaggioMarilena> = MessaggioMarilena.fetchRequest()
+        req.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        req.fetchLimit = 1
+        return (try? viewContext.fetch(req))?.first
     }
     
     private func buildConversationHistory(newMessage: String) -> [OpenAIMessage] {
@@ -661,8 +841,10 @@ public struct ModularChatView: View {
         selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
-        selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "deepseek-r1-distill-qwen-32b"
-        selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
+        let groqUD = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.1-8b-instant"
+        let anthropicUD = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
+        selectedGroqModel = normalizeModel(groqUD)
+        selectedAnthropicModel = normalizeModel(anthropicUD)
     }
     
     // Modelli dinamici basati sul provider selezionato
@@ -675,6 +857,27 @@ public struct ModularChatView: View {
         default: // "openai"
             return availableOpenAIModels
         }
+    }
+
+    // Normalizza display name → ID (se necessario)
+    private func normalizeModel(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.contains(" ") && !trimmed.contains("/") { return trimmed }
+        // Prova a risolvere con ModelCatalog per provider corrente
+        let lists: [[AIModelInfo]] = [
+            ModelCatalog.shared.models(for: .groq),
+            ModelCatalog.shared.models(for: .anthropic)
+        ]
+        for list in lists {
+            if let match = list.first(where: { $0.description.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+                return match.name
+            }
+        }
+        // Heuristics di fallback
+        let lower = trimmed.lowercased()
+        if lower.contains("claude") { return "claude-3-5-sonnet-20241022" }
+        if lower.contains("qwen") || lower.contains("deepseek") || lower.contains("llama") { return "llama-3.1-8b-instant" }
+        return trimmed
     }
     
     // Modello attualmente selezionato per il provider
@@ -1137,6 +1340,19 @@ struct ModularMessageRow: View {
                                             .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
                                     )
                                     .foregroundColor(.primary)
+
+                                // Indicatore routing (mostrato quando si forza il gateway)
+                                if UserDefaults.standard.bool(forKey: "force_gateway") {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "cloud.fill")
+                                            .font(.caption2)
+                                            .foregroundColor(.blue)
+                                        Text("via Cloudflare")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.leading, 4)
+                                }
                             }
                                 .textSelection(.enabled)
                                 // NUOVO: Haptic Touch per email drafts

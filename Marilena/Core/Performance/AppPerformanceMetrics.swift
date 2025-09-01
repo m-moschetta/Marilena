@@ -1,5 +1,6 @@
 import Foundation
 import OSLog
+import Combine
 
 #if DEBUG
 @MainActor
@@ -10,39 +11,36 @@ final class AppPerformanceMetrics: ObservableObject {
     private lazy var signposter = OSSignposter(logger: logger)
 
     private var appLaunchTime: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()
-    private var appInitSignpostID: OSSignpostID?
+    private var appInitState: OSSignpostIntervalState?
 
     @Published var firstFrameTime: CFAbsoluteTime?
     @Published var startupDuration: TimeInterval?
 
     func markAppInit() {
         appLaunchTime = CFAbsoluteTimeGetCurrent()
-        let id = signposter.makeSignpostID()
-        appInitSignpostID = id
-        signposter.beginInterval("AppInit", id: id)
+        appInitState = signposter.beginInterval("AppInit")
     }
 
     func markFirstFrame() {
         guard firstFrameTime == nil else { return }
         firstFrameTime = CFAbsoluteTimeGetCurrent()
         startupDuration = (firstFrameTime ?? 0) - appLaunchTime
-        if let id = appInitSignpostID {
-            signposter.endInterval("AppInit", id: id)
-            appInitSignpostID = nil
+        if let state = appInitState {
+            signposter.endInterval("AppInit", state)
+            appInitState = nil
         }
         if let startupDuration {
-            logger.info("🚀 First frame in \(startupDuration, format: .fixed(precision: 2)) s")
+            let s = String(format: "%.2f", startupDuration)
+            logger.info("🚀 First frame in \(s, privacy: .public) s")
         }
     }
 
-    func beginInterval(_ name: StaticString) -> OSSignpostID {
-        let id = signposter.makeSignpostID()
-        signposter.beginInterval(name, id: id)
-        return id
+    func beginInterval(_ name: StaticString) -> OSSignpostIntervalState {
+        signposter.beginInterval(name)
     }
 
-    func endInterval(_ name: StaticString, id: OSSignpostID) {
-        signposter.endInterval(name, id: id)
+    func endInterval(_ name: StaticString, state: OSSignpostIntervalState) {
+        signposter.endInterval(name, state)
     }
 }
 #endif

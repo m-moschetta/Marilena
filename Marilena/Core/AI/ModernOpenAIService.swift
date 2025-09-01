@@ -12,6 +12,22 @@ class ModernOpenAIService: AIServiceProtocol {
     }
     
     func sendMessage(_ request: AIRequest) async throws -> AIResponse {
+        // Fallback/force: se manca la API key o toggle attivo, usa il Cloudflare Gateway compatibile OpenAI
+        if apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || UserDefaults.standard.bool(forKey: "force_gateway") {
+            let openAIMessages = request.messages.map { OpenAIMessage(role: $0.role, content: $0.content) }
+            let text = try await CloudflareGatewayClient.shared.sendChat(
+                messages: openAIMessages,
+                model: request.model,
+                maxTokens: request.maxTokens,
+                temperature: request.temperature
+            )
+            return AIResponse(
+                content: text,
+                usage: nil,
+                model: request.model
+            )
+        }
+
         let openAIRequest = OpenAIChatRequest(
             model: request.model,
             messages: request.messages.map { OpenAIChatMessage(role: $0.role, content: $0.content) },
@@ -47,7 +63,31 @@ class ModernOpenAIService: AIServiceProtocol {
     }
     
     func sendStreamMessage(_ request: AIRequest) -> AsyncThrowingStream<AIStreamResponse, Error> {
-        AsyncThrowingStream { continuation in
+        // Fallback/force: se manca la API key o toggle attivo, stream via Cloudflare Gateway
+        if apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || UserDefaults.standard.bool(forKey: "force_gateway") {
+            let openAIMessages = request.messages.map { OpenAIMessage(role: $0.role, content: $0.content) }
+            let stream = CloudflareGatewayClient.shared.streamChat(
+                messages: openAIMessages,
+                model: request.model,
+                maxTokens: request.maxTokens,
+                temperature: request.temperature
+            )
+            return AsyncThrowingStream { continuation in
+                Task {
+                    do {
+                        for try await delta in stream {
+                            continuation.yield(AIStreamResponse(content: delta, isComplete: false))
+                        }
+                        continuation.yield(AIStreamResponse(content: "", isComplete: true))
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
+                    }
+                }
+            }
+        }
+
+        return AsyncThrowingStream { continuation in
             Task {
                 do {
                     let openAIRequest = OpenAIChatRequest(

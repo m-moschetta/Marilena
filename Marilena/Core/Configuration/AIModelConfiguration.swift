@@ -6,7 +6,7 @@ import Foundation
 /// Includes pricing, capabilities, and specifications for all major providers
 /// Updated with the latest available models from OpenAI, Anthropic, Google, Meta, and others
 @MainActor
-public struct AIModelConfiguration: Codable, Identifiable {
+public struct AIModelConfiguration: Codable, Identifiable, Hashable, Equatable {
     
     // MARK: - Basic Properties
     
@@ -79,6 +79,16 @@ public struct AIModelConfiguration: Codable, Identifiable {
         self.isExperimental = isExperimental
         self.requiresSpecialAccess = requiresSpecialAccess
         self.tags = tags
+    }
+
+    // MARK: - Hashable & Equatable
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    public static func == (lhs: AIModelConfiguration, rhs: AIModelConfiguration) -> Bool {
+        return lhs.id == rhs.id
     }
 }
 
@@ -967,6 +977,103 @@ public extension AIModelConfiguration {
         ),
 
         // MARK: - Groq Models (Fast Inference)
+
+        // I modelli Groq più economici per categorizzazione email
+        .init(
+            id: "llama-3.1-8b-instant",
+            name: "Llama 3.1 8B Instant (Groq)",
+            provider: .groq,
+            version: "3.1-8b-instant",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 7, day: 23).date!,
+            description: "Ultra-fast and cost-effective Llama 3.1 8B on Groq's LPU",
+            contextWindow: 128_000,
+            maxOutputTokens: 8192,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .creative, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.05, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.08, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 82.3,
+                reasoning: 81.4,
+                math: 83.1,
+                conversational: 87.2,
+                speed: 11.0,
+                overallScore: 84.2
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.free, .api, .pro],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2024, month: 3).date,
+            tags: ["ultra-fast", "groq", "llama", "ultra-cheap"]
+        ),
+
+        .init(
+            id: "llama3-8b-8192",
+            name: "Llama 3 8B (Groq)",
+            provider: .groq,
+            version: "3-8b",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 4, day: 18).date!,
+            description: "Fast and efficient Llama 3 8B on Groq's LPU infrastructure",
+            contextWindow: 8192,
+            maxOutputTokens: 8192,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .creative, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.07, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.07, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 83.7,
+                reasoning: 82.1,
+                math: 84.5,
+                conversational: 88.1,
+                speed: 10.5,
+                overallScore: 85.2
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.free, .api, .pro],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 12).date,
+            tags: ["fast", "groq", "llama", "efficient"]
+        ),
+
+        .init(
+            id: "mixtral-8x7b-32768",
+            name: "Mixtral 8x7B (Groq)",
+            provider: .groq,
+            version: "8x7b",
+            releaseDate: DateComponents(calendar: .current, year: 2024, month: 1, day: 15).date!,
+            description: "Mixture of Experts model - excellent for reasoning tasks",
+            contextWindow: 32_768,
+            maxOutputTokens: 8192,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .coding, .math, .creative, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.24, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.24, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(
+                coding: 86.4,
+                reasoning: 87.2,
+                math: 88.1,
+                conversational: 89.3,
+                speed: 9.8,
+                overallScore: 87.8
+            ),
+            availability: AIAvailability(
+                regions: ["US", "EU", "Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            knowledgeCutoff: DateComponents(calendar: .current, year: 2023, month: 12).date,
+            tags: ["mixture-of-experts", "groq", "reasoning", "efficient"]
+        ),
 
         .init(
             id: "llama-3.1-70b-versatile",

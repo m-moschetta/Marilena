@@ -1,13 +1,23 @@
 import Foundation
 
-/// Servizio per la categorizzazione automatica delle email tramite OpenAI GPT-4.1 nano
+/// Servizio per la categorizzazione automatica delle email tramite modelli AI configurabili
 @MainActor
 public class EmailCategorizationService {
-    
+
     // MARK: - Properties
-    
+
     private let openAIService = OpenAIService.shared
-    private let model = "gpt-4.1-nano" // GPT-4.1 nano model
+    private let groqService = GroqService.shared
+    private let anthropicService = AnthropicService.shared
+    private let deepSeekService = DeepSeekService()
+
+    // Modello e provider configurabili
+    private var selectedModel: AIModelConfiguration {
+        getSelectedModel()
+    }
+    private var selectedProvider: AIModelProvider {
+        selectedModel.provider
+    }
     
     // MARK: - Configuration
     
@@ -21,9 +31,70 @@ public class EmailCategorizationService {
     
     /// Monitor delle performance (opzionale)
     private weak var monitor: EmailCategorizationMonitor?
-    
+
     // Set per tracciare le email in elaborazione (evita duplicati)
     private var emailsBeingCategorized = Set<String>()
+
+    // MARK: - Model Selection Methods
+
+    /// Ottiene il modello selezionato per la categorizzazione email
+    private func getSelectedModel() -> AIModelConfiguration {
+        // Prima cerca nelle preferenze utente
+        if let savedModelId = UserDefaults.standard.string(forKey: "emailCategorizationModel") {
+            if let model = AIModelConfiguration.allModels.first(where: { $0.id == savedModelId }) {
+                return model
+            }
+        }
+
+        // Fallback: modelli economici raccomandati per email
+        let recommendedModels = AIModelConfiguration.emailRecommended.filter { model in
+            // Priorità ai modelli economici e veloci
+            model.pricing.inputTokens.price < 1.0 && // Meno di $1 per 1M tokens
+            model.contextWindow >= 32000 && // Contesto sufficiente per email
+            model.capabilities.contains(.reasoning)
+        }
+
+        // Ordina per prezzo (più economico prima) e performance
+        let sortedModels = recommendedModels.sorted { (model1, model2) -> Bool in
+            let price1 = model1.pricing.inputTokens.price
+            let price2 = model2.pricing.inputTokens.price
+            if price1 != price2 {
+                return price1 < price2 // Più economico vince
+            }
+            // Se stesso prezzo, preferisci performance più alta
+            return (model1.benchmarks.overallScore ?? 0) > (model2.benchmarks.overallScore ?? 0)
+        }
+
+        // Default: GPT-4o Mini (equilibrio perfetto tra costo e performance)
+        return sortedModels.first(where: { $0.id == "gpt-4o-mini" }) ??
+               sortedModels.first ??
+               AIModelConfiguration.allModels.first(where: { $0.id == "gpt-4o-mini" }) ??
+               AIModelConfiguration.allModels.first!
+    }
+
+    /// Salva il modello selezionato per la categorizzazione email
+    public func setSelectedModel(_ model: AIModelConfiguration) {
+        UserDefaults.standard.set(model.id, forKey: "emailCategorizationModel")
+        UserDefaults.standard.synchronize()
+        print("🤖 EmailCategorizationService: Modello selezionato: \(model.name) (\(model.provider.displayName))")
+    }
+
+    /// Ottiene tutti i modelli disponibili per la categorizzazione email
+    public func getAvailableModels() -> [AIModelConfiguration] {
+        AIModelConfiguration.allModels.filter { model in
+            model.capabilities.contains(.reasoning) &&
+            !model.isExperimental &&
+            model.availability.status == .available
+        }.sorted { (model1, model2) -> Bool in
+            // Prima economici, poi per performance
+            let price1 = model1.pricing.inputTokens.price
+            let price2 = model2.pricing.inputTokens.price
+            if price1 != price2 {
+                return price1 < price2
+            }
+            return (model1.benchmarks.overallScore ?? 0) > (model2.benchmarks.overallScore ?? 0)
+        }
+    }
     
     // Set per tracciare le email già categorizzate completamente
     private var categorizedEmailIds = Set<String>()
@@ -150,18 +221,20 @@ public class EmailCategorizationService {
                     for email in batch {
                         group.addTask {
                             let category = await self.categorizeWithAI(email)
-                            return EmailMessage(
-                                id: email.id,
-                                from: email.from,
-                                to: email.to,
-                                subject: email.subject,
-                                body: email.body,
-                                date: email.date,
-                                isRead: email.isRead,
-                                hasAttachments: email.hasAttachments,
-                                emailType: email.emailType,
-                                category: category
-                            )
+                            return await MainActor.run {
+                                EmailMessage(
+                                    id: email.id,
+                                    from: email.from,
+                                    to: email.to,
+                                    subject: email.subject,
+                                    body: email.body,
+                                    date: email.date,
+                                    isRead: email.isRead,
+                                    hasAttachments: email.hasAttachments,
+                                    emailType: email.emailType,
+                                    category: category
+                                )
+                            }
                         }
                     }
                     
@@ -456,7 +529,7 @@ public class EmailCategorizationService {
         var needsSync = false
         
         for email in emails {
-            if let category = email.category, !categorizedEmailIds.contains(email.id) {
+            if email.category != nil, !categorizedEmailIds.contains(email.id) {
                 categorizedEmailIds.insert(email.id)
                 needsSync = true
             }
@@ -511,56 +584,140 @@ public class EmailCategorizationService {
         return false
     }
     
-    /// Categorizza un'email usando AI (OpenAI) - Può essere chiamata pubblicamente per uso forzato
+    /// Categorizza un'email usando AI (multi-provider) - Può essere chiamata pubblicamente per uso forzato
     public func categorizeWithAI(_ email: EmailMessage) async -> EmailCategory {
-        print("🤖 EmailCategorizationService: Categorizzazione AI per \(email.from)")
-        
+        print("🤖 EmailCategorizationService: Categorizzazione AI per \(email.from) usando \(selectedModel.name) (\(selectedProvider.displayName))")
+
         let startTime = CFAbsoluteTimeGetCurrent()
-        
+
         // Incrementa contatori
         sessionAICount += 1
-        
+
         // Crea il prompt per la categorizzazione
         let prompt = createCategorizationPrompt(
             from: email.from,
             subject: email.subject,
             preview: getEmailPreview(email.body)
         )
-        
-        // Invia la richiesta a OpenAI
+
+        // Scegli il servizio appropriato in base al provider
+        do {
+            let response = try await sendAIMessage(systemPrompt: getSystemPrompt(), userPrompt: prompt)
+            let category = self.parseCategory(from: response)
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+            print("✅ EmailCategorizationService: Email \(email.id) categorizzata AI come \(category.displayName) in \(String(format: "%.2f", duration))s usando \(selectedModel.name)")
+
+            // Registra nel monitor
+            self.monitor?.recordAICategorization(duration: duration, category: category)
+
+            // Segna come completamente categorizzata
+            self.categorizedEmailIds.insert(email.id)
+            self.saveCategorizedEmailsToStorage()
+            self.saveAICountsToStorage()
+            return category
+
+        } catch {
+            print("❌ EmailCategorizationService: Errore AI - \(error.localizedDescription) con modello \(selectedModel.name)")
+            // Fallback ai metodi tradizionali
+            let fallbackCategory = self.categorizeWithTraditionalMethods(email)
+            let duration = CFAbsoluteTimeGetCurrent() - startTime
+
+            // Registra fallback come categorizzazione tradizionale
+            let confidence = self.getTraditionalCategorizationConfidence(email)
+            self.monitor?.recordTraditionalCategorization(duration: duration, category: fallbackCategory, confidence: confidence)
+
+            return fallbackCategory
+        }
+    }
+
+    /// Invia messaggio AI al provider selezionato
+    private func sendAIMessage(systemPrompt: String, userPrompt: String) async throws -> String {
+        switch selectedProvider {
+        case .openai:
+            return try await sendOpenAIMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
+
+        case .groq:
+            return try await sendGroqMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
+
+        case .anthropic:
+            return try await sendAnthropicMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
+
+        case .deepseek:
+            return try await sendDeepSeekMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
+
+        default:
+            // Fallback a OpenAI per provider non supportati
+            print("⚠️ EmailCategorizationService: Provider \(selectedProvider.displayName) non supportato, uso fallback OpenAI")
+            return try await sendOpenAIMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        }
+    }
+
+    /// Invia messaggio a OpenAI
+    private func sendOpenAIMessage(systemPrompt: String, userPrompt: String) async throws -> String {
         let messages = [
-            OpenAIMessage(role: "system", content: getSystemPrompt()),
-            OpenAIMessage(role: "user", content: prompt)
+            OpenAIMessage(role: "system", content: systemPrompt),
+            OpenAIMessage(role: "user", content: userPrompt)
         ]
-        
-        return await withCheckedContinuation { continuation in
-            openAIService.sendMessage(messages: messages, model: model) { result in
+
+        return try await withCheckedThrowingContinuation { continuation in
+            openAIService.sendMessage(messages: messages, model: selectedModel.id) { result in
                 switch result {
                 case .success(let response):
-                    let category = self.parseCategory(from: response)
-                    let duration = CFAbsoluteTimeGetCurrent() - startTime
-                    print("✅ EmailCategorizationService: Email \(email.id) categorizzata AI come \(category.displayName) in \(String(format: "%.2f", duration))s")
-                    
-                    // Registra nel monitor
-                    self.monitor?.recordAICategorization(duration: duration, category: category)
-                    
-                    // Segna come completamente categorizzata
-                    self.categorizedEmailIds.insert(email.id)
-                    self.saveCategorizedEmailsToStorage()
-                    self.saveAICountsToStorage()
-                    continuation.resume(returning: category)
-                    
+                    continuation.resume(returning: response)
                 case .failure(let error):
-                    print("❌ EmailCategorizationService: Errore AI - \(error.localizedDescription)")
-                    // Fallback ai metodi tradizionali
-                    let fallbackCategory = self.categorizeWithTraditionalMethods(email)
-                    let duration = CFAbsoluteTimeGetCurrent() - startTime
-                    
-                    // Registra fallback come categorizzazione tradizionale
-                    let confidence = self.getTraditionalCategorizationConfidence(email)
-                    self.monitor?.recordTraditionalCategorization(duration: duration, category: fallbackCategory, confidence: confidence)
-                    
-                    continuation.resume(returning: fallbackCategory)
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Invia messaggio a Groq
+    private func sendGroqMessage(systemPrompt: String, userPrompt: String) async throws -> String {
+        let messages = [
+            OpenAIMessage(role: "system", content: systemPrompt),
+            OpenAIMessage(role: "user", content: userPrompt)
+        ]
+
+        // GroqService usa async throws direttamente
+        return try await groqService.sendMessage(messages: messages, model: selectedModel.id)
+    }
+
+    /// Invia messaggio a Anthropic
+    private func sendAnthropicMessage(systemPrompt: String, userPrompt: String) async throws -> String {
+        // Anthropic usa un formato diverso per i messaggi
+        let content = [
+            AnthropicContent(type: "text", text: systemPrompt + "\n\n" + userPrompt)
+        ]
+        let messages = [
+            AnthropicMessage(role: "user", content: content)
+        ]
+
+        return try await withCheckedThrowingContinuation { continuation in
+            anthropicService.sendMessage(messages: messages, model: selectedModel.id, maxTokens: 1000, temperature: 0.7) { result in
+                switch result {
+                case .success(let response):
+                    continuation.resume(returning: response)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Invia messaggio a DeepSeek
+    private func sendDeepSeekMessage(systemPrompt: String, userPrompt: String) async throws -> String {
+        let messages = [
+            OpenAIMessage(role: "system", content: systemPrompt),
+            OpenAIMessage(role: "user", content: userPrompt)
+        ]
+
+        return try await withCheckedThrowingContinuation { continuation in
+            deepSeekService.sendMessage(messages: messages, model: selectedModel.id, maxTokens: 1000, temperature: 0.7) { result in
+                switch result {
+                case .success(let response):
+                    continuation.resume(returning: response)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
                 }
             }
         }

@@ -31,9 +31,23 @@ class OpenAIService {
     public init() {}
     
     func sendMessage(messages: [OpenAIMessage], model: String, completion: @escaping (Result<String, Error>) -> Void) {
-        guard let apiKey = KeychainManager.shared.load(key: "openai_api_key"), !apiKey.isEmpty else {
-            DispatchQueue.main.async {
-                completion(.failure(OpenAIError.noAPIKey))
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasAPIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        if forceGateway || !hasAPIKey {
+            let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+            Task {
+                do {
+                    let text = try await CloudflareGatewayClient.shared.sendChat(
+                        messages: messages,
+                        model: model,
+                        maxTokens: maxTokens,
+                        temperature: temperature
+                    )
+                    DispatchQueue.main.async { completion(.success(text)) }
+                } catch {
+                    DispatchQueue.main.async { completion(.failure(error)) }
+                }
             }
             return
         }
@@ -41,7 +55,7 @@ class OpenAIService {
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(KeychainManager.shared.load(key: "openai_api_key") ?? "")", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
