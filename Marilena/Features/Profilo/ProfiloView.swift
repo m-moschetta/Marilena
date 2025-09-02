@@ -1197,17 +1197,63 @@ struct CronologiaContestoRow: View {
 // MARK: - Profilo CRM Card (Embedded Implementation)
 struct ProfiloCRMCard: View {
     @ObservedObject var profilo: ProfiloUtente
-    @State private var isLoading = false
     @State private var showingDetailView = false
-    
-    // Dati CRM locali
-    @State private var totalContacts = 0
-    @State private var activeContacts = 0
-    @State private var vipContacts = 0
-    @State private var weeklyInteractions = 0
-    @State private var relationshipHealth = 0.0
-    @State private var recentActivities: [CRMActivityLocal] = []
     @State private var showingContactsList = false
+    @StateObject private var crmDataService = CRMDataService.shared
+    
+    // Statistiche calcolate
+    private var totalContacts: Int {
+        crmDataService.contacts.count
+    }
+    
+    private var activeContacts: Int {
+        let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 3600)
+        return crmDataService.contacts.filter { contact in
+            contact.lastInteractionDate ?? Date.distantPast > thirtyDaysAgo
+        }.count
+    }
+    
+    private var vipContacts: Int {
+        crmDataService.contacts.filter { $0.relationshipStrength == .high }.count
+    }
+    
+    private var weeklyInteractions: Int {
+        let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 3600)
+        return crmDataService.contacts.filter { contact in
+            contact.lastInteractionDate ?? Date.distantPast > sevenDaysAgo
+        }.reduce(0) { $0 + $1.interactionCount }
+    }
+    
+    private var relationshipHealth: Double {
+        guard !crmDataService.contacts.isEmpty else { return 0.0 }
+        let totalScore = crmDataService.contacts.reduce(0.0) { sum, contact in
+            switch contact.relationshipStrength {
+            case .high: return sum + 100.0
+            case .medium: return sum + 60.0
+            case .low: return sum + 30.0
+            }
+        }
+        return totalScore / Double(crmDataService.contacts.count)
+    }
+    
+    private var recentActivities: [CRMActivityLocal] {
+        let sortedContacts = crmDataService.contacts
+            .filter { $0.lastInteractionDate != nil }
+            .sorted { ($0.lastInteractionDate ?? Date.distantPast) > ($1.lastInteractionDate ?? Date.distantPast) }
+            .prefix(5)
+        
+        return sortedContacts.map { contact in
+            CRMActivityLocal(
+                id: contact.id,
+                title: "Interazione con \(contact.displayName)",
+                subtitle: contact.company ?? contact.email,
+                timestamp: contact.lastInteractionDate ?? Date(),
+                icon: contact.source.icon,
+                color: contact.source.color,
+                sentiment: .neutral
+            )
+        }
+    }
     
     var body: some View {
         ModernInfoCard(
@@ -1216,7 +1262,7 @@ struct ProfiloCRMCard: View {
             iconColor: .indigo
         ) {
             VStack(spacing: 16) {
-                if isLoading {
+                if crmDataService.isLoading {
                     HStack {
                         ProgressView()
                             .scaleEffect(0.8)
@@ -1343,7 +1389,9 @@ struct ProfiloCRMCard: View {
             }
         }
         .onAppear {
-            loadCRMData()
+            Task {
+                await crmDataService.loadContacts()
+            }
         }
         .sheet(isPresented: $showingDetailView) {
             CRMDashboardLocal()
@@ -1375,204 +1423,7 @@ struct ProfiloCRMCard: View {
         }
     }
     
-    // MARK: - Data Loading
-    
-    private func loadCRMData() {
-        isLoading = true
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            // Carica dati reali se possibile, altrimenti usa mock
-            loadRealOrMockData()
-            isLoading = false
-        }
-    }
-    
-    private func loadRealOrMockData() {
-        guard let context = profilo.managedObjectContext else {
-            loadMockData()
-            return
-        }
-        
-        // Tenta di caricare dati reali in modo sicuro
-        context.perform { [self] in
-            do {
-                // Carica email
-                let emailRequest = NSFetchRequest<NSManagedObject>(entityName: "CachedEmail")
-                let emails = try context.fetch(emailRequest)
-                
-                // Calcola statistiche da email
-                let uniqueEmails = Set(emails.compactMap { email in
-                    email.value(forKey: "from") as? String
-                }).filter { !$0.isEmpty }
-                
-                let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 3600)
-                let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 3600)
-                
-                let activeEmailAddresses = Set(emails.compactMap { email -> String? in
-                    guard let date = email.value(forKey: "date") as? Date,
-                          date > thirtyDaysAgo,
-                          let fromEmail = email.value(forKey: "from") as? String else {
-                        return nil
-                    }
-                    return fromEmail
-                })
-                
-                let weeklyEmails = emails.filter { email in
-                    guard let date = email.value(forKey: "date") as? Date else { return false }
-                    return date > sevenDaysAgo
-                }
-                
-                // Carica chat per engagement
-                let chatRequest = NSFetchRequest<NSManagedObject>(entityName: "ChatMarilena")
-                let chats = try context.fetch(chatRequest)
-                
-                DispatchQueue.main.async {
-                    self.totalContacts = uniqueEmails.count
-                    self.activeContacts = activeEmailAddresses.count
-                    self.weeklyInteractions = weeklyEmails.count
-                    self.vipContacts = max(1, Int(Double(uniqueEmails.count) * 0.1)) // 10% come VIP
-                    
-                    // Calcola health score
-                    if self.totalContacts > 0 {
-                        let activityRatio = Double(self.activeContacts) / Double(self.totalContacts)
-                        let interactionVolume = min(1.0, Double(self.weeklyInteractions) / 15.0)
-                        let engagementFactor = min(1.0, Double(chats.count) / 10.0)
-                        self.relationshipHealth = (activityRatio * 0.4 + interactionVolume * 0.3 + engagementFactor * 0.3) * 100
-                    }
-                    
-                    // Genera attività recenti
-                    self.generateRecentActivities(from: emails, chats: chats)
-                }
-                
-            } catch {
-                DispatchQueue.main.async {
-                    self.loadMockData()
-                }
-            }
-        }
-    }
-    
-    private func loadMockData() {
-        totalContacts = 42
-        activeContacts = 18
-        vipContacts = 3
-        weeklyInteractions = 12
-        relationshipHealth = 78.5
-        
-        recentActivities = [
-            CRMActivityLocal(
-                id: UUID().uuidString,
-                title: "Email da Marco Rossi",
-                subtitle: "Re: Proposta progetto Q4",
-                timestamp: Date().addingTimeInterval(-3600),
-                icon: "paperplane.fill",
-                color: .blue,
-                sentiment: .positive
-            ),
-            CRMActivityLocal(
-                id: UUID().uuidString,
-                title: "Standup Team",
-                subtitle: "Riunione settimanale",
-                timestamp: Date().addingTimeInterval(-7200),
-                icon: "video.fill",
-                color: .orange,
-                sentiment: .neutral
-            ),
-            CRMActivityLocal(
-                id: UUID().uuidString,
-                title: "Chat AI",
-                subtitle: "Analisi progetto strategico",
-                timestamp: Date().addingTimeInterval(-10800),
-                icon: "message.circle.fill",
-                color: .green,
-                sentiment: .positive
-            )
-        ]
-    }
-    
-    private func generateRecentActivities(from emails: [NSManagedObject], chats: [NSManagedObject]) {
-        var activities: [CRMActivityLocal] = []
-        
-        // Email recenti
-        let recentEmails = emails
-            .compactMap { email -> (Date, NSManagedObject)? in
-                guard let date = email.value(forKey: "date") as? Date else { return nil }
-                return (date, email)
-            }
-            .sorted { $0.0 > $1.0 }
-            .prefix(3)
-        
-        for (date, email) in recentEmails {
-            let subject = email.value(forKey: "subject") as? String ?? "Email senza oggetto"
-            let from = email.value(forKey: "from") as? String ?? "Mittente"
-            let senderName = extractNameFromEmail(from)
-            
-            activities.append(CRMActivityLocal(
-                id: UUID().uuidString,
-                title: "Email da \(senderName)",
-                subtitle: subject,
-                timestamp: date,
-                icon: "envelope.fill",
-                color: .blue,
-                sentiment: analyzeSentiment(subject)
-            ))
-        }
-        
-        // Chat recenti
-        let recentChats = chats
-            .compactMap { chat -> (Date, NSManagedObject)? in
-                guard let date = chat.value(forKey: "dataCreazione") as? Date else { return nil }
-                return (date, chat)
-            }
-            .sorted { $0.0 > $1.0 }
-            .prefix(2)
-        
-        for (date, chat) in recentChats {
-            let title = chat.value(forKey: "titolo") as? String ?? "Chat AI"
-            
-            activities.append(CRMActivityLocal(
-                id: UUID().uuidString,
-                title: "Chat AI",
-                subtitle: title,
-                timestamp: date,
-                icon: "message.circle.fill",
-                color: .green,
-                sentiment: .neutral
-            ))
-        }
-        
-        recentActivities = Array(activities.sorted { $0.timestamp > $1.timestamp }.prefix(5))
-    }
-    
-    private func extractNameFromEmail(_ email: String) -> String {
-        let localPart = email.components(separatedBy: "@").first ?? email
-        return localPart.replacingOccurrences(of: ".", with: " ")
-            .replacingOccurrences(of: "_", with: " ")
-            .capitalized
-    }
-    
-    private func analyzeSentiment(_ text: String?) -> CRMSentimentLocal {
-        guard let text = text?.lowercased() else { return .neutral }
-        
-        let positiveWords = ["grazie", "ottimo", "perfetto", "bene", "fantastico", "eccellente"]
-        let negativeWords = ["problema", "errore", "sbagliato", "difficile", "impossibile"]
-        
-        let positiveCount = positiveWords.reduce(0) { count, word in
-            count + (text.contains(word) ? 1 : 0)
-        }
-        
-        let negativeCount = negativeWords.reduce(0) { count, word in
-            count + (text.contains(word) ? 1 : 0)
-        }
-        
-        if positiveCount > negativeCount {
-            return .positive
-        } else if negativeCount > positiveCount {
-            return .negative
-        } else {
-            return .neutral
-        }
-    }
+    // MARK: - Helper Properties
 }
 
 // MARK: - Local CRM Models (Embedded)
@@ -1864,17 +1715,16 @@ struct CRMInsightRowLocal: View {
 struct CRMContactsListView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var profilo: ProfiloUtente
-    @State private var contacts: [CRMContactLocal] = []
-    @State private var isLoading = false
+    @StateObject private var crmDataService = CRMDataService.shared
     @State private var searchText = ""
-    @State private var selectedContact: CRMContactLocal?
+    @State private var selectedContact: CRMContactReal?
     @State private var showingContactDetail = false
     
-    var filteredContacts: [CRMContactLocal] {
+    var filteredContacts: [CRMContactReal] {
         if searchText.isEmpty {
-            return contacts
+            return crmDataService.contacts
         }
-        return contacts.filter { contact in
+        return crmDataService.contacts.filter { contact in
             contact.displayName.lowercased().contains(searchText.lowercased()) ||
             contact.email.lowercased().contains(searchText.lowercased())
         }
@@ -1883,10 +1733,10 @@ struct CRMContactsListView: View {
     var body: some View {
         NavigationView {
             VStack {
-                if isLoading {
+                if crmDataService.isLoading {
                     ProgressView("Caricamento contatti...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if contacts.isEmpty {
+                } else if crmDataService.contacts.isEmpty {
                     ContentUnavailableView(
                         "Nessun contatto trovato",
                         systemImage: "person.3",
@@ -1895,7 +1745,7 @@ struct CRMContactsListView: View {
                 } else {
                     List {
                         ForEach(filteredContacts, id: \.id) { contact in
-                            ContactRowView(contact: contact) {
+                            ContactRowViewReal(contact: contact) {
                                 selectedContact = contact
                                 showingContactDetail = true
                             }
@@ -1903,7 +1753,7 @@ struct CRMContactsListView: View {
                     }
                     .searchable(text: $searchText, prompt: "Cerca contatti...")
                     .refreshable {
-                        await loadContacts()
+                        await crmDataService.loadContacts()
                     }
                 }
             }
@@ -1917,111 +1767,30 @@ struct CRMContactsListView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { Task { await loadContacts() } }) {
+                    Button(action: { Task { await crmDataService.loadContacts() } }) {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .disabled(isLoading)
+                    .disabled(crmDataService.isLoading)
                 }
             }
         }
         .onAppear {
             Task {
-                await loadContacts()
+                await crmDataService.loadContacts()
             }
         }
         .sheet(isPresented: $showingContactDetail) {
             if let contact = selectedContact {
-                ContactDetailView(contact: contact, profilo: profilo)
+                ContactDetailViewReal(contact: contact, profilo: profilo)
             }
         }
     }
-    
-    private func loadContacts() async {
-        isLoading = true
-        defer { isLoading = false }
-        
-        // Simula caricamento
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        // Genera contatti mock
-        contacts = generateMockContacts()
-    }
-    
-    private func generateMockContacts() -> [CRMContactLocal] {
-        return [
-            CRMContactLocal(
-                id: "1",
-                displayName: "Marco Rossi",
-                email: "marco.rossi@company.com",
-                phone: "+39 123 456 789",
-                company: "Tech Solutions",
-                jobTitle: "CTO",
-                lastInteractionDate: Date().addingTimeInterval(-3600),
-                interactionCount: 15,
-                relationshipStrength: .high,
-                tags: ["cliente", "tech"],
-                notes: "Cliente strategico - ottimo feedback sui progetti"
-            ),
-            CRMContactLocal(
-                id: "2",
-                displayName: "Laura Bianchi",
-                email: "l.bianchi@design.it",
-                phone: "+39 987 654 321",
-                company: "Creative Studio",
-                jobTitle: "Designer",
-                lastInteractionDate: Date().addingTimeInterval(-7200),
-                interactionCount: 8,
-                relationshipStrength: .medium,
-                tags: ["design", "freelance"],
-                notes: "Collaborazione per UI/UX design"
-            ),
-            CRMContactLocal(
-                id: "3",
-                displayName: "Giovanni Verdi",
-                email: "giovanni.verdi@startup.io",
-                phone: nil,
-                company: "StartupCorp",
-                jobTitle: "Founder",
-                lastInteractionDate: Date().addingTimeInterval(-14400),
-                interactionCount: 22,
-                relationshipStrength: .high,
-                tags: ["startup", "investimenti"],
-                notes: "Possibile partnership strategica"
-            ),
-            CRMContactLocal(
-                id: "4",
-                displayName: "Sofia Neri",
-                email: "sofia@marketing.com",
-                phone: "+39 555 123 456",
-                company: "Digital Marketing",
-                jobTitle: "Marketing Manager",
-                lastInteractionDate: Date().addingTimeInterval(-86400),
-                interactionCount: 5,
-                relationshipStrength: .low,
-                tags: ["marketing"],
-                notes: "Contatto per campagne pubblicitarie"
-            ),
-            CRMContactLocal(
-                id: "5",
-                displayName: "Alessandro Blu",
-                email: "a.blu@consulting.com",
-                phone: "+39 333 999 888",
-                company: "Business Consulting",
-                jobTitle: "Senior Consultant",
-                lastInteractionDate: Date().addingTimeInterval(-172800),
-                interactionCount: 12,
-                relationshipStrength: .medium,
-                tags: ["consulenza", "business"],
-                notes: "Esperto in digital transformation"
-            )
-        ]
-    }
 }
 
-// MARK: - Contact Row View
+// MARK: - Contact Row View Real
 
-struct ContactRowView: View {
-    let contact: CRMContactLocal
+struct ContactRowViewReal: View {
+    let contact: CRMContactReal
     let onTap: () -> Void
     
     var body: some View {
@@ -2101,12 +1870,13 @@ struct ContactRowView: View {
     }
 }
 
-// MARK: - Contact Detail View
+// MARK: - Contact Detail View Real
 
-struct ContactDetailView: View {
+struct ContactDetailViewReal: View {
     @Environment(\.dismiss) private var dismiss
-    let contact: CRMContactLocal
+    let contact: CRMContactReal
     let profilo: ProfiloUtente
+    @StateObject private var crmDataService = CRMDataService.shared
     @State private var isEditing = false
     @State private var editedNotes = ""
     @State private var editedTags: [String] = []
@@ -2310,10 +2080,9 @@ struct ContactDetailView: View {
     }
     
     private func saveChanges() {
-        // TODO: Implementare salvataggio reale nel sistema CRM
-        print("Salvando modifiche per \(contact.displayName)")
-        print("Note: \(editedNotes)")
-        print("Tags: \(editedTags)")
+        Task {
+            await crmDataService.saveContactChanges(contact.id, notes: editedNotes, tags: editedTags)
+        }
     }
     
     private func formatShortDate(_ date: Date) -> String {
