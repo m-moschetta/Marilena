@@ -287,6 +287,14 @@ public struct EmailListView: View {
                 }
             }
         }
+        .refreshable {
+            // Pull-to-refresh: forza ricaricamento email ignorando cache
+            if let account = emailService.currentAccount {
+                await emailService.forceRefreshEmails(for: account)
+                hapticFeedback.impactOccurred()
+                accessibilityManager.announce("Email aggiornate")
+            }
+        }
         .sheet(isPresented: $showingComposeSheet) {
             ComposeEmailView()
         }

@@ -16,7 +16,7 @@ public class EmailCacheService: ObservableObject {
     // MARK: - Private Properties
     private let persistenceController: PersistenceController?
     private let maxCacheSize = 1000 // MIGLIORATO: Da 20 a 1000 email
-    private let cacheValidityDuration: TimeInterval = 900 // 15 minuti di validità cache
+    private let cacheValidityDuration: TimeInterval = 300 // 5 minuti di validità cache
     private var cancellables = Set<AnyCancellable>()
     private var lastFetchTimestamp: [String: Date] = [:] // Timestamp ultimo fetch per account
     // Mappa leggera per persistere la categoria senza migrazione Core Data

@@ -42,6 +42,14 @@ public class EmailService: ObservableObject {
     private var lastEmailLoadTime: Date?
     private let minimumEmailLoadInterval: TimeInterval = 30.0 // 30 secondi tra i caricamenti email
     private var isLoadingEmails = false // Flag per evitare caricamenti concorrenti
+
+    // Sistema di cache intelligente
+    private var lastSuccessfulCacheTime: Date?
+    private let cacheValidityInterval: TimeInterval = 300.0 // 5 minuti di validità cache
+    private var hasValidCache: Bool {
+        guard let lastCacheTime = lastSuccessfulCacheTime else { return false }
+        return Date().timeIntervalSince(lastCacheTime) < cacheValidityInterval
+    }
     
     // MARK: - Email Providers
     private let gmailIMAPHost = "imap.gmail.com"
@@ -188,12 +196,34 @@ public class EmailService: ObservableObject {
 
     /// Carica le email per l'account specificato (con debouncing)
     public func loadEmails(for account: EmailAccount) async {
+        // Se abbiamo una cache valida e recente, non ricaricare
+        if hasValidCache && !emails.isEmpty {
+            print("📋 EmailService: Utilizzo cache valida (età: \(String(format: "%.1f", Date().timeIntervalSince(lastSuccessfulCacheTime!))) secondi)")
+            return
+        }
+
         // Controllo debouncing: evita caricamenti troppo frequenti
         if let lastLoad = lastEmailLoadTime,
            Date().timeIntervalSince(lastLoad) < minimumEmailLoadInterval {
             print("⏳ EmailService: Caricamento email saltato (debouncing attivo)")
             return
         }
+
+        // Controllo concorrenza: evita caricamenti simultanei
+        if isLoadingEmails {
+            print("⏳ EmailService: Caricamento email già in corso, saltato")
+            return
+        }
+
+        await loadEmailsInternal(for: account)
+    }
+
+    /// Forza il ricaricamento delle email ignorando la cache
+    public func forceRefreshEmails(for account: EmailAccount) async {
+        print("🔄 EmailService: Refresh forzato delle email")
+
+        // Reset cache per forzare ricaricamento
+        lastSuccessfulCacheTime = nil
 
         // Controllo concorrenza: evita caricamenti simultanei
         if isLoadingEmails {
@@ -256,7 +286,11 @@ public class EmailService: ObservableObject {
             // Adatta automaticamente la configurazione al numero di email
             await EmailCategorizationConfigManager.shared.adaptToEmailCount(limitedMessages.count)
 
-            print("✅ EmailService: Caricate \(messages.count) email per \(account.email)")
+                        print("✅ EmailService: Caricate \(limitedMessages.count) email per \(account.email)")
+
+            // Aggiorna timestamp cache per sistema intelligente
+            lastSuccessfulCacheTime = Date()
+            print("📋 EmailService: Cache aggiornata alle \(Date().formatted(date: .omitted, time: .standard))")
 
             // Organizza le email in conversazioni
             await organizeEmailsIntoConversations()
