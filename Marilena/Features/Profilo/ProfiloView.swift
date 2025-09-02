@@ -1207,6 +1207,7 @@ struct ProfiloCRMCard: View {
     @State private var weeklyInteractions = 0
     @State private var relationshipHealth = 0.0
     @State private var recentActivities: [CRMActivityLocal] = []
+    @State private var showingContactsList = false
     
     var body: some View {
         ModernInfoCard(
@@ -1298,25 +1299,46 @@ struct ProfiloCRMCard: View {
                         }
                     }
                     
-                    // Pulsante dashboard completa
-                    Button(action: { showingDetailView = true }) {
-                        HStack {
-                            Image(systemName: "chart.xyaxis.line")
-                                .font(.subheadline)
-                            Text("Visualizza Dashboard CRM Completa")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Spacer()
-                            Image(systemName: "arrow.right.circle")
-                                .font(.subheadline)
+                    // Pulsanti CRM
+                    VStack(spacing: 8) {
+                        Button(action: { showingContactsList = true }) {
+                            HStack {
+                                Image(systemName: "person.3.fill")
+                                    .font(.subheadline)
+                                Text("Gestisci Contatti")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Image(systemName: "arrow.right.circle")
+                                    .font(.subheadline)
+                            }
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(12)
                         }
-                        .foregroundColor(.indigo)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color.indigo.opacity(0.1))
-                        .cornerRadius(12)
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: { showingDetailView = true }) {
+                            HStack {
+                                Image(systemName: "chart.xyaxis.line")
+                                    .font(.subheadline)
+                                Text("Dashboard CRM Completa")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Image(systemName: "arrow.right.circle")
+                                    .font(.subheadline)
+                            }
+                            .foregroundColor(.indigo)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.indigo.opacity(0.1))
+                            .cornerRadius(12)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
             }
         }
@@ -1325,6 +1347,9 @@ struct ProfiloCRMCard: View {
         }
         .sheet(isPresented: $showingDetailView) {
             CRMDashboardLocal()
+        }
+        .sheet(isPresented: $showingContactsList) {
+            CRMContactsListView(profilo: profilo)
         }
     }
     
@@ -1831,6 +1856,649 @@ struct CRMInsightRowLocal: View {
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(radius: 1)
+    }
+}
+
+// MARK: - CRM Contacts List View
+
+struct CRMContactsListView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var profilo: ProfiloUtente
+    @State private var contacts: [CRMContactLocal] = []
+    @State private var isLoading = false
+    @State private var searchText = ""
+    @State private var selectedContact: CRMContactLocal?
+    @State private var showingContactDetail = false
+    
+    var filteredContacts: [CRMContactLocal] {
+        if searchText.isEmpty {
+            return contacts
+        }
+        return contacts.filter { contact in
+            contact.displayName.lowercased().contains(searchText.lowercased()) ||
+            contact.email.lowercased().contains(searchText.lowercased())
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if isLoading {
+                    ProgressView("Caricamento contatti...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if contacts.isEmpty {
+                    ContentUnavailableView(
+                        "Nessun contatto trovato",
+                        systemImage: "person.3",
+                        description: Text("I contatti verranno sincronizzati automaticamente dalle tue email e dal calendario.")
+                    )
+                } else {
+                    List {
+                        ForEach(filteredContacts, id: \.id) { contact in
+                            ContactRowView(contact: contact) {
+                                selectedContact = contact
+                                showingContactDetail = true
+                            }
+                        }
+                    }
+                    .searchable(text: $searchText, prompt: "Cerca contatti...")
+                    .refreshable {
+                        await loadContacts()
+                    }
+                }
+            }
+            .navigationTitle("I Miei Contatti")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Chiudi") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { Task { await loadContacts() } }) {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .disabled(isLoading)
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                await loadContacts()
+            }
+        }
+        .sheet(isPresented: $showingContactDetail) {
+            if let contact = selectedContact {
+                ContactDetailView(contact: contact, profilo: profilo)
+            }
+        }
+    }
+    
+    private func loadContacts() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        // Simula caricamento
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        
+        // Genera contatti mock
+        contacts = generateMockContacts()
+    }
+    
+    private func generateMockContacts() -> [CRMContactLocal] {
+        return [
+            CRMContactLocal(
+                id: "1",
+                displayName: "Marco Rossi",
+                email: "marco.rossi@company.com",
+                phone: "+39 123 456 789",
+                company: "Tech Solutions",
+                jobTitle: "CTO",
+                lastInteractionDate: Date().addingTimeInterval(-3600),
+                interactionCount: 15,
+                relationshipStrength: .high,
+                tags: ["cliente", "tech"],
+                notes: "Cliente strategico - ottimo feedback sui progetti"
+            ),
+            CRMContactLocal(
+                id: "2",
+                displayName: "Laura Bianchi",
+                email: "l.bianchi@design.it",
+                phone: "+39 987 654 321",
+                company: "Creative Studio",
+                jobTitle: "Designer",
+                lastInteractionDate: Date().addingTimeInterval(-7200),
+                interactionCount: 8,
+                relationshipStrength: .medium,
+                tags: ["design", "freelance"],
+                notes: "Collaborazione per UI/UX design"
+            ),
+            CRMContactLocal(
+                id: "3",
+                displayName: "Giovanni Verdi",
+                email: "giovanni.verdi@startup.io",
+                phone: nil,
+                company: "StartupCorp",
+                jobTitle: "Founder",
+                lastInteractionDate: Date().addingTimeInterval(-14400),
+                interactionCount: 22,
+                relationshipStrength: .high,
+                tags: ["startup", "investimenti"],
+                notes: "Possibile partnership strategica"
+            ),
+            CRMContactLocal(
+                id: "4",
+                displayName: "Sofia Neri",
+                email: "sofia@marketing.com",
+                phone: "+39 555 123 456",
+                company: "Digital Marketing",
+                jobTitle: "Marketing Manager",
+                lastInteractionDate: Date().addingTimeInterval(-86400),
+                interactionCount: 5,
+                relationshipStrength: .low,
+                tags: ["marketing"],
+                notes: "Contatto per campagne pubblicitarie"
+            ),
+            CRMContactLocal(
+                id: "5",
+                displayName: "Alessandro Blu",
+                email: "a.blu@consulting.com",
+                phone: "+39 333 999 888",
+                company: "Business Consulting",
+                jobTitle: "Senior Consultant",
+                lastInteractionDate: Date().addingTimeInterval(-172800),
+                interactionCount: 12,
+                relationshipStrength: .medium,
+                tags: ["consulenza", "business"],
+                notes: "Esperto in digital transformation"
+            )
+        ]
+    }
+}
+
+// MARK: - Contact Row View
+
+struct ContactRowView: View {
+    let contact: CRMContactLocal
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Avatar
+                Circle()
+                    .fill(contact.relationshipStrength.color.opacity(0.2))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Text(contact.initials)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(contact.relationshipStrength.color)
+                    )
+                
+                // Informazioni contatto
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(contact.displayName)
+                            .font(.headline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        // Indicatore forza relazione
+                        Circle()
+                            .fill(contact.relationshipStrength.color)
+                            .frame(width: 8, height: 8)
+                    }
+                    
+                    if let company = contact.company, let jobTitle = contact.jobTitle {
+                        Text("\(jobTitle) @ \(company)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    } else if let company = contact.company {
+                        Text(company)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    } else if let jobTitle = contact.jobTitle {
+                        Text(jobTitle)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text(contact.email)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        Text("\(contact.interactionCount) interazioni")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if let lastDate = contact.lastInteractionDate {
+                        Text("Ultima interazione: \(formatTimeAgo(lastDate))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func formatTimeAgo(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.locale = Locale(identifier: "it_IT")
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - Contact Detail View
+
+struct ContactDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    let contact: CRMContactLocal
+    let profilo: ProfiloUtente
+    @State private var isEditing = false
+    @State private var editedNotes = ""
+    @State private var editedTags: [String] = []
+    @State private var newTag = ""
+    @State private var showingDeleteAlert = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header con avatar e info principali
+                    VStack(spacing: 16) {
+                        Circle()
+                            .fill(contact.relationshipStrength.color.opacity(0.2))
+                            .frame(width: 100, height: 100)
+                            .overlay(
+                                Text(contact.initials)
+                                    .font(.largeTitle)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(contact.relationshipStrength.color)
+                            )
+                        
+                        VStack(spacing: 8) {
+                            Text(contact.displayName)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            
+                            if let company = contact.company, let jobTitle = contact.jobTitle {
+                                Text("\(jobTitle) @ \(company)")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .padding()
+                    
+                    // Informazioni di contatto
+                    VStack(alignment: .leading, spacing: 16) {
+                        SectionHeader(title: "Informazioni di Contatto", icon: "person.circle")
+                        
+                        ContactInfoRow(icon: "envelope", label: "Email", value: contact.email, action: {
+                            if let url = URL(string: "mailto:\(contact.email)") {
+                                UIApplication.shared.open(url)
+                            }
+                        })
+                        
+                        if let phone = contact.phone {
+                            ContactInfoRow(icon: "phone", label: "Telefono", value: phone, action: {
+                                if let url = URL(string: "tel:\(phone)") {
+                                    UIApplication.shared.open(url)
+                                }
+                            })
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Statistiche relazione
+                    VStack(alignment: .leading, spacing: 16) {
+                        SectionHeader(title: "Statistiche Relazione", icon: "chart.bar")
+                        
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 12) {
+                            StatCardSmall(
+                                title: "Interazioni",
+                                value: "\(contact.interactionCount)",
+                                color: .blue,
+                                icon: "bubble.left.and.bubble.right"
+                            )
+                            
+                            StatCardSmall(
+                                title: "Forza",
+                                value: contact.relationshipStrength.displayName,
+                                color: contact.relationshipStrength.color,
+                                icon: contact.relationshipStrength.icon
+                            )
+                            
+                            if let lastDate = contact.lastInteractionDate {
+                                StatCardSmall(
+                                    title: "Ultima",
+                                    value: formatShortDate(lastDate),
+                                    color: .orange,
+                                    icon: "clock"
+                                )
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Tags
+                    VStack(alignment: .leading, spacing: 16) {
+                        SectionHeader(title: "Tag", icon: "tag")
+                        
+                        if isEditing {
+                            VStack(alignment: .leading, spacing: 12) {
+                                // Tags esistenti modificabili
+                                LazyVGrid(columns: [
+                                    GridItem(.adaptive(minimum: 80))
+                                ], spacing: 8) {
+                                    ForEach(editedTags, id: \.self) { tag in
+                                        TagChipEditable(tag: tag) {
+                                            editedTags.removeAll { $0 == tag }
+                                        }
+                                    }
+                                }
+                                
+                                // Campo per nuovo tag
+                                HStack {
+                                    TextField("Nuovo tag", text: $newTag)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    
+                                    Button("Aggiungi") {
+                                        if !newTag.isEmpty && !editedTags.contains(newTag) {
+                                            editedTags.append(newTag)
+                                            newTag = ""
+                                        }
+                                    }
+                                    .disabled(newTag.isEmpty)
+                                }
+                            }
+                        } else {
+                            LazyVGrid(columns: [
+                                GridItem(.adaptive(minimum: 80))
+                            ], spacing: 8) {
+                                ForEach(contact.tags, id: \.self) { tag in
+                                    TagChip(tag: tag)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Note
+                    VStack(alignment: .leading, spacing: 16) {
+                        SectionHeader(title: "Note", icon: "note.text")
+                        
+                        if isEditing {
+                            TextEditor(text: $editedNotes)
+                                .frame(minHeight: 100)
+                                .padding(8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                        } else {
+                            Text(contact.notes?.isEmpty == false ? contact.notes! : "Nessuna nota disponibile")
+                                .font(.body)
+                                .foregroundColor(contact.notes?.isEmpty == false ? .primary : .secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    Spacer(minLength: 20)
+                }
+            }
+            .navigationTitle("Dettaglio Contatto")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Chiudi") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        if isEditing {
+                            Button("Salva") {
+                                saveChanges()
+                                isEditing = false
+                            }
+                            .fontWeight(.semibold)
+                        } else {
+                            Button("Modifica") {
+                                startEditing()
+                                isEditing = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .alert("Elimina Contatto", isPresented: $showingDeleteAlert) {
+            Button("Elimina", role: .destructive) {
+                // Implementa eliminazione
+                dismiss()
+            }
+            Button("Annulla", role: .cancel) { }
+        } message: {
+            Text("Sei sicuro di voler eliminare questo contatto? L'azione non può essere annullata.")
+        }
+    }
+    
+    private func startEditing() {
+        editedNotes = contact.notes ?? ""
+        editedTags = contact.tags
+    }
+    
+    private func saveChanges() {
+        // TODO: Implementare salvataggio reale nel sistema CRM
+        print("Salvando modifiche per \(contact.displayName)")
+        print("Note: \(editedNotes)")
+        print("Tags: \(editedTags)")
+    }
+    
+    private func formatShortDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDate(date, inSameDayAs: Date()) {
+            return "Oggi"
+        } else if calendar.isDate(date, inSameDayAs: Date().addingTimeInterval(-86400)) {
+            return "Ieri"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "dd/MM"
+            return formatter.string(from: date)
+        }
+    }
+}
+
+// MARK: - CRM Contact Local Model
+
+struct CRMContactLocal: Identifiable {
+    let id: String
+    let displayName: String
+    let email: String
+    let phone: String?
+    let company: String?
+    let jobTitle: String?
+    let lastInteractionDate: Date?
+    let interactionCount: Int
+    let relationshipStrength: RelationshipStrength
+    let tags: [String]
+    let notes: String?
+    
+    var initials: String {
+        let components = displayName.components(separatedBy: " ")
+        if components.count >= 2 {
+            return "\(components[0].prefix(1))\(components[1].prefix(1))".uppercased()
+        }
+        return String(displayName.prefix(2)).uppercased()
+    }
+}
+
+enum RelationshipStrength: CaseIterable {
+    case low, medium, high
+    
+    var displayName: String {
+        switch self {
+        case .low: return "Bassa"
+        case .medium: return "Media"
+        case .high: return "Alta"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .low: return .red
+        case .medium: return .orange
+        case .high: return .green
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .low: return "arrow.down.circle"
+        case .medium: return "minus.circle"
+        case .high: return "arrow.up.circle"
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+struct SectionHeader: View {
+    let title: String
+    let icon: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.blue)
+            Text(title)
+                .font(.headline)
+                .fontWeight(.semibold)
+            Spacer()
+        }
+    }
+}
+
+struct ContactInfoRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .foregroundColor(.blue)
+                    .frame(width: 20)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(value)
+                        .font(.body)
+                        .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct StatCardSmall: View {
+    let title: String
+    let value: String
+    let color: Color
+    let icon: String
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+
+struct TagChip: View {
+    let tag: String
+    
+    var body: some View {
+        Text(tag)
+            .font(.caption)
+            .fontWeight(.medium)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.blue.opacity(0.1))
+            .foregroundColor(.blue)
+            .cornerRadius(4)
+    }
+}
+
+struct TagChipEditable: View {
+    let tag: String
+    let onDelete: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(tag)
+                .font(.caption)
+                .fontWeight(.medium)
+            
+            Button(action: onDelete) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.red)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.blue.opacity(0.1))
+        .foregroundColor(.blue)
+        .cornerRadius(4)
     }
 }
 
