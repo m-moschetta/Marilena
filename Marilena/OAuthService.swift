@@ -46,8 +46,21 @@ public class OAuthService: NSObject, ObservableObject {
                 throw OAuthError.authenticationFailed(NSError(domain: "OAuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No root view controller available"]))
             }
             
+            // Step 1: Sign in
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
-            let user = result.user
+            var user = result.user
+
+            // Step 2: Ensure required Gmail scopes are granted
+            let requiredScopes = EmailConfig.getProviderConfig(for: .google).scopes
+            let granted = Set(user.grantedScopes ?? [])
+            let missingScopes = requiredScopes.filter { !granted.contains($0) }
+            if !missingScopes.isEmpty {
+                print("🔐 OAuthService: Richiesta scope aggiuntivi: \(missingScopes)")
+                try await user.addScopes(missingScopes, presenting: rootViewController)
+                if let refreshed = GIDSignIn.sharedInstance.currentUser {
+                    user = refreshed
+                }
+            }
             
             guard let idToken = user.idToken?.tokenString else {
                 throw OAuthError.authenticationFailed(NSError(domain: "OAuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No ID token available"]))

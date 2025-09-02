@@ -100,7 +100,7 @@ struct iPadLayout: View {
                 
                 TabButton(
                     title: "Calendario",
-                    icon: "calendar.fill",
+                    icon: "calendar",
                     isSelected: selectedTab == 3,
                     action: { selectedTab = 3 }
                 )
@@ -221,7 +221,7 @@ struct iPhoneLayout: View {
                 CalendarView()
             }
             .tabItem {
-                Image(systemName: "calendar.fill")
+                Image(systemName: "calendar")
                 Text("Calendario")
             }
             .tag(3)

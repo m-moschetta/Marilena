@@ -14,6 +14,8 @@ struct MarilenaApp: App {
     
     @State private var shouldStartRecording = false
     @State private var shouldStopRecording = false
+    @State private var lastGoogleRedirectURL: String? = nil
+    @State private var lastGoogleRedirectAt: Date? = nil
 
     init() {
         #if DEBUG
@@ -60,8 +62,19 @@ struct MarilenaApp: App {
                     // Gestisce gli URL schemes dal widget
                     handleURL(url)
                     
-                    // Gestisce gli URL per Google Sign-In
-                    GIDSignIn.sharedInstance.handle(url)
+                    // Gestisce gli URL per Google Sign-In (solo schema Google) con deduplica
+                    if let scheme = url.scheme, scheme.hasPrefix("com.googleusercontent.apps") {
+                        let now = Date()
+                        if lastGoogleRedirectURL == url.absoluteString,
+                           let lastAt = lastGoogleRedirectAt,
+                           now.timeIntervalSince(lastAt) < 5 {
+                            print("ℹ️ GoogleSignIn: redirect duplicato ignorato")
+                            return
+                        }
+                        lastGoogleRedirectURL = url.absoluteString
+                        lastGoogleRedirectAt = now
+                        _ = GIDSignIn.sharedInstance.handle(url)
+                    }
                 }
                 .onChange(of: shouldStartRecording) { oldValue, newValue in
                     if newValue {

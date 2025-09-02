@@ -39,20 +39,26 @@ struct RecordingsListView: View {
             // Contenuto principale (stesso pattern di ChatsListView)
             NavigationStack {
                 VStack(spacing: 0) {
-                    List {
-                        // Filtri come Section header
-                        Section {
-                            // Spazio vuoto per i filtri
-                        } header: {
+                    if filteredRecordings.isEmpty {
+                        // Stato vuoto centrato verticalmente
+                        VStack(spacing: 0) {
                             filtersHeaderView
+                            Spacer()
+                            emptyStateView
+                            Spacer()
                         }
-                        
-                        // Registrazioni
-                        if filteredRecordings.isEmpty {
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemGroupedBackground))
+                    } else {
+                        List {
+                            // Filtri come Section header
                             Section {
-                                emptyStateView
+                                // Spazio vuoto per i filtri
+                            } header: {
+                                filtersHeaderView
                             }
-                        } else {
+
+                            // Registrazioni
                             ForEach(filteredRecordings, id: \.objectID) { recording in
                                 MinimalRecordingRowView(
                                     recording: recording,
@@ -68,18 +74,18 @@ struct RecordingsListView: View {
                                 }
                             }
                             .onDelete(perform: deleteRecordings)
+
+                            // Spazio extra per permettere scroll sotto il pulsante flottante
+                            if !hideRecordButton {
+                                Spacer()
+                                    .frame(height: 120)
+                            }
                         }
-                        
-                        // Spazio extra per permettere scroll sotto il pulsante flottante
-                        if !filteredRecordings.isEmpty && !hideRecordButton {
-                            Spacer()
-                                .frame(height: 120)
+                        .listStyle(.plain)
+                        .environment(\.defaultMinListRowHeight, 60)
+                        .refreshable {
+                            // Aggiorna dati se necessario
                         }
-                    }
-                    .listStyle(.plain)
-                    .environment(\.defaultMinListRowHeight, 60)
-                    .refreshable {
-                        // Aggiorna dati se necessario
                     }
                 }
                 .searchable(text: $searchText, prompt: "Cerca registrazioni...")

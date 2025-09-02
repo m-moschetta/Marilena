@@ -26,26 +26,13 @@ struct ModernEmailViewer: View {
     // AI States
     @State private var analysis: EmailAnalysis?
     @State private var summary: String?
-    @State private var showingAI = true  // AI panel visible by default
+    @State private var showingAI = false  // AI panel collapsed by default
     @State private var selectedDraft: EmailDraft?
     
-    @StateObject private var htmlRenderer = ModernHTMLRenderer()
+    // HTML rendered via Core/EmailHTMLRenderer
     
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Modern Header
-            ModernEmailHeader(
-                email: email,
-                onBack: { dismiss() },
-                onReply: { showingReplySheet = true },
-                onForward: { showingForwardSheet = true },
-                onDelete: { showingDeleteAlert = true },
-                onShare: { showingShareSheet = true }
-            )
-            
-            Divider()
-                .background(Color(UIColor.separator))
-            
             // MARK: - AI Panel
             ModernEmailAIPanel(
                 email: email,
@@ -69,10 +56,7 @@ struct ModernEmailViewer: View {
                         .padding(.vertical, 8)
                     
                     // Email content
-                    ModernEmailContent(
-                        email: email,
-                        htmlRenderer: htmlRenderer
-                    )
+                    ModernEmailContent(email: email)
                     
                     // Bottom spacing
                     Color.clear.frame(height: 100)
@@ -80,7 +64,15 @@ struct ModernEmailViewer: View {
             }
         }
         .background(Color(UIColor.systemBackground))
-        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(false)
+        .toolbar {
+            // Optional: minimal trailing actions (share)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingShareSheet = true }) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
         .onAppear {
             Task {
                 do {
@@ -300,24 +292,13 @@ struct ModernEmailMetadata: View {
 // MARK: - Modern Email Content
 struct ModernEmailContent: View {
     let email: EmailMessage
-    @ObservedObject var htmlRenderer: ModernHTMLRenderer
-    
+
     var body: some View {
         VStack(spacing: 0) {
-            if isHTMLContent(email.body) {
-                // HTML Content
-                ModernHTMLWebView(
-                    htmlContent: email.body,
-                    renderer: htmlRenderer
-                )
-                .frame(
-                    minHeight: 200,
-                    idealHeight: max(htmlRenderer.contentHeight, 200),
-                    maxHeight: min(max(htmlRenderer.contentHeight, 200), 3000)
-                )
-                .padding(.horizontal, 16)
+            if EmailContentAnalyzer.isHTMLContent(email.body) {
+                EmailHTMLRenderer(email: email)
+                    .padding(.horizontal, 16)
             } else {
-                // Plain Text Content
                 VStack(alignment: .leading, spacing: 0) {
                     Text(email.body)
                         .font(.system(size: 17))
@@ -330,16 +311,6 @@ struct ModernEmailContent: View {
                 .padding(.vertical, 8)
             }
         }
-    }
-    
-    private func isHTMLContent(_ content: String) -> Bool {
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.localizedCaseInsensitiveContains("<html") ||
-               trimmed.localizedCaseInsensitiveContains("<!doctype") ||
-               trimmed.localizedCaseInsensitiveContains("<div") ||
-               trimmed.localizedCaseInsensitiveContains("<p>") ||
-               trimmed.localizedCaseInsensitiveContains("<br") ||
-               trimmed.localizedCaseInsensitiveContains("<table")
     }
 }
 

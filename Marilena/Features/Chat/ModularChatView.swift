@@ -119,11 +119,17 @@ public struct ModularChatView: View {
             VStack {
                 // Lista messaggi
                 ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 16) {
-                            if messaggi.isEmpty {
-                                welcomeView
-                            } else {
+                    if messaggi.isEmpty {
+                        // Stato vuoto centrato verticalmente
+                        VStack(spacing: 0) {
+                            Spacer()
+                            welcomeView
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 16) {
                                 ForEach(messaggi, id: \.objectID) { messaggio in
                                     ModularMessageRow(
                                         messaggio: messaggio,
@@ -155,27 +161,26 @@ public struct ModularChatView: View {
                                     )
                                 }
                             }
-                            
+
                             if isLoading {
-                HStack {
+                                HStack {
                                     Text("Marilena sta scrivendo...")
-                        .foregroundColor(.secondary)
-                    ProgressView()
-                        .scaleEffect(0.8)
+                                        .foregroundColor(.secondary)
+                                    ProgressView()
+                                        .scaleEffect(0.8)
                                 }
                                 .padding()
+                            }
+                        }
+                        .padding()
+                        .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: messaggi.count) { oldValue, newValue in
+                        scrollToBottom(proxy: proxy)
                     }
                 }
-                .padding()
-            }
-                    .scrollDismissesKeyboard(.interactively)
-                    .onChange(of: messaggi.count) { oldValue, newValue in
-                scrollToBottom(proxy: proxy)
-        }
-    }
-    
-                                // Input area moderna e dinamica con dimensioni standard (COPIA ESATTA)
-        VStack(spacing: 0) {
+
+                // Input area moderna e dinamica con dimensioni standard (COPIA ESATTA)
+                VStack(spacing: 0) {
             Divider()
             
             HStack(alignment: .bottom, spacing: 8) {
@@ -305,24 +310,27 @@ public struct ModularChatView: View {
                     .background(Color(.systemBackground))
                 }
             }
-            .navigationTitle(chat.titolo ?? "Chat")
-            .navigationBarTitleDisplayMode(.inline)
-            .alert("Errore Gateway", isPresented: $showGatewayErrorAlert) {
-                Button("OK") { showGatewayErrorAlert = false }
-            } message: {
-                Text(gatewayErrorMessage)
-            }
-            .onAppear {
-                loadChatSettings()
-            }
-            .onAppear {
-                PerformanceSignpost.event("ChatViewAppear")
-            }
+        }
+        .navigationTitle(chat.titolo ?? "Chat")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Errore Gateway", isPresented: $showGatewayErrorAlert) {
+            Button("OK") { showGatewayErrorAlert = false }
+        } message: {
+            Text(gatewayErrorMessage)
+        }
+        .onAppear {
+            loadChatSettings()
+        }
+        .onAppear {
+            PerformanceSignpost.event("ChatViewAppear")
         }
     }
     
     // MARK: - Welcome View (COPIA ESATTA)
     
+
+// MARK: - Helpers & Subviews for ModularChatView
+}
     private var welcomeView: some View {
         VStack(spacing: 24) {
             // Icona moderna con gradiente

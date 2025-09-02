@@ -16,9 +16,11 @@ public class EmailCacheService: ObservableObject {
     // MARK: - Private Properties
     private let persistenceController: PersistenceController?
     private let maxCacheSize = 1000 // MIGLIORATO: Da 20 a 1000 email
-    private let cacheValidityDuration: TimeInterval = 300 // 5 minuti di validità cache
+    private let cacheValidityDuration: TimeInterval = 900 // 15 minuti di validità cache
     private var cancellables = Set<AnyCancellable>()
     private var lastFetchTimestamp: [String: Date] = [:] // Timestamp ultimo fetch per account
+    // Mappa leggera per persistere la categoria senza migrazione Core Data
+    private var categoryMap: [String: String] = [:] // emailId -> EmailCategory.rawValue
     
     // MARK: - Initialization
     
@@ -27,6 +29,8 @@ public class EmailCacheService: ObservableObject {
         
         // NUOVO: Carica i timestamp dalla memoria persistente
         loadTimestampsFromStorage()
+        // NUOVO: Carica mappa categorie
+        loadCategoryMapFromStorage()
         
         // Verifica se CoreData funziona, altrimenti disabilita la cache
         if persistenceController?.container.persistentStoreCoordinator.persistentStores.isEmpty ?? true {
@@ -91,6 +95,40 @@ public class EmailCacheService: ObservableObject {
     
     /// Ottiene le email dalla cache
     public func getCachedEmails(for accountId: String? = nil) -> [EmailMessage] {
+        // Se viene richiesto un account specifico, esegui fetch filtrata
+        if let accountId = accountId, let context = persistenceController?.container.viewContext {
+            let request: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+            request.predicate = NSPredicate(format: "accountId == %@", accountId)
+            request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+            do {
+                let results = try context.fetch(request)
+                return results.compactMap { ce in
+                    guard let id = ce.id,
+                          let from = ce.from,
+                          let subject = ce.subject,
+                          let body = ce.body,
+                          let date = ce.date else { return nil }
+                    var category: EmailCategory? = nil
+                    if let raw = categoryMap[id], let cat = EmailCategory(rawValue: raw) {
+                        category = cat
+                    }
+                    return EmailMessage(
+                        id: id,
+                        from: from,
+                        to: ce.to?.components(separatedBy: ",") ?? [],
+                        subject: subject,
+                        body: body,
+                        date: date,
+                        isRead: ce.isRead,
+                        hasAttachments: ce.hasAttachments,
+                        emailType: EmailType(rawValue: ce.emailType ?? "received") ?? .received,
+                        category: category
+                    )
+                }
+            } catch {
+                print("❌ EmailCacheService: Errore fetch cache per account: \(error)")
+            }
+        }
         return cachedEmails
     }
     
@@ -205,7 +243,10 @@ public class EmailCacheService: ObservableObject {
                       let date = cachedEmail.date else {
                     return nil
                 }
-                
+                var category: EmailCategory? = nil
+                if let raw = categoryMap[id], let cat = EmailCategory(rawValue: raw) {
+                    category = cat
+                }
                 return EmailMessage(
                     id: id,
                     from: from,
@@ -215,7 +256,8 @@ public class EmailCacheService: ObservableObject {
                     date: date,
                     isRead: cachedEmail.isRead,
                     hasAttachments: cachedEmail.hasAttachments,
-                    emailType: EmailType(rawValue: cachedEmail.emailType ?? "received") ?? .received
+                    emailType: EmailType(rawValue: cachedEmail.emailType ?? "received") ?? .received,
+                    category: category
                 )
             } ?? []
             
@@ -265,6 +307,10 @@ public class EmailCacheService: ObservableObject {
                 cachedEmail.accountId = accountId
                 cachedEmail.createdAt = Date()
                 cachedEmail.lastUpdated = Date()
+            }
+            // Persisti mappa categoria (se presente)
+            if let cat = email.category {
+                saveCategory(cat, for: email.id)
             }
             
         } catch {
@@ -337,6 +383,26 @@ public class EmailCacheService: ObservableObject {
             UserDefaults.standard.set(data, forKey: "email_cache_timestamps")
             print("📧 EmailCacheService: Salvati \(lastFetchTimestamp.count) timestamp nella memoria")
         }
+    }
+
+    // MARK: - Category Map Persistence (leggero)
+    private func loadCategoryMapFromStorage() {
+        if let data = UserDefaults.standard.data(forKey: "email_category_map"),
+           let map = try? JSONDecoder().decode([String: String].self, from: data) {
+            categoryMap = map
+            print("📧 EmailCacheService: Caricate \(map.count) categorie dalla cache leggera")
+        }
+    }
+
+    private func saveCategoryMapToStorage() {
+        if let data = try? JSONEncoder().encode(categoryMap) {
+            UserDefaults.standard.set(data, forKey: "email_category_map")
+        }
+    }
+
+    public func saveCategory(_ category: EmailCategory, for emailId: String) {
+        categoryMap[emailId] = category.rawValue
+        saveCategoryMapToStorage()
     }
 }
 

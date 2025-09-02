@@ -1,149 +1,86 @@
-# Piano di Refactoring Completo Email (Marilena)
+# Refactor Mirato Email: Criticità e Piano Operativo
 
-Questo documento definisce obiettivi, perimetro, architettura, UX, integrazioni e milestones per rifattorizzare completamente la gestione email in Marilena, incluse classificazione/categorie/filtri, navigazione, funzionalità operative, e integrazione con la chat (composizione assistita e conferma invio) e calendario.
+Focus: mantenere invariata l’autenticazione e intervenire su HTML, UI AI, categorizzazione, cache, costi LLM e “reply-needed”.
 
-## Obiettivi
-- Affidabilità: sincronizzazione email robusta (inbox, sent, draft, labels), resiliente a retry e conflitti.
-- Classificazione: categorizzazione solida (labels/filtri) con motore regole + segnali ML (estensibile), mappata ai filtri esistenti.
-- UX moderna: navigazione per caselle/categorie/filtri, thread view, azioni rapide, ricerca.
-- Chat-driven reply: composizione assistita della risposta basata su cronologia email, interazioni precedenti con il contatto, calendario e titoli registrazioni.
-- Conferma in chat: apertura canvas con bozza pronta, invio e conferma/telemetria nella chat.
-- Scalabilità: architettura modulare, testabile, separazione provider/transport, storage locale, sync layer.
-- Privacy/permessi: consenso esplicito per lettura calendario/registrazioni e gestione sicura dei token.
+**Stato Attuale (sintesi tecnica)**
+- HTML: coesistono più renderer (Core/EmailHTMLRenderer, ModernEmailViewer, AppleMail* e wrapper locali in EmailDetailView) con logica duplicata e comportamenti incoerenti (altezza, colori, link esterni). BaseURL assente (niente risorse relative), ATS permissiva ma senza policy immagini remote. 
+- UI AI: pannelli e azioni AI sono in cima al dettaglio email e talvolta invadenti. Mancano modalità compatte/“silenziose”.
+- Categorizzazione: presente un servizio ibrido (tradizionale + AI) ma i risultati non persistono in cache. In Core Data l’entità CachedEmail non salva la categoria; getCachedEmails() non filtra per account e di fatto ignora l’argomento accountId.
+- Cache: TTL a 5 minuti, caricamento non selettivo per account, nessuna indicizzazione su categoria, nessuna invalidazione per cambi categoria. 
+- Efficienza: non esiste limite “ultime N email” sull’uso LLM; la scelta è per giorni recenti. Non c’è “Uncategorized” esplicita. 
+- Reply-needed: EmailChatService crea chat su nuove email con euristiche (entro 1h, ecc.) ma manca un detector strutturato “serve risposta?” e integrazione con prompt/parsing dedicati (explicit/implicit requests sono nel prompt, ma non vengono parsati in EmailAIService).
 
-## Perimetro (Scope)
-- In: ingestione email, storage locale, sync IMAP/API provider, classificazione, filtri, UX inbox/thread, ricerca, composizione/invio, integrazione chat, lettura calendario/registrazioni (read-only iniziale), notifiche.
-- Out (fase 1): training ML personalizzato, smart scheduling automatico, regole server-side avanzate, allegati >25MB con upload chunked multi-provider.
+**Criticità Prioritarie**
+- HTML non funzionante: duplicazione renderer → risultati incoerenti; stile/altezza/immagini non uniformi; potenziali bug di rendering nei wrapper locali.
+- Interfaccia AI: esperienza invasiva; mancano chip/CTA discreti; nessun “AI Minimal Mode”.
+- Categorizzazione non applicata: categoria non persiste in cache → su reload tutto torna “senza categoria”.
+- Cache: API non mult-account, TTL basso non coordinato con caricamenti, assenza di indici/chiavi su categoria, nessuna invalidazione per update di categoria.
+- Costo LLM: nessun limite “ultime 50”, batch e quote presenti ma non ancorati a una strategia di budget chiara.
+- Modalità “serve risposta”: detector assente a livello dati/UX; oggi si apre chat anche quando non necessario o senza spiegazioni del “perché”.
 
-## Problemi attuali (ipotesi)
-- Le mail non rispettano i filtri/categorie esistenti.
-- Navigazione limitata (assenza di viste per categorie/labels, thread incompleti).
-- Composizione da chat non collega cronologia/contesto/agenda.
-- Mancanza di conferma invio in chat e tracking stato.
+**Piano di Intervento (incrementale e verificabile)**
 
-## Architettura proposta
-- Data Sources
-  - Provider: Gmail API (REST), Microsoft Graph, IMAP standard (fallback), SMTP/Send API per invio.
-  - Calendario: EventKit (iOS) + mapping a contatti; in futuro legame registrazioni-calendario.
-- Strati
-  1) Transport/Provider: connettori per Gmail/Graph/IMAP con interfaccia comune (`MailProvider`).
-  2) Sync Engine: incremental sync (deltas), backoff, dedup, reconciliation labels/flags.
-  3) Storage: modello locale (Core Data/SQLite) per `Message`, `Thread`, `Participant`, `Label`, `FilterRule`, `SyncState`.
-  4) Classification: Rules Engine + Signals; mapping a `Label` e `Filter` (priorità regole > ML).
-  5) Domain Services: `MailService`, `ComposeService`, `ReplySuggester`, `CalendarContextService`.
-  6) UI Layer: SwiftUI views (InboxView, ThreadView, ComposeCanvas, FiltersView, SearchView, SettingsView).
-  7) Chat Bridge: API per aprire canvas con bozza, invio, e post conferma nella chat.
+1) HTML Unificato e Robusto
+- Unifica su `Core/EmailHTMLRenderer` in tutte le viste (Modern/AppleMail/Detail). Depreca i wrapper WKWebView duplicati in `EmailDetailView` e i viewer legacy.
+- Aggiungi opzioni: blocco immagini remote di default + pulsante “Mostra immagini” per mittente non fidato; baseURL nil ok per HTML inline, ma prevedi normalizzazione link relativi → assoluti quando disponibile.
+- Stabilizza altezza: usa l’attuale calcolo JS + fallback nativo; rimuovi animazioni ridondanti. 
+- Test: 5 campioni HTML (newsletter, fattura, social, ticketing, testo semplice) in light/dark; link esterni aprono in Safari; immagini bloccate sbloccabili.
 
-## Modello Dati (bozza)
-- Message: id, threadId, subject, bodyPlain, bodyHTML, from, to/cc/bcc, date, labels[], flags (seen/starred/draft/sent), attachments[], providerId, providerThreadKey, snippet.
-- Thread: id, subject, participants[], messageIds[], lastUpdated, unreadCount, labels[].
-- Label: id, name, type (system|user), color?, parentId?, providerMapping.
-- FilterRule: id, name, conditions (from/domain/keywords/recipient/hasAttachment/time-range), actions (applyLabel/move/archive/star/forward), priority.
-- CalendarInteraction: personId/email, events[], recordings[], lastContactedAt.
-- SyncState: per-account cursori/ETag/HistoryId, lastSyncAt, errorState.
+2) UI AI Discreta (“AI Minimal Mode”)
+- Inserisci un “AI Chip” compatto sopra il contenuto: categoria, urgenza, 1 riga di riassunto, CTA “Apri suggerimento”. Pannello espanso solo on tap.
+- Impostazione in `Settings`: AI Minimal Mode (default ON), Nascondi pulsanti AI nella lista.
+- Porta le azioni AI in un menù contestuale (…): Genera bozza, Altre bozze, Risposta personalizzata.
+- Accettazione: nessun layout jump in apertura dettaglio; 60 fps durante scroll.
 
-## Classificazione e Filtri
-- Rules Engine deterministico: valutazione sequenziale per priorità; condizioni composte AND/OR; azioni applicate atomicamente.
-- Signals/Heuristics: parole chiave, domini aziendali, frequenza, destinatari multipli, ore invio.
-- ML Hook (facoltativo): endpoint locale per scoring categoria (business, personale, fatture, notifiche, marketing). Non bloccante: regole vincono su ML in conflitto.
-- Mapping: categorie → `Label`; filtri UI leggono `Label` e `FilterRule`; sincronizzazione con provider quando possibile (Gmail Labels).
+3) Categorizzazione che “mette davvero” nelle categorie
+- Persistenza categoria in cache:
+  - Estendi `CachedEmail` con campo `category` (stringa rawValue di `EmailCategory`). Migrazione leggera Core Data.
+  - In `EmailCacheService.saveEmailToCache` imposta/aggiorna `category`; in `loadCachedEmails` reidrata `EmailMessage.category`.
+- Correzione mult-account: `getCachedEmails(for:)` deve filtrare per `accountId`; `loadCachedEmails()` accetta un account opzionale o filtra per quello corrente.
+- In `EmailService.categorizeEmailsInBackground`: dopo batch, salva in cache anche la categoria e marca come categorizzate per evitare ricalcolo.
+- UI: chip “Tutte / Lavoro / Personale / Notifiche / Promo / Uncategorized”. Se non si introduce un nuovo enum `.uncategorized`, tratta `category == nil` come “Uncategorized”.
+- Accettazione: filtri per categoria riflettono i contatori corretti dopo reload app.
 
-## Navigazione e UX
-- InboxView: tabs/switch per categorie (Tutte, Importanti, Da rispondere, Promozioni, Notifiche, Personalizzate).
-- Sidebar/FiltersView: elenco `Label`/filtri; drag-and-drop per rietichettare.
-- ThreadView: cronologia messaggi, avatar, abstract allegati, azioni rapide (Archivia, Posticipa, Cita, Rispondi a tutti).
-- Bulk actions: selezione multipla con applicazione etichette/archiviazione.
-- Ricerca: soggetto, mittente, parole chiave, label, data range; indexing locale con highlights.
-- Stato: contatori non letti per label/categorie; indicatori di sync.
+4) Cache affidabile (per performance e UX)
+- TTL a 15 min; fetch incrementale solo se `shouldFetchFromServer(accountId)`; mantieni cache per account separati.
+- Indicizza per `date` e `category`; aggiungi invalidazione locale quando cambia la categoria.
+- Evita over-fetch: quando Online ma in debouncing, mostra cache e rinvia il refresh.
+- Accettazione: cold start < 300ms con 200 email in cache; nessun reset di categoria dopo riavvio.
 
-## Chat → Mail (composizione assistita)
-- Trigger: arrivo nuova email o richiesta manuale dalla chat.
-- Context Builder:
-  - Cronologia thread + ultime n interazioni con contatto.
-  - Calendario: eventi con quel contatto (match via email/nome) dentro finestra temporale configurabile.
-  - Registrazioni: titoli e metadati; in futuro link al calendario (id evento ↔ recording).
-- Reply Suggester:
-  - Genera bozza coerente con tono/stile del thread, includendo riferimenti a eventi/registrazioni pertinenti.
-  - Suggerisce oggetto (RE: <subject> o adattivo) e firma.
-- Compose Canvas (UI):
-  - Apertura in overlay dalla chat con bozza precompilata, campi editabili (to/cc/bcc, subject, body), allegati suggeriti.
-  - Pulsanti: Invia, Salva bozza, Scarta.
-  - Validazioni: destinatari validi, reply-to corretta, quote selettiva.
-- Conferma in Chat:
-  - Dopo invio con successo, post automatico nella chat con: destinatari, oggetto, estratto, stato (inviata), link al thread.
-  - In caso di errore, messaggio di errore con retry.
+5) Efficienza LLM (cap sui costi)
+- Config `maxAIOnLaunch = 50` (default): categorizza con AI solo le ultime 50 non lette/recenti; le altre → heuristics tradizionali o “Uncategorized”.
+- Priorità AI: non lette + ricevute negli ultimi X giorni; oltre soglia usa solo regole/domìni/parole chiave.
+- Budget runtime: se tempo medio AI o “stimato costo” supera soglia sessione, degrada automaticamente a metodi tradizionali.
+- Accettazione: nessun burst > 50 chiamate AI al primo avvio; costo stimato visibile in `EmailCategorizationStatsView`.
 
-## Integrazione Calendario/Registrazioni
-- Permessi: richiesta esplicita (EventKit) e consenso GDPR per associazione registrazioni.
-- Matching contatti: normalizzazione email/nome, rubrica locale opzionale.
-- Cache: `CalendarInteraction` aggiornata periodicamente (es. all’avvio e ogni X ore) o on-demand al trigger reply.
-- Roadmap: legare registrazioni agli eventi (campo custom/URL) per navigazione rapida dal thread.
+6) “Serve Risposta?” e Chat Assistita
+- Detector “needs_reply”:
+  - Regole leggere: presenza di punto interrogativo + call-to-action (“per favore rispondi”, “RSVP”, “conferma”, “scadenza”, “entro”).
+  - Arricchimento AI economico: estendi `emailAnalysisPrompt` con campi `needs_reply: yes/no`, `reason`, `confidence(0-1)`; aggiorna `EmailAIService.parseEmailAnalysis` per parsare richieste esplicite/implicite e needs_reply.
+- Flusso nuove email:
+  - Se `needs_reply == yes` e confidenza alta → crea chat automatica con bozza; se media → mostra chip “Risposta suggerita” con 1‑tap per aprire chat; se bassa → solo badge “Da valutare”.
+- UX: nel dettaglio email mostra “Risposta suggerita” come CTA singola; se già pronta una bozza, offri “Apri bozza”.
+- Accettazione: su 5 email test (richiesta meeting, info, newsletter, notifica, promo) solo le prime 2 aprono chat/suggerimento; le altre no.
 
-## Error Handling e Sync
-- Retries con exponential backoff per API provider e invio SMTP.
-- Idempotenza su create/send (messageIdempotencyKey).
-- Conflitti di label: risoluzione last-writer-wins + merge.
-- Offline-first: coda invii; UI stato (in attesa, inviando, inviato/fallito).
+7) Sequenza PR (sicura, senza toccare auth)
+- PR1: Persistenza categoria + fix cache per account + chip “Uncategorized”.
+- PR2: Unificazione HTML renderer in tutte le viste + blocco immagini.
+- PR3: AI Minimal Mode + menù azioni + cleanup pannelli.
+- PR4: Limite “ultime 50” + priorità non lette/recenti + fallback tradizionale.
+- PR5: Detector needs_reply + parsing + integrazione con EmailChatService.
 
-## Sicurezza e Privacy
-- Token provider salvati in keychain; scadenza/refresh gestito.
-- Scoping minimo per API (principio del minimo privilegio).
-- Dati calendario/registrazioni usati solo per suggerimenti; opt-out disponibile.
+**Criteri di Accettazione sintetici**
+- HTML: 5 template reali renderizzati correttamente, dark/light, link esterni OK, immagini bloccabili.
+- Categorie: filtro/co ntatori corretti dopo riavvio; nessuna perdita categoria in cache.
+- Cache: cold start rapido, no fetch inutile entro TTL.
+- Costi: max 50 chiamate AI on‑launch; monitor mostra costi/stime.
+- Reply-needed: chat/bozza si apre solo quando serve; motivazione visibile (reason).
 
-## Testing e Telemetria
-- Unit: Rules Engine, Sync, ComposeService, ReplySuggester, CalendarContextService.
-- Integration: provider fake (Gmail/Graph) e DB in-memory.
-- UI: snapshot test per Inbox/Thread/ComposeCanvas.
-- Telemetria: eventi (email_suggested, email_sent, rule_applied, sync_error); no contenuti sensibili in log.
+**Note di Implementazione puntuali**
+- Core Data: aggiungere `category: String?` a `CachedEmail` con migrazione leggera (Optional → safe). Backfill pigro alla prima lettura.
+- EmailListView: aggiungere filtro “Uncategorized” trattando `nil` come categoria dedicata.
+- EmailAIService: estendere `parseEmailAnalysis` per `explicitRequests`, `implicitRequests`, `needs_reply`, `confidence`.
+- EmailService: in `categorizeEmailsInBackground`, limita a N=50 le email più recenti non categorizzate, il resto passa da `categorizeWithTraditionalMethods` o resta `nil`.
+- Telemetria: loggare numero di email AI/tradizionali, tempo medio e costo stimato (già presente monitor, raffinare). 
 
-## Migrazioni
-- Script di migrazione schema locale (Core Data/SQLite) per nuove entità.
-- Backfill labels da provider esistenti.
-
-## Strategia Branching
-- Branch: `feature/mail-refactor-phase-1` (base: `perf/phase-1` o `main` secondo aggiornamento).
-- PR incrementali per moduli: provider + storage → sync → rules → UI inbox/thread → compose/chat → calendario.
-
-## Milestones e Criteri di Accettazione
-1) Fondamenta Dati (provider + storage + sync)
-   - CA: account connesso; inbox scaricata; non letti corretti; retry funzionante.
-2) Classificazione/Filtri
-   - CA: regole utente applicate; categorie visibili; mapping labels; test rules passano.
-3) UX Inbox/Thread
-   - CA: navigazione categorie, thread completo, azioni rapide, ricerca base.
-4) Compose/Invio
-   - CA: compose, invio SMTP/API, stati offline.
-5) Chat Integration
-   - CA: apertura canvas da chat con bozza; invio; conferma in chat con link.
-6) Calendario/Registrazioni (read-only)
-   - CA: suggerimenti che includono eventi/registrazioni pertinenti; permessi corretti.
-
-## Rischi e Mitigazioni
-- Diversità provider: astrazione `MailProvider` + test con fakes.
-- Rate limits: caching, backoff, sync delta.
-- Privacy: opt-in calendario/registrazioni; redazione dati nei log.
-- Complessità UI: iterazioni PR piccole; snapshot test.
-
-## Deliverables
-- Codice modulare con servizi e viste descritte.
-- Documentazione: README modulo email, guida setup provider, guida permessi calendario.
-- Script migrazioni dati.
-- Suite test unit/integration/UI.
-
-## Sequenza Operativa (Fase 1)
-1) Setup branch e skeleton moduli (provider/storage/sync).
-2) Implementazione Rules Engine + UI filtri/labels.
-3) Inbox/Thread UI e ricerca.
-4) ComposeService + invio.
-5) Chat Bridge + Compose Canvas + conferma invio.
-6) CalendarContextService + suggerimenti.
-7) Telemetria + rifiniture + QA.
-
-## Note Implementative (Swift/iOS)
-- State management: ObservableObject/SwiftData o Composable Architecture (se già in uso).
-- Background sync: `BackgroundTasks` o refresh app; indicatori UI.
-- Accessibilità: Dynamic Type, VoiceOver, colori label contrastati.
-
-## Prossimi Passi
-- Alla tua conferma: creo il branch `feature/mail-refactor-phase-1`, apro la struttura base e propongo il primo PR con skeleton + storage + interfacce provider.
-
+Se sei d’accordo, procedo con PR1 (persistenza categoria e fix cache per account), lasciando l’autenticazione invariata.

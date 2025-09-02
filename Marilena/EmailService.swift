@@ -88,7 +88,24 @@ public class EmailService: ObservableObject {
     /// Ripristina l'autenticazione Google precedente se disponibile
     public func restoreGoogleSignIn() async {
         do {
-            let user = try await GIDSignIn.sharedInstance.restorePreviousSignIn()
+            var user = try await GIDSignIn.sharedInstance.restorePreviousSignIn()
+
+            // Assicurati che gli scope Gmail necessari siano concessi anche dopo il restore
+            let requiredScopes = EmailConfig.getProviderConfig(for: .google).scopes
+            let granted = Set(user.grantedScopes ?? [])
+            let missingScopes = requiredScopes.filter { !granted.contains($0) }
+            if !missingScopes.isEmpty {
+                if let windowScene = await MainActor.run(body: { UIApplication.shared.connectedScenes.first as? UIWindowScene }),
+                   let rootVC = windowScene.windows.first?.rootViewController {
+                    print("🔐 EmailService: Aggiungo scope mancanti dopo restore: \(missingScopes)")
+                    try await user.addScopes(missingScopes, presenting: rootVC)
+                    if let refreshed = GIDSignIn.sharedInstance.currentUser {
+                        user = refreshed
+                    }
+                } else {
+                    print("❌ EmailService: Impossibile presentare UI per aggiungere scope mancanti")
+                }
+            }
             
             let account = EmailAccount(
                 provider: .google,
@@ -208,14 +225,18 @@ public class EmailService: ObservableObject {
                 messages = try await fetchEmailsWithMicrosoftGraph(accessToken: account.accessToken)
             }
 
+            // Limita il numero di email per evitare sovraccarico
+            let limitedMessages = Array(messages.prefix(100))
+            print("📧 EmailService: Limitato a \(limitedMessages.count) email per ottimizzazione")
+
             // Carica prima le email senza categorizzazione per UI reattiva
-            self.emails = messages
+            self.emails = limitedMessages
             self.currentAccount = account
             self.isAuthenticated = true
 
             // Notifica SOLO nuove email ricevute (non già viste)
             let previousEmailIds = Set(self.emails.map { $0.id })
-            let newEmails = messages.filter { !previousEmailIds.contains($0.id) && $0.emailType == .received }
+            let newEmails = limitedMessages.filter { !previousEmailIds.contains($0.id) && $0.emailType == .received }
 
             for email in newEmails {
                 print("📧 EmailService: Nuova email ricevuta da \(email.from) - Invio notifica")
@@ -227,13 +248,13 @@ public class EmailService: ObservableObject {
             }
 
             // Salva in cache
-            await cacheService.cacheEmails(messages, for: account.email)
+            await cacheService.cacheEmails(limitedMessages, for: account.email)
 
-                        // Sincronizza lo stato di categorizzazione con il service
-            categorizationService.syncWithEmailCache(messages)
+            // Sincronizza lo stato di categorizzazione con il service
+            categorizationService.syncWithEmailCache(limitedMessages)
 
             // Adatta automaticamente la configurazione al numero di email
-            await EmailCategorizationConfigManager.shared.adaptToEmailCount(messages.count)
+            await EmailCategorizationConfigManager.shared.adaptToEmailCount(limitedMessages.count)
 
             print("✅ EmailService: Caricate \(messages.count) email per \(account.email)")
 
@@ -312,6 +333,46 @@ public class EmailService: ObservableObject {
                 disconnect()
             }
         }
+    }
+
+    /// Verifica e richiede (se necessario) gli scope Gmail necessari tramite GoogleSignIn
+    private func ensureGmailScopesIfNeeded() async -> Bool {
+        guard let currentUser = GIDSignIn.sharedInstance.currentUser else {
+            print("ℹ️ EmailService: Nessun utente Google corrente per verifica scope")
+            return false
+        }
+        let required = Set(EmailConfig.getProviderConfig(for: .google).scopes)
+        let granted = Set(currentUser.grantedScopes ?? [])
+        let missing = Array(required.subtracting(granted))
+        if missing.isEmpty {
+            return true
+        }
+        do {
+            if let windowScene = await MainActor.run(body: { UIApplication.shared.connectedScenes.first as? UIWindowScene }),
+               let rootVC = windowScene.windows.first?.rootViewController {
+                print("🔐 EmailService: Richiesta scope Gmail mancanti: \(missing)")
+                try await currentUser.addScopes(missing, presenting: rootVC)
+                let updatedUser = GIDSignIn.sharedInstance.currentUser ?? currentUser
+                // Aggiorna l'account corrente con il nuovo access token
+                if let account = currentAccount {
+                    let updatedAccount = EmailAccount(
+                        provider: account.provider,
+                        email: account.email,
+                        accessToken: updatedUser.accessToken.tokenString,
+                        refreshToken: updatedUser.refreshToken.tokenString,
+                        expiresAt: updatedUser.accessToken.expirationDate
+                    )
+                    await saveAccount(updatedAccount)
+                    self.currentAccount = updatedAccount
+                }
+                return true
+            } else {
+                print("❌ EmailService: Impossibile presentare UI per aggiunta scope")
+            }
+        } catch {
+            print("❌ EmailService: Errore aggiungendo scope Gmail: \(error)")
+        }
+        return false
     }
     
     /// Marca un'email come letta
@@ -1022,14 +1083,17 @@ public class EmailService: ObservableObject {
     /// Categorizza le email in background senza bloccare l'UI
     private func categorizeEmailsInBackground(_ messages: [EmailMessage]) async {
         print("🤖 EmailService: Inizio categorizzazione in background di \(messages.count) email")
-        
+
         // Filtra le email che non sono già categorizzate, in elaborazione, o nella cache
-        let uncategorizedEmails = messages.filter { email in
-            email.category == nil && 
+        let uncategorizedAll = messages.filter { email in
+            email.category == nil &&
             !categorizationService.isEmailCategorized(email.id) &&
             !categorizationService.isEmailBeingCategorized(email.id)
         }
-        
+        // Limita drasticamente l'uso dell'AI per evitare sovraccarico: max 10 email alla volta
+        let uncategorizedEmails = Array(uncategorizedAll.sorted { $0.date > $1.date }.prefix(10))
+        print("🤖 EmailService: Limitato a \(uncategorizedEmails.count) email per categorizzazione AI")
+
         guard !uncategorizedEmails.isEmpty else {
             print("🤖 EmailService: Tutte le email sono già categorizzate")
             return
@@ -1383,7 +1447,17 @@ public class EmailService: ObservableObject {
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 print("🔐 EmailService: Errore di autorizzazione (status \(httpResponse.statusCode)), tentativo di refresh token...")
                 await refreshTokenIfNeeded()
-                // Dopo il refresh, riprova la richiesta
+                
+                // Se è 403, potrebbe essere dovuto a scope insufficienti: prova ad aggiungerli
+                if httpResponse.statusCode == 403 {
+                    let scopesEnsured = await ensureGmailScopesIfNeeded()
+                    if scopesEnsured {
+                        print("🔐 EmailService: Scope Gmail garantiti, riprovo richiesta...")
+                    } else {
+                        print("❌ EmailService: Impossibile garantire scope Gmail richiesti")
+                    }
+                }
+                // Dopo aver gestito refresh/scope, riprova la richiesta
                 return try await fetchEmailsWithGmailAPI(accessToken: currentAccount?.accessToken ?? accessToken)
             }
             
@@ -1455,29 +1529,53 @@ public class EmailService: ObservableObject {
     }
     
     private func decodeGmailBody(_ payload: GmailMessagePayload?) -> String {
-        guard let payload = payload else { return "" }
-        
-        // Se il body è già in formato testo
-        if let bodyData = payload.body?.data,
-           let decodedData = Data(base64Encoded: bodyData.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")),
-           let body = String(data: decodedData, encoding: .utf8) {
-            return body
+        // Gmail usa base64 URL-safe. Helper per decodifica sicura
+        func decodeB64(_ s: String) -> String? {
+            let normalized = s
+                .replacingOccurrences(of: "-", with: "+")
+                .replacingOccurrences(of: "_", with: "/")
+            let padding = (4 - normalized.count % 4) % 4
+            let padded = normalized + String(repeating: "=", count: padding)
+            guard let data = Data(base64Encoded: padded) else { return nil }
+            return String(data: data, encoding: .utf8)
         }
-        
-        // Se ci sono parti multiple, cerca la parte di testo
-        if let parts = payload.parts {
-            for part in parts {
-                if part.mimeType == "text/plain" {
-                    if let bodyData = part.body?.data,
-                       let decodedData = Data(base64Encoded: bodyData.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")),
-                       let body = String(data: decodedData, encoding: .utf8) {
-                        return body
+
+        // Ricerca ricorsiva: preferisci text/html, poi text/plain
+        func extract(from node: GmailMessagePayload?) -> (html: String?, text: String?) {
+            guard let node = node else { return (nil, nil) }
+            var html: String? = nil
+            var text: String? = nil
+
+            if let data = node.body?.data, !data.isEmpty {
+                if node.mimeType?.lowercased().contains("text/html") == true {
+                    html = decodeB64(data)
+                } else if node.mimeType?.lowercased().contains("text/plain") == true {
+                    text = decodeB64(data)
+                } else {
+                    // Alcuni provider mettono il body senza mimeType specifico
+                    let raw = decodeB64(data)
+                    if let raw = raw, raw.localizedCaseInsensitiveContains("<html") || raw.localizedCaseInsensitiveContains("<div") {
+                        html = raw
+                    } else {
+                        text = raw ?? text
                     }
                 }
             }
+
+            // Esplora parti figlie
+            if let parts = node.parts {
+                for part in parts {
+                    let child = extract(from: part)
+                    if html == nil { html = child.html }
+                    if text == nil { text = child.text }
+                }
+            }
+
+            return (html, text)
         }
-        
-        return ""
+
+        let result = extract(from: payload)
+        return result.html ?? result.text ?? ""
     }
     
     private func parseGmailDate(_ dateString: String?) -> Date {

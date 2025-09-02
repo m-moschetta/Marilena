@@ -18,6 +18,7 @@ public struct EmailListView: View {
     @State private var searchText = ""
     @State private var showingFilters = false
     @State private var selectedCategory: EmailCategory? = nil // Filtro AI attivo
+    @State private var showUncategorized: Bool = false        // Filtro per non categorizzate
 
     @State private var useAppleMailStyle = true
     @State private var useModernViewer = true  // Default: nuovo viewer moderno
@@ -71,9 +72,11 @@ public struct EmailListView: View {
         // Filtra per categoria AI
         if let selectedCategory = selectedCategory {
             conversations = conversations.filter { conversation in
-                conversation.messages.contains { message in
-                    message.category == selectedCategory
-                }
+                conversation.messages.contains { $0.category == selectedCategory }
+            }
+        } else if showUncategorized {
+            conversations = conversations.filter { conversation in
+                conversation.messages.contains { $0.category == nil }
             }
         }
         
@@ -113,11 +116,11 @@ public struct EmailListView: View {
             return true // Se non trovata nella cache, mostra l'email
         }
         
-        // Filtra per categoria AI
+        // Filtra per categoria AI o non categorizzate
         if let selectedCategory = selectedCategory {
-            emails = emails.filter { email in
-                email.category == selectedCategory
-            }
+            emails = emails.filter { $0.category == selectedCategory }
+        } else if showUncategorized {
+            emails = emails.filter { $0.category == nil }
         }
         
         // Filtra per ricerca testuale
@@ -501,10 +504,23 @@ public struct EmailListView: View {
                     // Filtro "Tutte"
                     AICategoryFilterChip(
                         category: nil,
-                        isSelected: selectedCategory == nil,
+                        isSelected: selectedCategory == nil && !showUncategorized,
                         count: getAllEmailsCount()
                     ) {
                         selectedCategory = nil
+                        showUncategorized = false
+                    }
+                    
+                    // Filtro "Uncategorized"
+                    AICategoryFilterChip(
+                        category: nil,
+                        isSelected: selectedCategory == nil && showUncategorized,
+                        count: getUncategorizedCount(),
+                        overrideTitle: "Uncategorized",
+                        overrideIcon: "tray"
+                    ) {
+                        selectedCategory = nil
+                        showUncategorized = true
                     }
                     
                     // Filtri per ogni categoria AI
@@ -515,6 +531,7 @@ public struct EmailListView: View {
                             count: getCategoryCount(category)
                         ) {
                             selectedCategory = category
+                            showUncategorized = false
                         }
                     }
                 }
@@ -543,6 +560,16 @@ public struct EmailListView: View {
             return emailService.emailConversations.count
         } else {
             return emailService.emails.count
+        }
+    }
+
+    private func getUncategorizedCount() -> Int {
+        if emailService.isThreadingEnabled {
+            return emailService.emailConversations.filter { conversation in
+                conversation.messages.contains { $0.category == nil }
+            }.count
+        } else {
+            return emailService.emails.filter { $0.category == nil }.count
         }
     }
     
@@ -976,10 +1003,15 @@ struct AICategoryFilterChip: View {
     let category: EmailCategory?
     let isSelected: Bool
     let count: Int
+    // Opzionali: titolo e icona personalizzati (per 'Uncategorized')
+    var overrideTitle: String? = nil
+    var overrideIcon: String? = nil
     let action: () -> Void
     
     private var title: String {
-        if let category = category {
+        if let title = overrideTitle {
+            return title
+        } else if let category = category {
             return category.displayName
         } else {
             return "Tutte"
@@ -987,7 +1019,9 @@ struct AICategoryFilterChip: View {
     }
     
     private var icon: String {
-        if let category = category {
+        if let icon = overrideIcon {
+            return icon
+        } else if let category = category {
             return category.icon
         } else {
             return "envelope"

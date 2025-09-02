@@ -138,8 +138,8 @@ struct EmailHTMLWebView: UIViewRepresentable {
         print("📧 EmailHTMLWebView: Updating WebView")
         print("📧 EmailHTMLWebView: HTML content length: \(htmlContent.count)")
         print("📧 EmailHTMLWebView: Color scheme: \(colorScheme)")
-        
-        let styledHTML = generateRobustHTML(content: htmlContent, colorScheme: colorScheme)
+        let blockImages = (UserDefaults.standard.object(forKey: "email_block_remote_images") as? Bool) ?? false
+        let styledHTML = generateRobustHTML(content: htmlContent, colorScheme: colorScheme, blockImages: blockImages)
         
         print("📧 EmailHTMLWebView: Generated HTML length: \(styledHTML.count)")
         print("📧 EmailHTMLWebView: Generated HTML preview: \(String(styledHTML.prefix(300)))")
@@ -147,7 +147,7 @@ struct EmailHTMLWebView: UIViewRepresentable {
         webView.loadHTMLString(styledHTML, baseURL: nil)
     }
     
-    private func generateRobustHTML(content: String, colorScheme: ColorScheme) -> String {
+    private func generateRobustHTML(content: String, colorScheme: ColorScheme, blockImages: Bool) -> String {
         let isDark = colorScheme == .dark
         
         // Dynamic colors based on color scheme
@@ -156,6 +156,16 @@ struct EmailHTMLWebView: UIViewRepresentable {
         let linkColor = isDark ? "#0A84FF" : "#007AFF"
         let secondaryColor = isDark ? "#8E8E93" : "#6D6D70"
         let borderColor = isDark ? "#38383A" : "#C6C6C8"
+        
+        // Block remote images by neutralizing src attributes (optional)
+        let processedContent: String = {
+            guard blockImages else { return content }
+            var c = content
+            c = c.replacingOccurrences(of: " src=", with: " data-src=")
+            c = c.replacingOccurrences(of: "\nsrc=", with: "\ndata-src=")
+            c = c.replacingOccurrences(of: "\"src\"", with: "\"data-src\"")
+            return c
+        }()
         
         return """
         <!DOCTYPE html>
@@ -454,8 +464,14 @@ struct EmailHTMLWebView: UIViewRepresentable {
             </script>
         </head>
         <body>
+            \(blockImages ? """
+            <div id=\"image-block-banner\" style=\"position: sticky; top:0; z-index:5; padding:8px 12px; background: \(isDark ? "#2C2C2E" : "#F2F2F7"); color: \(textColor); border-bottom:1px solid \(borderColor); font-size:14px; display:flex; align-items:center; gap:12px;\">
+              <span>Immagini remote bloccate</span>
+              <button id=\"unblock-btn\" style=\"padding:6px 10px; background: \(linkColor); color:white; border:none; border-radius:6px; font-size:13px;\">Mostra immagini</button>
+            </div>
+            """ : "")
             <!-- Email content injection -->
-            \(content)
+            \(processedContent)
             
             <!-- Fallback content if email is empty -->
             <script>

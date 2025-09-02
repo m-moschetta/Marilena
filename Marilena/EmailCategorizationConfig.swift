@@ -47,20 +47,20 @@ public struct EmailCategorizationConfig {
     /// Abilita logging dettagliato per debugging
     public let enableDetailedLogging: Bool
     
-    // MARK: - Default Configuration
-    
+    // MARK: - Default Configuration (ottimizzata per stabilità)
+
     public static let `default` = EmailCategorizationConfig(
-        maxAICategorizationPerSession: 50,
-        maxAICategorizationPerAccount: 100,
+        maxAICategorizationPerSession: 25,  // Ridotto da 50
+        maxAICategorizationPerAccount: 50,  // Ridotto da 100
         recentEmailDaysThreshold: 7,
         traditionalConfidenceThreshold: 0.8,
         enableFastDomainMatching: true,
         enableAdvancedContentAnalysis: true,
-        aiBatchSize: 3,
+        aiBatchSize: 2,  // Ridotto da 3
         traditionalBatchSize: 10,
-        aiBatchDelay: 2.0,
+        aiBatchDelay: 3.0,  // Aumentato da 2.0
         enableResultsCaching: true,
-        enableDetailedLogging: true
+        enableDetailedLogging: false  // Disabilitato per ridurre overhead
     )
     
     // MARK: - Conservative Configuration (per account con molte email)

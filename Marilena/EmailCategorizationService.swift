@@ -218,7 +218,11 @@ public class EmailCategorizationService {
                 
                 // Processa il batch AI corrente
                 let batchResults = await withTaskGroup(of: EmailMessage.self) { group in
-                    for email in batch {
+                    // Limita a max 3 task simultanei per evitare sovraccarico
+                    let maxConcurrentTasks = min(batch.count, 3)
+
+                    for i in 0..<maxConcurrentTasks {
+                        let email = batch[i]
                         group.addTask {
                             let category = await self.categorizeWithAI(email)
                             return await MainActor.run {
@@ -237,11 +241,34 @@ public class EmailCategorizationService {
                             }
                         }
                     }
-                    
+
+                    // Processa gli altri email in sequenza dopo i primi 3
                     var results: [EmailMessage] = []
                     for await result in group {
                         results.append(result)
                     }
+
+                    // Processa gli email rimanenti sequenzialmente
+                    for i in maxConcurrentTasks..<batch.count {
+                        let email = batch[i]
+                        let category = await self.categorizeWithAI(email)
+                        let result = await MainActor.run {
+                            EmailMessage(
+                                id: email.id,
+                                from: email.from,
+                                to: email.to,
+                                subject: email.subject,
+                                body: email.body,
+                                date: email.date,
+                                isRead: email.isRead,
+                                hasAttachments: email.hasAttachments,
+                                emailType: email.emailType,
+                                category: category
+                            )
+                        }
+                        results.append(result)
+                    }
+
                     return results
                 }
                 
@@ -600,9 +627,36 @@ public class EmailCategorizationService {
             preview: getEmailPreview(email.body)
         )
 
+        // Timeout di 30 secondi per evitare blocchi
+        let timeoutTask = Task<String, Error> {
+            try await Task.sleep(nanoseconds: 30_000_000_000) // 30 secondi
+            throw NSError(domain: "AICategorizationTimeout", code: -1, userInfo: [NSLocalizedDescriptionKey: "Timeout categorizzazione AI"])
+        }
+
+        let categorizationTask = Task<String, Error> {
+            // Scegli il servizio appropriato in base al provider
+            let response = try await sendAIMessage(systemPrompt: getSystemPrompt(), userPrompt: prompt)
+            return response
+        }
+
         // Scegli il servizio appropriato in base al provider
         do {
-            let response = try await sendAIMessage(systemPrompt: getSystemPrompt(), userPrompt: prompt)
+            // Aspetta il primo che completa (categorizzazione o timeout)
+            let response = try await withThrowingTaskGroup(of: String.self) { group in
+                group.addTask {
+                    try await categorizationTask.value
+                }
+                group.addTask {
+                    try await timeoutTask.value
+                }
+
+                // Prendi il primo risultato disponibile
+                guard let result = try await group.next() else {
+                    throw NSError(domain: "NoResultError", code: -1, userInfo: nil)
+                }
+                group.cancelAll() // Cancella gli altri task
+                return result
+            }
             let category = self.parseCategory(from: response)
             let duration = CFAbsoluteTimeGetCurrent() - startTime
             print("✅ EmailCategorizationService: Email \(email.id) categorizzata AI come \(category.displayName) in \(String(format: "%.2f", duration))s usando \(selectedModel.name)")
@@ -617,6 +671,10 @@ public class EmailCategorizationService {
             return category
 
         } catch {
+            // Cancella i task pendenti
+            timeoutTask.cancel()
+            categorizationTask.cancel()
+
             print("❌ EmailCategorizationService: Errore AI - \(error.localizedDescription) con modello \(selectedModel.name)")
             // Fallback ai metodi tradizionali
             let fallbackCategory = self.categorizeWithTraditionalMethods(email)
