@@ -275,8 +275,8 @@ private struct DayEventBlock: View {
                         Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(isCompleted ? .green : baseColor)
                             .font(.title3)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
+                            .frame(width: 24, height: 24)
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
                     Text(event.title).font(.caption.weight(.semibold)).lineLimit(1)

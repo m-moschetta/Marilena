@@ -616,6 +616,11 @@ struct AudioRecorderView: View {
 }
 
 #Preview {
-    AudioRecorderView(recordingService: RecordingService(context: PersistenceController.preview.container.viewContext))
+    let calendarManager = CalendarManager()
+    let recordingService = RecordingService(context: PersistenceController.preview.container.viewContext)
+    recordingService.setCalendarManager(calendarManager)
+
+    return AudioRecorderView(recordingService: recordingService)
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environmentObject(calendarManager)
 }

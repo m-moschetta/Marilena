@@ -32,6 +32,10 @@
         <attribute name="dataCreazione" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="emailId" optional="YES" attributeType="String"/>
         <attribute name="emailResponseType" optional="YES" attributeType="String"/>
+        <attribute name="emailResponseDraft" optional="YES" attributeType="String"/>
+        <attribute name="emailCanEdit" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="transcriptionId" optional="YES" attributeType="String"/>
+        <attribute name="canvasMetadata" optional="YES" attributeType="Binary"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isUser" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="tipo" optional="YES" attributeType="String" defaultValueString="user"/>

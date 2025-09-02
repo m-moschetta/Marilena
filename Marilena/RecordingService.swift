@@ -14,17 +14,29 @@ class RecordingService: NSObject, ObservableObject {
     private var locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
     private var audioLevelTimer: Timer?
-    
+
     private let context: NSManagedObjectContext
     private let documentsDirectory: URL
+
+    // MARK: - Calendar Integration Properties
+
+    /// Riferimento al CalendarManager per il collegamento con eventi
+    private weak var calendarManager: CalendarManager?
     
-    init(context: NSManagedObjectContext) {
+    init(context: NSManagedObjectContext, calendarManager: CalendarManager? = nil) {
         self.context = context
         self.documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        self.calendarManager = calendarManager
         super.init()
         print("✅ RecordingService inizializzato")
         setupLocationManager()
         checkPermissions()
+    }
+
+    /// Imposta il riferimento al CalendarManager per il collegamento eventi
+    func setCalendarManager(_ manager: CalendarManager) {
+        self.calendarManager = manager
+        print("📅 CalendarManager collegato a RecordingService")
     }
     
     // MARK: - Audio Level Monitoring
@@ -87,8 +99,16 @@ class RecordingService: NSObject, ObservableObject {
         recording.id = UUID()
         recording.dataCreazione = Date()
         recording.pathFile = fileURL
-        recording.titolo = "Registrazione \(Date().formatted(date: .abbreviated, time: .shortened))"
         recording.statoElaborazione = "in_corso"
+
+        // 4. Link to current calendar event if available
+        let (eventTitle, eventAttendees) = getCurrentEventInfo()
+        recording.titolo = eventTitle ?? "Registrazione \(Date().formatted(date: .abbreviated, time: .shortened))"
+
+        // 5. Store event attendees in linguaPrincipale field if available (temporary solution)
+        if let attendees = eventAttendees, !attendees.isEmpty {
+            recording.linguaPrincipale = formatAttendeesForNotes(attendees)
+        }
         
         do {
             try context.save()
@@ -336,6 +356,51 @@ extension RecordingService: CLLocationManagerDelegate {
         @unknown default:
             break
         }
+    }
+
+    // MARK: - Calendar Integration Methods
+
+    /// Ottiene informazioni sull'evento corrente per collegarlo alla registrazione
+    private func getCurrentEventInfo() -> (title: String?, attendees: [String]?) {
+        guard let calendarManager = calendarManager else {
+            print("📅 Nessun CalendarManager collegato")
+            return (nil, nil)
+        }
+
+        // Trova eventi in corso nel momento attuale
+        let currentEvents = calendarManager.currentEvents
+
+        if currentEvents.isEmpty {
+            print("📅 Nessun evento in corso trovato")
+            return (nil, nil)
+        }
+
+        // Se c'è più di un evento in corso, prendi il primo
+        let currentEvent = currentEvents.first!
+        print("📅 Evento corrente trovato: \(currentEvent.title)")
+
+        // Crea titolo per la registrazione basato sull'evento
+        let eventTitle = "📅 \(currentEvent.title)"
+
+        // Estrai email dei partecipanti
+        let attendeeEmails = currentEvent.attendees
+            .filter { $0.status != .declined } // Escludi chi ha rifiutato
+            .map { $0.email }
+            .filter { !$0.isEmpty }
+
+        print("👥 Partecipanti trovati: \(attendeeEmails.count)")
+
+        return (eventTitle, attendeeEmails)
+    }
+
+    /// Formatta la lista dei partecipanti per le note della registrazione
+    private func formatAttendeesForNotes(_ attendees: [String]) -> String {
+        let header = "👥 PARTECIPANTI EVENTO:\n"
+        let attendeeList = attendees.enumerated().map { index, email in
+            "• \(email)"
+        }.joined(separator: "\n")
+
+        return header + attendeeList
     }
 }
 

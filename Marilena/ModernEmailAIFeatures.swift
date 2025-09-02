@@ -324,7 +324,7 @@ struct ModernEmailAIPanel: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
     
-    private func quickResponseButton(_ title: String, type: QuickResponseType) -> some View {
+    private func quickResponseButton(_ title: String, type: ResponseStyle) -> some View {
         Button {
             Task {
                 await generateQuickResponse(type: type)
@@ -434,7 +434,7 @@ struct ModernEmailAIPanel: View {
         summary = await aiService.summarizeEmail(email)
     }
     
-    private func generateQuickResponse(type: QuickResponseType) async {
+    private func generateQuickResponse(type: ResponseStyle) async {
         do {
             let response = try await aiService.generateQuickResponse(for: email, type: type)
             let draft = EmailDraft(
@@ -464,7 +464,7 @@ struct ModernEmailAIPanel: View {
 }
 
 // MARK: - Quick Response Types
-enum QuickResponseType {
+enum ResponseStyle: String, CaseIterable {
     case positive, negative, professional, friendly, inquiry, scheduling
     
     var gradientColors: [Color] {
@@ -634,7 +634,7 @@ struct ModernCustomPromptView: View {
 
 // MARK: - AI Service Extensions
 extension EmailAIService {
-    func generateQuickResponse(for email: EmailMessage, type: QuickResponseType) async throws -> String {
+    func generateQuickResponse(for email: EmailMessage, type: ResponseStyle) async throws -> String {
         return try await generateCustomResponse(for: email, prompt: type.prompt)
     }
     

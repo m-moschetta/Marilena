@@ -1,0 +1,469 @@
+import Foundation
+import CoreData
+import SwiftUI
+
+// MARK: - CRM Profile Service
+/// Servizio per gestire l'integrazione dei dati CRM nel profilo utente
+@MainActor
+public class CRMProfileService: ObservableObject {
+    public static let shared = CRMProfileService()
+    
+    // Proprietà pubblicate
+    @Published public var userCRMData: UserProfileCRM = UserProfileCRM()
+    @Published public var isLoading = false
+    @Published public var lastUpdateDate: Date?
+    
+    // Cache per ottimizzazione
+    private var contactsCache: [UnifiedContact] = []
+    private var interactionsCache: [ContactInteraction] = []
+    private let cacheExpiryInterval: TimeInterval = 300 // 5 minuti
+    
+    private init() {}
+    
+    // MARK: - Public Methods
+    
+    /// Carica i dati CRM per il profilo utente
+    public func loadUserCRMData(from profilo: ProfiloUtente) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        // Per ora usa dati mock per evitare errori di compilazione
+        // TODO: Implementare caricamento reale quando le classi Core Data sono disponibili
+        await loadMockCRMData()
+    }
+    
+    /// Carica dati CRM mock per il testing
+    private func loadMockCRMData() async {
+        // Simula loading time
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        
+        // Genera dati mock
+        let mockInteractions = generateMockInteractions()
+        
+        userCRMData = UserProfileCRM(
+            totalContacts: 42,
+            activeContacts: 18,
+            vipContacts: 3,
+            topContactsByInteractions: [],
+            recentInteractions: mockInteractions,
+            relationshipHealthScore: 78.5,
+            weeklyInteractionCount: 12,
+            sentimentDistribution: [
+                .positive: 8,
+                .neutral: 3,
+                .negative: 1
+            ]
+        )
+        lastUpdateDate = Date()
+    }
+    
+    /// Genera interazioni mock per il testing
+    private func generateMockInteractions() -> [ContactInteraction] {
+        return [
+            ContactInteraction(
+                contactId: "1",
+                type: .emailReceived,
+                date: Date().addingTimeInterval(-3600),
+                title: "Re: Proposta progetto",
+                sentiment: .positive,
+                topics: ["lavoro", "proposta"]
+            ),
+            ContactInteraction(
+                contactId: "2",
+                type: .meeting,
+                date: Date().addingTimeInterval(-7200),
+                title: "Standup Team",
+                sentiment: .neutral,
+                topics: ["meeting", "team"]
+            ),
+            ContactInteraction(
+                contactId: "3",
+                type: .emailSent,
+                date: Date().addingTimeInterval(-10800),
+                title: "Follow-up chiamata",
+                sentiment: .positive,
+                topics: ["follow-up"]
+            ),
+            ContactInteraction(
+                contactId: "4",
+                type: .call,
+                date: Date().addingTimeInterval(-14400),
+                title: "Chiamata cliente ABC",
+                sentiment: .positive,
+                topics: ["vendite", "cliente"]
+            ),
+            ContactInteraction(
+                contactId: "5",
+                type: .note,
+                date: Date().addingTimeInterval(-18000),
+                title: "Note riunione strategica",
+                sentiment: .neutral,
+                topics: ["strategia", "planning"]
+            )
+        ]
+    }
+    
+    /// Aggiorna le statistiche in background
+    public func refreshCRMData(from profilo: ProfiloUtente) {
+        Task {
+            await loadUserCRMData(from: profilo)
+        }
+    }
+    
+    // MARK: - Private Methods (Commented for compilation)
+    
+    /* TODO: Uncomment when Core Data classes are available
+    /// Carica contatti unificati da email e calendario
+    private func loadUnifiedContacts(from profilo: ProfiloUtente) async -> [UnifiedContact] {
+        var unifiedContacts: [String: UnifiedContact] = [:]
+        
+        // 1. Carica contatti da email
+        let emailContacts = await loadEmailContacts(from: profilo)
+        for contact in emailContacts {
+            unifiedContacts[contact.email] = contact
+        }
+        
+        // 2. Carica contatti da calendario
+        let calendarContacts = await loadCalendarContacts(from: profilo)
+        for contact in calendarContacts {
+            if var existing = unifiedContacts[contact.email] {
+                // Merge dei dati calendario con email
+                existing.eventFrequency += contact.eventFrequency
+                existing.lastEventDate = contact.lastEventDate
+                existing.sources.append(contentsOf: contact.sources)
+                unifiedContacts[contact.email] = existing
+            } else {
+                unifiedContacts[contact.email] = contact
+            }
+        }
+        
+        return Array(unifiedContacts.values)
+    }
+    
+    /// Carica contatti dalle email storiche
+    private func loadEmailContacts(from profilo: ProfiloUtente) async -> [UnifiedContact] {
+        // Accesso al Core Data per le email
+        guard let context = profilo.managedObjectContext else { return [] }
+        
+        return await withUnsafeContinuation { continuation in
+            context.perform {
+                let request = NSFetchRequest<NSManagedObject>(entityName: "CachedEmail")
+                request.predicate = NSPredicate(format: "from != nil AND from != ''")
+                
+                do {
+                    let emails = try context.fetch(request)
+                    var emailContacts: [String: UnifiedContact] = [:]
+                    
+                    for email in emails {
+                        guard let fromEmail = email.value(forKey: "from") as? String, !fromEmail.isEmpty else { continue }
+                        
+                        if var existing = emailContacts[fromEmail] {
+                            // Aggiorna frequenza email
+                            existing.emailFrequency += 1
+                            if let emailDate = email.value(forKey: "date") as? Date,
+                               existing.lastEmailDate ?? Date.distantPast < emailDate {
+                                existing.lastEmailDate = emailDate
+                            }
+                            // Determina categoria email
+                            if let category = self.categorizeEmailObject(email) {
+                                if !existing.emailCategories.contains(category) {
+                                    existing.emailCategories.append(category)
+                                }
+                            }
+                            emailContacts[fromEmail] = existing
+                        } else {
+                            // Nuovo contatto
+                            var newContact = UnifiedContact(
+                                email: fromEmail,
+                                name: self.extractNameFromEmail(fromEmail),
+                                phone: nil,
+                                avatarData: nil
+                            )
+                            newContact.emailFrequency = 1
+                            newContact.lastEmailDate = email.value(forKey: "date") as? Date
+                            newContact.sources = [.email]
+                            
+                            if let category = self.categorizeEmailObject(email) {
+                                newContact.emailCategories = [category]
+                            }
+                            
+                            emailContacts[fromEmail] = newContact
+                        }
+                    }
+                    
+                    continuation.resume(returning: Array(emailContacts.values))
+                } catch {
+                    print("❌ Errore nel caricamento email per CRM: \(error)")
+                    continuation.resume(returning: [])
+                }
+            }
+        }
+    }
+    
+    /// Carica contatti dal calendario
+    private func loadCalendarContacts(from profilo: ProfiloUtente) async -> [UnifiedContact] {
+        // Per ora ritorna contatti mock - da implementare con CalendarManager
+        // TODO: Integrare con il sistema calendario esistente
+        return []
+    }
+    
+    /// Carica interazioni complete
+    private func loadInteractions(from profilo: ProfiloUtente, contacts: [UnifiedContact]) async -> [ContactInteraction] {
+        var allInteractions: [ContactInteraction] = []
+        
+        // Carica interazioni email
+        let emailInteractions = await loadEmailInteractions(from: profilo, contacts: contacts)
+        allInteractions.append(contentsOf: emailInteractions)
+        
+        // Carica interazioni calendario
+        let calendarInteractions = await loadCalendarInteractions(from: profilo, contacts: contacts)
+        allInteractions.append(contentsOf: calendarInteractions)
+        
+        return allInteractions.sorted { $0.date > $1.date }
+    }
+    
+    /// Carica interazioni email
+    private func loadEmailInteractions(from profilo: ProfiloUtente, contacts: [UnifiedContact]) async -> [ContactInteraction] {
+        guard let context = profilo.managedObjectContext else { return [] }
+        
+        return await withUnsafeContinuation { continuation in
+            context.perform {
+                let request = NSFetchRequest<NSManagedObject>(entityName: "CachedEmail")
+                request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+                request.fetchLimit = 50 // Limita alle ultime 50 email
+                
+                do {
+                    let emails = try context.fetch(request)
+                    var interactions: [ContactInteraction] = []
+                    
+                    for email in emails {
+                        guard let fromEmail = email.value(forKey: "from") as? String,
+                              let contact = contacts.first(where: { $0.email == fromEmail }),
+                              let date = email.value(forKey: "date") as? Date else { continue }
+                        
+                        let subject = email.value(forKey: "subject") as? String
+                        let body = email.value(forKey: "body") as? String
+                        
+                        let interaction = ContactInteraction(
+                            contactId: contact.id,
+                            type: .emailReceived, // Per ora solo ricevute, da estendere
+                            date: date,
+                            title: subject ?? "Email senza oggetto",
+                            description: self.truncateBody(body),
+                            metadata: [
+                                "hasAttachments": (email.value(forKey: "hasAttachments") as? Bool)?.description ?? "false",
+                                "isRead": (email.value(forKey: "isRead") as? Bool)?.description ?? "false"
+                            ],
+                            sentiment: self.analyzeSentiment(subject, body),
+                            topics: self.extractTopics(subject, body),
+                            actionItems: self.extractActionItems(body)
+                        )
+                        
+                        interactions.append(interaction)
+                    }
+                    
+                    continuation.resume(returning: interactions)
+                } catch {
+                    print("❌ Errore nel caricamento interazioni email: \(error)")
+                    continuation.resume(returning: [])
+                }
+            }
+        }
+    }
+    
+    /// Carica interazioni calendario
+    private func loadCalendarInteractions(from profilo: ProfiloUtente, contacts: [UnifiedContact]) async -> [ContactInteraction] {
+        // TODO: Implementare con CalendarManager
+        return []
+    }
+    
+    /// Calcola statistiche CRM
+    private func calculateCRMStats(contacts: [UnifiedContact], interactions: [ContactInteraction]) -> UserProfileCRM {
+        let totalContacts = contacts.count
+        let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 3600)
+        let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 3600)
+        
+        // Contatti attivi (con interazioni negli ultimi 30 giorni)
+        let activeContacts = contacts.filter { contact in
+            interactions.contains { $0.contactId == contact.id && $0.date > thirtyDaysAgo }
+        }.count
+        
+        // Contatti VIP (da implementare logica di priorità)
+        let vipContacts = contacts.filter { _ in
+            // TODO: Implementare logica VIP basata su frequenza/importanza
+            false
+        }.count
+        
+        // Top contatti per interazioni
+        let contactInteractionCounts = Dictionary(grouping: interactions, by: { $0.contactId })
+            .mapValues { $0.count }
+        let topContactIds = contactInteractionCounts.sorted { $0.value > $1.value }.prefix(5).map { $0.key }
+        let topContacts = contacts.filter { topContactIds.contains($0.id) }
+        
+        // Interazioni recenti
+        let recentInteractions = Array(interactions.prefix(10))
+        
+        // Interazioni settimanali
+        let weeklyInteractionCount = interactions.filter { $0.date > sevenDaysAgo }.count
+        
+        // Distribuzione sentiment
+        let sentimentDistribution = Dictionary(grouping: interactions.compactMap { $0.sentiment }, by: { $0 })
+            .mapValues { $0.count }
+        
+        // Calcolo salute relazioni (algoritmo semplificato)
+        let relationshipHealthScore = calculateRelationshipHealth(
+            totalContacts: totalContacts,
+            activeContacts: activeContacts,
+            recentInteractions: interactions.filter { $0.date > thirtyDaysAgo },
+            sentimentDistribution: sentimentDistribution
+        )
+        
+        return UserProfileCRM(
+            totalContacts: totalContacts,
+            activeContacts: activeContacts,
+            vipContacts: vipContacts,
+            topContactsByInteractions: topContacts,
+            recentInteractions: recentInteractions,
+            relationshipHealthScore: relationshipHealthScore,
+            weeklyInteractionCount: weeklyInteractionCount,
+            sentimentDistribution: sentimentDistribution
+        )
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func extractNameFromEmail(_ email: String) -> String? {
+        // Semplice estrazione del nome dalla parte locale dell'email
+        let localPart = email.components(separatedBy: "@").first ?? email
+        let cleanedName = localPart.replacingOccurrences(of: ".", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+        
+        // Capitalizza le parole
+        return cleanedName.capitalized
+    }
+    
+    private func categorizeEmailObject(_ email: NSManagedObject) -> EmailCategory? {
+        guard let subject = email.value(forKey: "subject") as? String else { return nil }
+        let lowerSubject = subject.lowercased()
+        
+        if lowerSubject.contains("work") || lowerSubject.contains("lavoro") || lowerSubject.contains("meeting") || lowerSubject.contains("project") {
+            return .work
+        } else if lowerSubject.contains("newsletter") || lowerSubject.contains("unsubscribe") {
+            return .newsletter
+        } else if lowerSubject.contains("support") || lowerSubject.contains("help") || lowerSubject.contains("assistenza") {
+            return .support
+        } else if lowerSubject.contains("social") || lowerSubject.contains("facebook") || lowerSubject.contains("twitter") {
+            return .social
+        } else if lowerSubject.contains("offer") || lowerSubject.contains("sale") || lowerSubject.contains("offerta") || lowerSubject.contains("sconto") {
+            return .marketing
+        }
+        
+        return .other
+    }
+    
+    private func analyzeSentiment(_ subject: String?, _ body: String?) -> ContactInteraction.InteractionSentiment? {
+        // Analisi sentiment semplificata - da migliorare con AI
+        let text = "\(subject ?? "") \(body ?? "")".lowercased()
+        
+        let positiveWords = ["grazie", "ottimo", "perfetto", "bene", "grande", "fantastico", "eccellente"]
+        let negativeWords = ["problema", "errore", "sbagliato", "male", "cattivo", "difficile", "impossibile"]
+        
+        let positiveCount = positiveWords.reduce(0) { count, word in
+            count + text.components(separatedBy: word).count - 1
+        }
+        
+        let negativeCount = negativeWords.reduce(0) { count, word in
+            count + text.components(separatedBy: word).count - 1
+        }
+        
+        if positiveCount > negativeCount {
+            return .positive
+        } else if negativeCount > positiveCount {
+            return .negative
+        } else {
+            return .neutral
+        }
+    }
+    
+    private func extractTopics(_ subject: String?, _ body: String?) -> [String]? {
+        // Estrazione topics semplificata
+        let text = "\(subject ?? "") \(body ?? "")".lowercased()
+        var topics: [String] = []
+        
+        let topicKeywords = [
+            "progetto": "progetti",
+            "meeting": "meeting",
+            "lavoro": "lavoro",
+            "vendita": "vendite",
+            "supporto": "supporto",
+            "fattura": "fatturazione"
+        ]
+        
+        for (keyword, topic) in topicKeywords {
+            if text.contains(keyword) && !topics.contains(topic) {
+                topics.append(topic)
+            }
+        }
+        
+        return topics.isEmpty ? nil : topics
+    }
+    
+    private func extractActionItems(_ body: String?) -> [String]? {
+        // Estrazione action items semplificata
+        guard let body = body?.lowercased() else { return nil }
+        
+        var actionItems: [String] = []
+        
+        if body.contains("call") || body.contains("chiama") {
+            actionItems.append("Effettuare chiamata")
+        }
+        if body.contains("meeting") || body.contains("riunione") {
+            actionItems.append("Organizzare meeting")
+        }
+        if body.contains("document") || body.contains("documento") {
+            actionItems.append("Revisionare documenti")
+        }
+        if body.contains("follow") || body.contains("seguito") {
+            actionItems.append("Follow-up richiesto")
+        }
+        
+        return actionItems.isEmpty ? nil : actionItems
+    }
+    
+    private func truncateBody(_ body: String?) -> String? {
+        guard let body = body else { return nil }
+        return String(body.prefix(200)) + (body.count > 200 ? "..." : "")
+    }
+    
+    private func calculateRelationshipHealth(
+        totalContacts: Int,
+        activeContacts: Int,
+        recentInteractions: [ContactInteraction],
+        sentimentDistribution: [ContactInteraction.InteractionSentiment: Int]
+    ) -> Double {
+        guard totalContacts > 0 else { return 0.0 }
+        
+        // Fattori per il calcolo della salute
+        let activityRatio = Double(activeContacts) / Double(totalContacts) // 0-1
+        let interactionVolume = min(1.0, Double(recentInteractions.count) / 20.0) // Normalizzato su 20 interazioni
+        
+        // Sentiment score
+        let totalSentimentInteractions = sentimentDistribution.values.reduce(0, +)
+        let sentimentScore: Double
+        if totalSentimentInteractions > 0 {
+            let positiveWeight = Double(sentimentDistribution[.positive] ?? 0) * 1.0
+            let neutralWeight = Double(sentimentDistribution[.neutral] ?? 0) * 0.5
+            let negativeWeight = Double(sentimentDistribution[.negative] ?? 0) * 0.0
+            sentimentScore = (positiveWeight + neutralWeight + negativeWeight) / Double(totalSentimentInteractions)
+        } else {
+            sentimentScore = 0.5 // Neutrale se nessun sentiment
+        }
+        
+        // Calcolo finale (ponderato)
+        let healthScore = (activityRatio * 0.4 + interactionVolume * 0.3 + sentimentScore * 0.3) * 100
+        
+        return min(100.0, max(0.0, healthScore))
+    }
+    */
+}

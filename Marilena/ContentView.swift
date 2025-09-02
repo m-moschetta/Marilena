@@ -33,8 +33,9 @@ struct ContentView: View {
 struct iPadLayout: View {
     @Binding var selectedTab: Int
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var calendarManager: CalendarManager
     @StateObject private var recordingService: RecordingService
-    
+
     init(selectedTab: Binding<Int>) {
         self._selectedTab = selectedTab
         self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
@@ -46,8 +47,12 @@ struct iPadLayout: View {
             VStack(spacing: 0) {
                 // Header con navigazione
                 headerView
-                
+
                 // Contenuto principale
+                .onAppear {
+                    // Collega CalendarManager al RecordingService
+                    recordingService.setCalendarManager(calendarManager)
+                }
                 mainContentView
             }
             .frame(maxWidth: .infinity)

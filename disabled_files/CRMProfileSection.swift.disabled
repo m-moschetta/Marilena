@@ -1,0 +1,485 @@
+import SwiftUI
+import CoreData
+
+// MARK: - CRM Profile Section
+/// Sottosezione "Il Mio Profilo" per la dashboard CRM
+/// Visualizzazione discreta ma informativa delle statistiche personali
+struct CRMProfileSection: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject var profilo: ProfiloUtente
+    @StateObject private var crmService = CRMProfileService.shared
+    @State private var showingDetailView = false
+    
+    init(profilo: ProfiloUtente) {
+        self.profilo = profilo
+    }
+    
+    var body: some View {
+        ModernInfoCard(
+            title: "Il Mio Profilo CRM",
+            icon: "chart.bar.doc.horizontal",
+            iconColor: .indigo
+        ) {
+            VStack(spacing: 16) {
+                if crmService.isLoading {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Caricamento statistiche...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    // Statistiche principali
+                    statsOverview
+                    
+                    // Sezione attività recente
+                    recentActivitySection
+                    
+                    // Pulsante per dettagli
+                    detailsButton
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                await crmService.loadUserCRMData(from: profilo)
+            }
+        }
+        .sheet(isPresented: $showingDetailView) {
+            CRMDetailView(profilo: profilo, crmData: crmService.userCRMData)
+        }
+    }
+    
+    private var statsOverview: some View {
+        VStack(spacing: 12) {
+            // Riga superiore - Statistiche contatti
+            HStack(spacing: 16) {
+                StatCard(
+                    title: "Contatti",
+                    value: "\(crmService.userCRMData.totalContacts)",
+                    subtitle: "\(crmService.userCRMData.activeContacts) attivi",
+                    icon: "person.3.fill",
+                    color: .blue
+                )
+                
+                StatCard(
+                    title: "Interazioni",
+                    value: "\(crmService.userCRMData.weeklyInteractionCount)",
+                    subtitle: "questa settimana",
+                    icon: "bubble.left.and.bubble.right.fill",
+                    color: .green
+                )
+            }
+            
+            // Riga inferiore - Salute relazioni e VIP
+            HStack(spacing: 16) {
+                StatCard(
+                    title: "Salute",
+                    value: "\(Int(crmService.userCRMData.relationshipHealthScore))%",
+                    subtitle: healthDescription,
+                    icon: "heart.fill",
+                    color: healthColor
+                )
+                
+                if crmService.userCRMData.vipContacts > 0 {
+                    StatCard(
+                        title: "VIP",
+                        value: "\(crmService.userCRMData.vipContacts)",
+                        subtitle: "contatti prioritari",
+                        icon: "star.circle.fill",
+                        color: .orange
+                    )
+                }
+            }
+        }
+    }
+    
+    private var recentActivitySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Text("Attività Recente")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+            
+            if crmService.userCRMData.recentInteractions.isEmpty {
+                HStack {
+                    Image(systemName: "moon.zzz")
+                        .foregroundColor(.gray)
+                    Text("Nessuna attività recente")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(Array(crmService.userCRMData.recentInteractions.prefix(3)), id: \.id) { interaction in
+                        RecentInteractionRow(interaction: interaction)
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
+    }
+    
+    private var detailsButton: some View {
+        Button(action: { showingDetailView = true }) {
+            HStack {
+                Image(systemName: "chart.xyaxis.line")
+                    .font(.subheadline)
+                Text("Visualizza Dashboard CRM Completa")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                Image(systemName: "arrow.right.circle")
+                    .font(.subheadline)
+            }
+            .foregroundColor(.indigo)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.indigo.opacity(0.1))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var healthDescription: String {
+        let score = crmService.userCRMData.relationshipHealthScore
+        switch score {
+        case 80...100: return "Ottima"
+        case 60..<80: return "Buona"
+        case 40..<60: return "Media"
+        case 20..<40: return "Scarsa"
+        default: return "Critica"
+        }
+    }
+    
+    private var healthColor: Color {
+        let score = crmService.userCRMData.relationshipHealthScore
+        switch score {
+        case 80...100: return .green
+        case 60..<80: return .blue
+        case 40..<60: return .orange
+        case 20..<40: return .red
+        default: return .red
+        }
+    }
+    
+}
+
+// MARK: - Stat Card
+struct StatCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(value)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    Text(title)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+            
+            HStack {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(.tertiarySystemGroupedBackground))
+        .cornerRadius(12)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Recent Interaction Row
+struct RecentInteractionRow: View {
+    let interaction: ContactInteraction
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: interaction.type.icon)
+                .font(.caption)
+                .foregroundColor(interaction.type.color)
+                .frame(width: 16)
+            
+            VStack(alignment: .leading, spacing: 1) {
+                Text(interaction.title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                
+                Text(formatTimeAgo(interaction.date))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            if let sentiment = interaction.sentiment {
+                Image(systemName: sentiment.icon)
+                    .font(.caption2)
+                    .foregroundColor(sentiment.color)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+    }
+    
+    private func formatTimeAgo(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.locale = Locale(identifier: "it_IT")
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - CRM Detail View
+struct CRMDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    let profilo: ProfiloUtente
+    let crmData: UserProfileCRM
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                LazyVStack(spacing: 20) {
+                    // Header con statistiche principali
+                    CRMStatsHeader(crmData: crmData)
+                    
+                    // Grafico sentiment
+                    SentimentChart(distribution: crmData.sentimentDistribution)
+                    
+                    // Top contatti
+                    if !crmData.topContactsByInteractions.isEmpty {
+                        TopContactsList(contacts: crmData.topContactsByInteractions)
+                    }
+                    
+                    // Cronologia interazioni completa
+                    InteractionHistory(interactions: crmData.recentInteractions)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Dashboard CRM")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Chiudi") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - CRM Stats Header
+struct CRMStatsHeader: View {
+    let crmData: UserProfileCRM
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("📊 Il Mio CRM Personale")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            HStack(spacing: 16) {
+                VStack {
+                    Text("\(crmData.totalContacts)")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                    Text("Contatti Totali")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                VStack {
+                    Text("\(crmData.activeContacts)")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.green)
+                    Text("Attivi (30gg)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                VStack {
+                    Text("\(Int(crmData.relationshipHealthScore))%")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.orange)
+                    Text("Salute Media")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(16)
+        .shadow(radius: 2)
+    }
+}
+
+// MARK: - Sentiment Chart
+struct SentimentChart: View {
+    let distribution: [ContactInteraction.InteractionSentiment: Int]
+    
+    var body: some View {
+        ModernInfoCard(
+            title: "Sentiment Interazioni",
+            icon: "chart.pie.fill",
+            iconColor: .purple
+        ) {
+            VStack(spacing: 12) {
+                ForEach(ContactInteraction.InteractionSentiment.allCases, id: \.self) { sentiment in
+                    if let count = distribution[sentiment], count > 0 {
+                        HStack {
+                            Image(systemName: sentiment.icon)
+                                .foregroundColor(sentiment.color)
+                            
+                            Text(sentiment.displayName)
+                                .font(.subheadline)
+                            
+                            Spacer()
+                            
+                            Text("\(count)")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Top Contacts List
+struct TopContactsList: View {
+    let contacts: [UnifiedContact]
+    
+    var body: some View {
+        ModernInfoCard(
+            title: "Top Contatti",
+            icon: "person.3.sequence.fill",
+            iconColor: .blue
+        ) {
+            VStack(spacing: 8) {
+                ForEach(Array(contacts.prefix(5)), id: \.id) { contact in
+                    HStack {
+                        Text(contact.initials)
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(contact.displayName)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Text("\(contact.totalInteractions) interazioni")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Interaction History
+struct InteractionHistory: View {
+    let interactions: [ContactInteraction]
+    
+    var body: some View {
+        ModernInfoCard(
+            title: "Cronologia Recente",
+            icon: "clock.arrow.circlepath",
+            iconColor: .indigo
+        ) {
+            VStack(spacing: 8) {
+                ForEach(interactions, id: \.id) { interaction in
+                    HStack(spacing: 12) {
+                        Image(systemName: interaction.type.icon)
+                            .font(.subheadline)
+                            .foregroundColor(interaction.type.color)
+                            .frame(width: 24)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(interaction.title)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            
+                            Text(formatDate(interaction.date))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if let sentiment = interaction.sentiment {
+                            Image(systemName: sentiment.icon)
+                                .font(.caption)
+                                .foregroundColor(sentiment.color)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        formatter.locale = Locale(identifier: "it_IT")
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+#Preview {
+    let profilo = ProfiloUtenteService.shared.creaProfiloDefault(in: PersistenceController.preview.container.viewContext)
+    
+    return CRMProfileSection(profilo: profilo)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .padding()
+        .background(Color(.systemGroupedBackground))
+}

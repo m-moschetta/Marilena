@@ -28,7 +28,7 @@ public struct EmailHTMLRenderer: View {
         .frame(
             minHeight: 200,
             idealHeight: max(renderer.contentHeight, 200),
-            maxHeight: min(max(renderer.contentHeight, 200), 2000)
+            maxHeight: max(renderer.contentHeight, 200)
         )
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 0))
@@ -56,8 +56,7 @@ class EmailHTMLWebViewManager: NSObject, ObservableObject {
             
             self.heightUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
                 let minHeight: CGFloat = 200
-                let maxHeight: CGFloat = 2000
-                let safeHeight = max(min(height, maxHeight), minHeight)
+                let safeHeight = max(height, minHeight)
                 
                 if abs(self.contentHeight - safeHeight) > 10 {
                     print("📧 EmailHTMLRenderer: Height update: \(height) → \(safeHeight)")

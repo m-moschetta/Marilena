@@ -1,0 +1,321 @@
+import Foundation
+import SwiftUI
+
+// MARK: - Unified Contact System
+
+/// Contatto unificato che combina dati da iOS, email e calendario
+public struct UnifiedContact: Identifiable, Codable {
+    public let id: String
+    public let email: String
+    public let name: String?
+    public let phone: String?
+    public let avatarData: Data?
+    public let notes: String?
+    
+    // Metadati da email
+    public var emailFrequency: Int = 0
+    public var lastEmailDate: Date?
+    public var emailCategories: [EmailCategory] = []
+    
+    // Metadati da calendario
+    public var eventFrequency: Int = 0
+    public var lastEventDate: Date?
+    
+    // Sorgenti
+    public var sources: [ContactSource] = []
+    public var iosContactId: String? // ID rubrica iOS
+    
+    public init(id: String = UUID().uuidString, email: String, name: String? = nil, phone: String? = nil, avatarData: Data? = nil, notes: String? = nil) {
+        self.id = id
+        self.email = email
+        self.name = name
+        self.phone = phone
+        self.avatarData = avatarData
+        self.notes = notes
+    }
+}
+
+// MARK: - Extensions
+extension UnifiedContact {
+    var displayName: String {
+        if let name = name, !name.isEmpty {
+            return name
+        }
+        return email.components(separatedBy: "@").first ?? email
+    }
+    
+    var shortDisplayName: String {
+        let display = displayName
+        let components = display.components(separatedBy: " ")
+        if components.count >= 2 {
+            return "\(components[0]) \(components[1].prefix(1))."
+        }
+        return display
+    }
+    
+    var initials: String {
+        let display = displayName
+        let components = display.components(separatedBy: " ")
+        if components.count >= 2 {
+            return "\(components[0].prefix(1))\(components[1].prefix(1))".uppercased()
+        }
+        return String(display.prefix(2)).uppercased()
+    }
+}
+
+// MARK: - Contact Source
+public enum ContactSource: String, Codable, CaseIterable {
+    case ios = "ios"
+    case email = "email"
+    case calendar = "calendar"
+    case manual = "manual"
+    
+    var displayName: String {
+        switch self {
+        case .ios: return "Rubrica iOS"
+        case .email: return "Email"
+        case .calendar: return "Calendario"
+        case .manual: return "Manuale"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .ios: return "person.crop.circle"
+        case .email: return "envelope.fill"
+        case .calendar: return "calendar"
+        case .manual: return "person.badge.plus"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .ios: return .blue
+        case .email: return .green
+        case .calendar: return .orange
+        case .manual: return .purple
+        }
+    }
+}
+
+// MARK: - Email Category
+public enum EmailCategory: String, Codable, CaseIterable {
+    case work = "work"
+    case personal = "personal"
+    case marketing = "marketing"
+    case social = "social"
+    case support = "support"
+    case newsletter = "newsletter"
+    case other = "other"
+    
+    var displayName: String {
+        switch self {
+        case .work: return "Lavoro"
+        case .personal: return "Personale"
+        case .marketing: return "Marketing"
+        case .social: return "Social"
+        case .support: return "Supporto"
+        case .newsletter: return "Newsletter"
+        case .other: return "Altro"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .work: return .blue
+        case .personal: return .green
+        case .marketing: return .orange
+        case .social: return .pink
+        case .support: return .red
+        case .newsletter: return .purple
+        case .other: return .gray
+        }
+    }
+}
+
+// MARK: - Contact Interaction
+public struct ContactInteraction: Identifiable, Codable, Equatable {
+    public let id: String
+    public let contactId: String
+    public let type: InteractionType
+    public let date: Date
+    public let title: String
+    public let description: String?
+    public let metadata: [String: String]? // Dettagli specifici per tipo
+    
+    // Metadati AI
+    public let sentiment: InteractionSentiment?
+    public let topics: [String]?
+    public let actionItems: [String]?
+    
+    public init(id: String = UUID().uuidString, contactId: String, type: InteractionType, date: Date, title: String, description: String? = nil, metadata: [String: String]? = nil, sentiment: InteractionSentiment? = nil, topics: [String]? = nil, actionItems: [String]? = nil) {
+        self.id = id
+        self.contactId = contactId
+        self.type = type
+        self.date = date
+        self.title = title
+        self.description = description
+        self.metadata = metadata
+        self.sentiment = sentiment
+        self.topics = topics
+        self.actionItems = actionItems
+    }
+    
+    public enum InteractionType: String, Codable, CaseIterable {
+        case emailSent = "email_sent"
+        case emailReceived = "email_received"
+        case meeting = "meeting"
+        case call = "call"
+        case note = "note"
+        case task = "task"
+        
+        var displayName: String {
+            switch self {
+            case .emailSent: return "Email Inviata"
+            case .emailReceived: return "Email Ricevuta"
+            case .meeting: return "Meeting"
+            case .call: return "Chiamata"
+            case .note: return "Nota"
+            case .task: return "Task"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .emailSent: return "paperplane.fill"
+            case .emailReceived: return "envelope.fill"
+            case .meeting: return "video.fill"
+            case .call: return "phone.fill"
+            case .note: return "note.text"
+            case .task: return "checkmark.circle"
+            }
+        }
+        
+        var color: Color {
+            switch self {
+            case .emailSent: return .blue
+            case .emailReceived: return .green
+            case .meeting: return .orange
+            case .call: return .purple
+            case .note: return .gray
+            case .task: return .red
+            }
+        }
+    }
+    
+    public enum InteractionSentiment: String, Codable, CaseIterable {
+        case positive = "positive"
+        case neutral = "neutral"
+        case negative = "negative"
+        
+        var displayName: String {
+            switch self {
+            case .positive: return "Positivo"
+            case .neutral: return "Neutrale" 
+            case .negative: return "Negativo"
+            }
+        }
+        
+        var color: Color {
+            switch self {
+            case .positive: return .green
+            case .neutral: return .gray
+            case .negative: return .red
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .positive: return "hand.thumbsup.fill"
+            case .neutral: return "minus.circle.fill"
+            case .negative: return "hand.thumbsdown.fill"
+            }
+        }
+    }
+}
+
+// MARK: - Contact Priority
+public enum ContactPriority: String, Codable, CaseIterable {
+    case low = "low"
+    case normal = "normal"
+    case high = "high"
+    case vip = "vip"
+    
+    var displayName: String {
+        switch self {
+        case .low: return "Bassa"
+        case .normal: return "Normale"
+        case .high: return "Alta"
+        case .vip: return "VIP"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .low: return .gray
+        case .normal: return .blue
+        case .high: return .orange
+        case .vip: return .red
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .low: return "arrow.down.circle"
+        case .normal: return "minus.circle"
+        case .high: return "arrow.up.circle"
+        case .vip: return "star.circle.fill"
+        }
+    }
+}
+
+// MARK: - Extended UnifiedContact with CRM
+extension UnifiedContact {
+    // Cronologia interazioni
+    public var interactions: [ContactInteraction] {
+        get { [] } // Implementata dal CRM Service
+    }
+    
+    // Statistiche CRM
+    public var totalInteractions: Int { interactions.count }
+    public var lastInteractionDate: Date? { 
+        interactions.sorted { $0.date > $1.date }.first?.date 
+    }
+    public var relationshipScore: Double { 
+        // Calcolo basato su frequenza, sentiment, ecc.
+        let recentInteractions = interactions.filter { 
+            $0.date > Date().addingTimeInterval(-30*24*3600) 
+        }
+        let baseScore = min(Double(recentInteractions.count) * 10, 50)
+        let sentimentBonus = recentInteractions.compactMap { $0.sentiment }
+            .reduce(0.0) { $0 + ($1 == .positive ? 10 : $1 == .negative ? -5 : 0) }
+        return max(0, min(100, baseScore + sentimentBonus))
+    }
+    
+    // Tag e categorie relazione
+    public var relationshipTags: [String] { [] } // Implementato dal CRM Service
+    public var priority: ContactPriority { .normal } // Implementato dal CRM Service
+}
+
+// MARK: - User Profile CRM Extension
+public struct UserProfileCRM: Codable {
+    public let totalContacts: Int
+    public let activeContacts: Int // Interazioni negli ultimi 30 giorni
+    public let vipContacts: Int
+    public let topContactsByInteractions: [UnifiedContact]
+    public let recentInteractions: [ContactInteraction]
+    public let relationshipHealthScore: Double // 0-100
+    public let weeklyInteractionCount: Int
+    public let sentimentDistribution: [ContactInteraction.InteractionSentiment: Int]
+    
+    public init(totalContacts: Int = 0, activeContacts: Int = 0, vipContacts: Int = 0, topContactsByInteractions: [UnifiedContact] = [], recentInteractions: [ContactInteraction] = [], relationshipHealthScore: Double = 0.0, weeklyInteractionCount: Int = 0, sentimentDistribution: [ContactInteraction.InteractionSentiment: Int] = [:]) {
+        self.totalContacts = totalContacts
+        self.activeContacts = activeContacts
+        self.vipContacts = vipContacts
+        self.topContactsByInteractions = topContactsByInteractions
+        self.recentInteractions = recentInteractions
+        self.relationshipHealthScore = relationshipHealthScore
+        self.weeklyInteractionCount = weeklyInteractionCount
+        self.sentimentDistribution = sentimentDistribution
+    }
+}

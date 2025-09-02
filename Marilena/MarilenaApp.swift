@@ -9,6 +9,7 @@ struct MarilenaApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var transcriptionService: SpeechTranscriptionService
     @StateObject private var recordingService: RecordingService
+    @StateObject private var calendarManager = CalendarManager()
     @StateObject private var emailChatService: EmailChatService
     @StateObject private var deferredInitService = DeferredInitializationService()
     
@@ -23,6 +24,7 @@ struct MarilenaApp: App {
         #endif
         // Inizializza i servizi
         self._transcriptionService = StateObject(wrappedValue: SpeechTranscriptionService(context: PersistenceController.shared.container.viewContext))
+        self._calendarManager = StateObject(wrappedValue: CalendarManager())
         self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
         self._emailChatService = StateObject(wrappedValue: EmailChatService(context: PersistenceController.shared.container.viewContext))
         // Spostato: la configurazione Google Sign-In viene deferita post-first-frame
@@ -33,9 +35,10 @@ struct MarilenaApp: App {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(recordingService)
+                .environmentObject(calendarManager)
                 .onAppear {
                     #if DEBUG
-                    AppPerformanceMetrics.shared.markFirstFrame()
+                    AppPerformanceMetrics.shared.markAppInit()
                     #endif
                     // Defer startup work per migliorare il first-frame
                     deferredInitService.schedule([
@@ -44,6 +47,11 @@ struct MarilenaApp: App {
                         },
                         .init(name: "speech-permissions", delay: 0.30) {
                             requestSpeechPermissions()
+                        },
+                        .init(name: "calendar-recording-link", delay: 0.10) {
+                            // Collega CalendarManager al RecordingService
+                            recordingService.setCalendarManager(calendarManager)
+                            print("🔗 CalendarManager collegato a RecordingService nell'app")
                         }
                     ])
 
