@@ -12,6 +12,7 @@ public class CRMDataService: ObservableObject {
     @Published public var isLoading = false
     @Published public var contacts: [CRMContactReal] = []
     @Published public var lastUpdateDate: Date?
+    @Published public var analytics: CRMAnalytics = CRMAnalytics()
     
     private let persistenceController: PersistenceController
     private let emailCacheService: EmailCacheService
@@ -22,6 +23,8 @@ public class CRMDataService: ObservableObject {
         self.persistenceController = PersistenceController.shared
         self.emailCacheService = EmailCacheService()
         self.calendarManager = CalendarManager()
+        
+        setupAutoSync()
     }
     
     // MARK: - Public Methods
@@ -42,6 +45,9 @@ public class CRMDataService: ObservableObject {
             
             contacts = unifiedContacts
             lastUpdateDate = Date()
+            
+            // Aggiorna analytics
+            updateAnalytics()
             
             print("✅ CRMDataService: Caricati \(unifiedContacts.count) contatti")
             
@@ -134,7 +140,7 @@ public class CRMDataService: ObservableObject {
                         )
                         
                         // Carica dati salvati se esistenti
-                        self.loadSavedContactData(for: &newContact)
+                        self.loadSavedContactDataSync(for: &newContact)
                         
                         contactMap[cleanEmail] = newContact
                     }
@@ -343,16 +349,12 @@ public class CRMDataService: ObservableObject {
         print("✅ CRMDataService: Fallback - Salvato contatto \(contactId) in UserDefaults")
     }
     
-    private func loadSavedContactData(for contact: inout CRMContactReal) {
-        // Prova prima Core Data, poi UserDefaults
-        loadContactFromCoreData(contactId: contact.id) { [weak self] savedData in
-            if let data = savedData {
-                contact.notes = data["notes"] as? String
-                contact.tags = data["tags"] as? [String] ?? contact.tags
-            } else {
-                // Fallback a UserDefaults
-                self?.loadContactFromUserDefaults(for: &contact)
-            }
+    private func loadSavedContactDataSync(for contact: inout CRMContactReal) {
+        // Fallback rapido a UserDefaults per chiamata sync
+        let key = "contact_\(contact.id)"
+        if let savedData = UserDefaults.standard.dictionary(forKey: key) {
+            contact.notes = savedData["notes"] as? String
+            contact.tags = savedData["tags"] as? [String] ?? contact.tags
         }
     }
     
@@ -395,6 +397,230 @@ public class CRMDataService: ObservableObject {
         if let savedData = UserDefaults.standard.dictionary(forKey: key) {
             contact.notes = savedData["notes"] as? String
             contact.tags = savedData["tags"] as? [String] ?? contact.tags
+        }
+    }
+    
+    // MARK: - Auto-Sync System
+    
+    private func setupAutoSync() {
+        // Osserva cambiamenti nell'EmailCacheService
+        emailCacheService.$cachedEmails
+            .debounce(for: .seconds(2), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                Task {
+                    await self?.syncContactsFromEmailChanges()
+                }
+            }
+            .store(in: &cancellables)
+        
+        // Sincronizzazione periodica ogni 10 minuti
+        Timer.publish(every: 600, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task {
+                    await self?.periodicSync()
+                }
+            }
+            .store(in: &cancellables)
+        
+        print("✅ CRMDataService: Auto-sync attivato")
+    }
+    
+    private func syncContactsFromEmailChanges() async {
+        print("🔄 CRMDataService: Sincronizzazione da cambiamenti email...")
+        
+        // Ricarica i contatti quando cambiano le email
+        let oldContactsCount = contacts.count
+        await loadContacts()
+        
+        let newContactsCount = contacts.count
+        if newContactsCount != oldContactsCount {
+            print("✅ CRMDataService: Rilevati \(newContactsCount - oldContactsCount) nuovi contatti")
+        }
+    }
+    
+    private func periodicSync() async {
+        print("⏰ CRMDataService: Sincronizzazione periodica...")
+        
+        // Verifica se ci sono nuovi contatti dalle email
+        await syncContactsFromEmailChanges()
+        
+        // Cleanup contatti obsoleti (senza interazioni da molto tempo)
+        await cleanupOldContacts()
+    }
+    
+    private func cleanupOldContacts() async {
+        let sixMonthsAgo = Date().addingTimeInterval(-180 * 24 * 3600)
+        let contactsToCleanup = contacts.filter { contact in
+            guard let lastInteraction = contact.lastInteractionDate else {
+                return true // Rimuovi contatti senza interazioni
+            }
+            return lastInteraction < sixMonthsAgo && contact.interactionCount <= 1
+        }
+        
+        if !contactsToCleanup.isEmpty {
+            for contact in contactsToCleanup {
+                await deleteContactFromPersistentStore(contactId: contact.id)
+            }
+            
+            // Rimuovi dal cache locale
+            contacts.removeAll { contact in
+                contactsToCleanup.contains { $0.id == contact.id }
+            }
+            
+            print("🗑️ CRMDataService: Rimossi \(contactsToCleanup.count) contatti obsoleti")
+        }
+    }
+    
+    public func forceSync() async {
+        print("🔄 CRMDataService: Sincronizzazione forzata...")
+        isLoading = true
+        await loadContacts()
+        print("✅ CRMDataService: Sincronizzazione forzata completata")
+    }
+    
+    public func pauseAutoSync() {
+        cancellables.removeAll()
+        print("⏸️ CRMDataService: Auto-sync sospeso")
+    }
+    
+    public func resumeAutoSync() {
+        setupAutoSync()
+        print("▶️ CRMDataService: Auto-sync ripreso")
+    }
+    
+    // MARK: - Analytics & Metrics
+    
+    private func updateAnalytics() {
+        let now = Date()
+        let oneWeekAgo = now.addingTimeInterval(-7 * 24 * 3600)
+        let oneMonthAgo = now.addingTimeInterval(-30 * 24 * 3600)
+        let sixMonthsAgo = now.addingTimeInterval(-180 * 24 * 3600)
+        
+        let totalContacts = contacts.count
+        
+        // Contatti attivi (con interazioni negli ultimi 30 giorni)
+        let activeContacts = contacts.filter { contact in
+            guard let lastInteraction = contact.lastInteractionDate else { return false }
+            return lastInteraction > oneMonthAgo
+        }.count
+        
+        // Distribuzione per forza relazione
+        let lowStrength = contacts.filter { $0.relationshipStrength == .low }.count
+        let mediumStrength = contacts.filter { $0.relationshipStrength == .medium }.count  
+        let highStrength = contacts.filter { $0.relationshipStrength == .high }.count
+        
+        // Contatti per sorgente
+        let emailContacts = contacts.filter { $0.source == .email }.count
+        let calendarContacts = contacts.filter { $0.source == .calendar }.count
+        let manualContacts = contacts.filter { $0.source == .manual }.count
+        
+        // Trend settimanale e mensile
+        let weeklyActiveContacts = contacts.filter { contact in
+            guard let lastInteraction = contact.lastInteractionDate else { return false }
+            return lastInteraction > oneWeekAgo
+        }.count
+        
+        let monthlyActiveContacts = contacts.filter { contact in
+            guard let lastInteraction = contact.lastInteractionDate else { return false }
+            return lastInteraction > oneMonthAgo
+        }.count
+        
+        // Top contatti per interazioni
+        let topContactsByInteractions = contacts
+            .sorted { $0.interactionCount > $1.interactionCount }
+            .prefix(5)
+            .map { TopContactMetric(name: $0.displayName, interactions: $0.interactionCount, lastInteraction: $0.lastInteractionDate) }
+        
+        // Calcolo relationship health score
+        let totalInteractions = contacts.reduce(0) { $0 + $1.interactionCount }
+        let averageInteractions = totalContacts > 0 ? Double(totalInteractions) / Double(totalContacts) : 0.0
+        
+        let healthScore = calculateHealthScore()
+        
+        // Trend analysis
+        let growthRate = calculateGrowthRate()
+        
+        // Aggiorna analytics
+        analytics = CRMAnalytics(
+            totalContacts: totalContacts,
+            activeContacts: activeContacts,
+            weeklyActiveContacts: weeklyActiveContacts,
+            monthlyActiveContacts: monthlyActiveContacts,
+            relationshipStrengthDistribution: RelationshipStrengthDistribution(
+                low: lowStrength,
+                medium: mediumStrength,
+                high: highStrength
+            ),
+            sourceDistribution: SourceDistribution(
+                email: emailContacts,
+                calendar: calendarContacts,
+                manual: manualContacts
+            ),
+            topContactsByInteractions: Array(topContactsByInteractions),
+            averageInteractionsPerContact: averageInteractions,
+            relationshipHealthScore: healthScore,
+            contactGrowthRate: growthRate,
+            lastUpdated: now
+        )
+    }
+    
+    private func calculateHealthScore() -> Double {
+        guard !contacts.isEmpty else { return 0.0 }
+        
+        let now = Date()
+        let thirtyDaysAgo = now.addingTimeInterval(-30 * 24 * 3600)
+        
+        // Fattori per il punteggio salute
+        let recentActivityScore = Double(contacts.filter { 
+            $0.lastInteractionDate ?? Date.distantPast > thirtyDaysAgo 
+        }.count) / Double(contacts.count) * 40.0
+        
+        let highValueContactsScore = Double(contacts.filter { 
+            $0.relationshipStrength == .high 
+        }.count) / Double(contacts.count) * 30.0
+        
+        let interactionVolumeScore = min(30.0, contacts.reduce(0) { $0 + $1.interactionCount } / contacts.count)
+        
+        return recentActivityScore + highValueContactsScore + interactionVolumeScore
+    }
+    
+    private func calculateGrowthRate() -> Double {
+        // Implementazione semplificata - in produzione si userebbe storico
+        let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 3600)
+        let recentContacts = contacts.filter { contact in
+            // Assumiamo che contatti con poche interazioni siano "nuovi"
+            contact.interactionCount <= 2
+        }.count
+        
+        return contacts.isEmpty ? 0.0 : Double(recentContacts) / Double(contacts.count) * 100.0
+    }
+    
+    public func getContactsAnalytics() -> CRMAnalytics {
+        return analytics
+    }
+    
+    public func getTopContactsByCategory(_ category: ContactAnalyticsCategory) -> [CRMContactReal] {
+        switch category {
+        case .mostActive:
+            return contacts.sorted { $0.interactionCount > $1.interactionCount }.prefix(10).map { $0 }
+        case .recentInteractions:
+            return contacts
+                .filter { $0.lastInteractionDate != nil }
+                .sorted { ($0.lastInteractionDate ?? Date.distantPast) > ($1.lastInteractionDate ?? Date.distantPast) }
+                .prefix(10)
+                .map { $0 }
+        case .highValue:
+            return contacts.filter { $0.relationshipStrength == .high }.prefix(10).map { $0 }
+        case .needsAttention:
+            let twoMonthsAgo = Date().addingTimeInterval(-60 * 24 * 3600)
+            return contacts
+                .filter { 
+                    $0.relationshipStrength != .low && 
+                    ($0.lastInteractionDate ?? Date.distantPast) < twoMonthsAgo 
+                }
+                .prefix(10)
+                .map { $0 }
         }
     }
 }
