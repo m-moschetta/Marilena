@@ -2054,9 +2054,17 @@ struct ContactDetailViewReal: View {
                             }
                             .fontWeight(.semibold)
                         } else {
-                            Button("Modifica") {
-                                startEditing()
-                                isEditing = true
+                            Menu {
+                                Button("Modifica") {
+                                    startEditing()
+                                    isEditing = true
+                                }
+                                
+                                Button("Elimina contatto", role: .destructive) {
+                                    showingDeleteAlert = true
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
                             }
                         }
                     }
@@ -2065,8 +2073,10 @@ struct ContactDetailViewReal: View {
         }
         .alert("Elimina Contatto", isPresented: $showingDeleteAlert) {
             Button("Elimina", role: .destructive) {
-                // Implementa eliminazione
-                dismiss()
+                Task {
+                    await crmDataService.deleteContact(contact.id)
+                    dismiss()
+                }
             }
             Button("Annulla", role: .cancel) { }
         } message: {

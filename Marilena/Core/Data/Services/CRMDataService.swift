@@ -51,11 +51,8 @@ public class CRMDataService: ObservableObject {
     }
     
     public func saveContactChanges(_ contactId: String, notes: String, tags: [String]) async {
-        // Salva le modifiche in UserDefaults per ora
-        // TODO: Implementare persistenza in Core Data
-        let key = "contact_\(contactId)"
-        let data = ["notes": notes, "tags": tags] as [String: Any]
-        UserDefaults.standard.set(data, forKey: key)
+        // Salva in modo persistente
+        await saveContactToPersistentStore(contactId: contactId, notes: notes, tags: tags)
         
         // Aggiorna il contatto locale
         if let index = contacts.firstIndex(where: { $0.id == contactId }) {
@@ -64,6 +61,16 @@ public class CRMDataService: ObservableObject {
         }
         
         print("✅ CRMDataService: Salvate modifiche per contatto \(contactId)")
+    }
+    
+    public func deleteContact(_ contactId: String) async {
+        // Rimuovi dalla persistenza
+        await deleteContactFromPersistentStore(contactId: contactId)
+        
+        // Rimuovi dal cache locale
+        contacts.removeAll { $0.id == contactId }
+        
+        print("✅ CRMDataService: Eliminato contatto \(contactId)")
     }
     
     // MARK: - Private Methods
@@ -250,6 +257,144 @@ public class CRMDataService: ObservableObject {
         case 1...3: return .low
         case 4...10: return .medium
         default: return .high
+        }
+    }
+    
+    // MARK: - Core Data Persistence
+    
+    private func saveContactToPersistentStore(contactId: String, notes: String, tags: [String]) async {
+        let context = persistenceController.container.viewContext
+        
+        await context.perform {
+            do {
+                // Cerca se il contatto CRM esiste già
+                let request = NSFetchRequest<NSManagedObject>(entityName: "CronologiaContesto")
+                request.predicate = NSPredicate(format: "tipoAggiornamento == %@ AND contenuto CONTAINS %@", "crm_contact", contactId)
+                
+                let existingRecords = try context.fetch(request)
+                let record: NSManagedObject
+                
+                if let existing = existingRecords.first {
+                    record = existing
+                } else {
+                    // Crea nuovo record
+                    guard let entity = NSEntityDescription.entity(forEntityName: "CronologiaContesto", in: context) else {
+                        print("❌ CRMDataService: Impossibile creare entità CronologiaContesto")
+                        return
+                    }
+                    record = NSManagedObject(entity: entity, insertInto: context)
+                    record.setValue(UUID(), forKey: "id")
+                    record.setValue("crm_contact", forKey: "tipoAggiornamento")
+                    record.setValue(Date(), forKey: "dataSalvataggio")
+                }
+                
+                // Salva i dati del contatto come JSON
+                let contactData: [String: Any] = [
+                    "contactId": contactId,
+                    "notes": notes,
+                    "tags": tags,
+                    "lastModified": Date().timeIntervalSince1970
+                ]
+                
+                if let jsonData = try? JSONSerialization.data(withJSONObject: contactData),
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    record.setValue(jsonString, forKey: "contenuto")
+                }
+                
+                try context.save()
+                print("✅ CRMDataService: Salvato contatto \(contactId) in Core Data")
+                
+            } catch {
+                print("❌ CRMDataService Error nel salvataggio Core Data: \(error)")
+                // Fallback a UserDefaults
+                self.saveContactToUserDefaults(contactId: contactId, notes: notes, tags: tags)
+            }
+        }
+    }
+    
+    private func deleteContactFromPersistentStore(contactId: String) async {
+        let context = persistenceController.container.viewContext
+        
+        await context.perform {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: "CronologiaContesto")
+                request.predicate = NSPredicate(format: "tipoAggiornamento == %@ AND contenuto CONTAINS %@", "crm_contact", contactId)
+                
+                let existingRecords = try context.fetch(request)
+                for record in existingRecords {
+                    context.delete(record)
+                }
+                
+                try context.save()
+                print("✅ CRMDataService: Eliminato contatto \(contactId) da Core Data")
+                
+            } catch {
+                print("❌ CRMDataService Error nell'eliminazione Core Data: \(error)")
+                // Fallback a UserDefaults
+                UserDefaults.standard.removeObject(forKey: "contact_\(contactId)")
+            }
+        }
+    }
+    
+    private func saveContactToUserDefaults(contactId: String, notes: String, tags: [String]) {
+        let key = "contact_\(contactId)"
+        let data = ["notes": notes, "tags": tags, "lastModified": Date().timeIntervalSince1970] as [String: Any]
+        UserDefaults.standard.set(data, forKey: key)
+        print("✅ CRMDataService: Fallback - Salvato contatto \(contactId) in UserDefaults")
+    }
+    
+    private func loadSavedContactData(for contact: inout CRMContactReal) {
+        // Prova prima Core Data, poi UserDefaults
+        loadContactFromCoreData(contactId: contact.id) { [weak self] savedData in
+            if let data = savedData {
+                contact.notes = data["notes"] as? String
+                contact.tags = data["tags"] as? [String] ?? contact.tags
+            } else {
+                // Fallback a UserDefaults
+                self?.loadContactFromUserDefaults(for: &contact)
+            }
+        }
+    }
+    
+    private func loadContactFromCoreData(contactId: String, completion: @escaping ([String: Any]?) -> Void) {
+        let context = persistenceController.container.viewContext
+        
+        context.perform {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: "CronologiaContesto")
+                request.predicate = NSPredicate(format: "tipoAggiornamento == %@ AND contenuto CONTAINS %@", "crm_contact", contactId)
+                request.fetchLimit = 1
+                
+                let records = try context.fetch(request)
+                
+                if let record = records.first,
+                   let jsonString = record.value(forKey: "contenuto") as? String,
+                   let jsonData = jsonString.data(using: .utf8),
+                   let contactData = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    
+                    DispatchQueue.main.async {
+                        completion(contactData)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        completion(nil)
+                    }
+                }
+                
+            } catch {
+                print("❌ CRMDataService Error nel caricamento Core Data: \(error)")
+                DispatchQueue.main.async {
+                    completion(nil)
+                }
+            }
+        }
+    }
+    
+    private func loadContactFromUserDefaults(for contact: inout CRMContactReal) {
+        let key = "contact_\(contact.id)"
+        if let savedData = UserDefaults.standard.dictionary(forKey: key) {
+            contact.notes = savedData["notes"] as? String
+            contact.tags = savedData["tags"] as? [String] ?? contact.tags
         }
     }
 }
