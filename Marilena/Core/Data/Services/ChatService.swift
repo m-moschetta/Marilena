@@ -39,8 +39,8 @@ public class ChatService: ObservableObject {
     
     @MainActor
     public init(
-        aiProviderManager: AIProviderManager = AIProviderManager.shared,
-        promptManager: PromptManager = PromptManager.shared,
+        aiProviderManager: AIProviderManager,
+        promptManager: PromptManager,
         configuration: ChatConfiguration? = nil,
         context: NSManagedObjectContext? = nil
     ) {
@@ -82,7 +82,7 @@ public class ChatService: ObservableObject {
         if forceGateway || !hasOpenAIKey {
             let assistantId = UUID()
             let userContext = getUserContext()
-            var assistantMessage = ModularChatMessage(
+            let assistantMessage = ModularChatMessage(
                 id: assistantId,
                 content: "",
                 role: .assistant,

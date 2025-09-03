@@ -13,6 +13,7 @@ public class CalendarManager: ObservableObject {
     
     @Published public var events: [CalendarEvent] = []
     @Published public var calendars: [CalendarInfo] = []
+    @Published public var reminders: [CalendarReminder] = []
     @Published public var isLoading = false
     @Published public var error: String?
     @Published public var currentService: CalendarServiceProtocol?
@@ -26,6 +27,7 @@ public class CalendarManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let completedDefaultsKey = "CalendarCompletedEvents"
     private let completionStore = CalendarCompletionStore(context: PersistenceController.shared.container.viewContext)
+    private let reminderService = ReminderService.shared
     
     // MARK: - Configuration
     
@@ -113,8 +115,12 @@ public class CalendarManager: ObservableObject {
             let end = endDate ?? Calendar.current.date(byAdding: .day, value: daysToLoad, to: startDate) ?? startDate
             let fetchedEvents = try await service.fetchEvents(from: startDate, to: end)
             
+            // Carica anche i promemoria per lo stesso periodo
+            await reminderService.loadReminders(from: startDate, to: end)
+            
             await MainActor.run {
                 self.events = fetchedEvents.sorted { $0.startDate < $1.startDate }
+                self.reminders = reminderService.reminders
             }
             
         } catch {
@@ -316,6 +322,42 @@ public class CalendarManager: ObservableObject {
         markCompleted(event, completed: target)
         Task { [weak self] in
             await self?.setCompletedOnProvider(event, completed: target)
+        }
+    }
+    
+    // MARK: - Reminder Management
+    
+    /// Inverte lo stato di completamento di un promemoria
+    public func toggleCompleted(_ reminder: CalendarReminder) {
+        Task { [weak self] in
+            await self?.reminderService.toggleCompleted(reminder)
+            await MainActor.run {
+                // Aggiorna la lista locale dei promemoria
+                if let index = self?.reminders.firstIndex(where: { $0.id == reminder.id }) {
+                    self?.reminders[index].isCompleted.toggle()
+                }
+            }
+        }
+    }
+    
+    /// Restituisce i promemoria per una data specifica
+    public func reminders(for date: Date) -> [CalendarReminder] {
+        return reminderService.reminders(for: date)
+    }
+    
+    /// Crea un nuovo promemoria
+    public func createReminder(title: String, notes: String? = nil, dueDate: Date? = nil, priority: ReminderPriority = .medium) async {
+        await reminderService.createReminder(title: title, notes: notes, dueDate: dueDate, priority: priority)
+        await MainActor.run {
+            self.reminders = reminderService.reminders
+        }
+    }
+    
+    /// Elimina un promemoria
+    public func deleteReminder(_ reminder: CalendarReminder) async {
+        await reminderService.deleteReminder(reminder)
+        await MainActor.run {
+            self.reminders = reminderService.reminders
         }
     }
 

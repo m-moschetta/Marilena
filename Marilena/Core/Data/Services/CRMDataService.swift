@@ -580,7 +580,7 @@ public class CRMDataService: ObservableObject {
             $0.relationshipStrength == .high 
         }.count) / Double(contacts.count) * 30.0
         
-        let interactionVolumeScore = min(30.0, contacts.reduce(0) { $0 + $1.interactionCount } / contacts.count)
+        let interactionVolumeScore = min(30.0, Double(contacts.reduce(0) { $0 + $1.interactionCount }) / Double(contacts.count))
         
         return recentActivityScore + highValueContactsScore + interactionVolumeScore
     }

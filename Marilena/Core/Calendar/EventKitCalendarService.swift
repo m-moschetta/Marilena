@@ -47,20 +47,16 @@ public class EventKitCalendarService: CalendarServiceProtocol {
     // MARK: - Event Operations
     
     public func fetchEvents(from startDate: Date, to endDate: Date) async throws -> [CalendarEvent] {
-        return try await withCheckedThrowingContinuation { continuation in
+        return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let predicate = self.eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
-                    let ekEvents = self.eventStore.events(matching: predicate)
-                    
-                    let calendarEvents = ekEvents.map { ekEvent in
-                        self.convertEKEventToCalendarEvent(ekEvent)
-                    }
-                    
-                    continuation.resume(returning: calendarEvents)
-                } catch {
-                    continuation.resume(throwing: CalendarServiceError.networkError(error))
+                let predicate = self.eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+                let ekEvents = self.eventStore.events(matching: predicate)
+
+                let calendarEvents = ekEvents.map { ekEvent in
+                    self.convertEKEventToCalendarEvent(ekEvent)
                 }
+
+                continuation.resume(returning: calendarEvents)
             }
         }
     }

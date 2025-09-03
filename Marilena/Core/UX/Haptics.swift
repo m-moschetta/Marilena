@@ -24,5 +24,12 @@ enum Haptics {
         gen.impactOccurred()
         #endif
     }
+
+    static func impactMedium() {
+        #if canImport(UIKit)
+        let gen = UIImpactFeedbackGenerator(style: .medium)
+        gen.impactOccurred()
+        #endif
+    }
 }
 

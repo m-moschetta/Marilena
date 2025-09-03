@@ -12,6 +12,7 @@ struct WeekTimelineView: View {
     @State private var showingCreateSheet: Bool = false
     @State private var createStart: Date = Date()
     @State private var createEnd: Date = Date().addingTimeInterval(3600)
+    @State private var draggingEventID: String?
 
     init(calendarManager: CalendarManager, referenceDate: Date = Date()) {
         self.calendarManager = calendarManager
@@ -32,8 +33,24 @@ struct WeekTimelineView: View {
         .simultaneousGesture(weekSwipeGesture())
         .simultaneousGesture(
             MagnificationGesture()
-                .onChanged { scale in hourHeight = clampHourHeight(hourHeightBase * scale) }
-                .onEnded { _ in hourHeightBase = hourHeight }
+                .onChanged { scale in 
+                    let newHeight = clampHourHeight(hourHeightBase * scale)
+                    
+                    // Feedback tattile quando si raggiungono le dimensioni standard
+                    if abs(newHeight - 56) < 2 && abs(hourHeight - 56) >= 2 {
+                        Haptics.impactLight() // Snap a dimensione normale per week
+                    } else if abs(newHeight - 80) < 2 && abs(hourHeight - 80) >= 2 {
+                        Haptics.impactLight() // Snap a dimensione grande per week
+                    } else if abs(newHeight - 40) < 2 && abs(hourHeight - 40) >= 2 {
+                        Haptics.impactLight() // Snap a dimensione piccola per week
+                    }
+                    
+                    hourHeight = newHeight
+                }
+                .onEnded { _ in 
+                    hourHeightBase = hourHeight 
+                    Haptics.impactMedium() // Feedback di completamento
+                }
         )
         .sheet(isPresented: $showingEdit) {
             if let ev = selectedEvent {
@@ -62,15 +79,64 @@ struct WeekTimelineView: View {
         GeometryReader { geo in
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
-                    ZStack(alignment: .topLeading) {
-                        hoursGrid(height: hourHeight * 24)
-                        daysColumns(width: geo.size.width)
-                        nowIndicator(width: geo.size.width)
+                    VStack(spacing: 0) {
+                        // Header con i giorni della settimana
+                        daysHeader(width: geo.size.width)
+
+                        ZStack(alignment: .topLeading) {
+                            hoursGrid(height: hourHeight * 24)
+                            daysColumns(width: geo.size.width)
+                            nowIndicator(width: geo.size.width)
+                        }
+                        .frame(height: hourHeight * 24)
                     }
-                    .frame(height: hourHeight * 24)
                 }
             }
         }
+    }
+
+    private func daysHeader(width: CGFloat) -> some View {
+        let colWidth = (width - (leftGutter + 8)) / 7.0
+        let calendar = Calendar.current
+
+        return HStack(spacing: 0) {
+            // Spazio per le ore
+            Rectangle().fill(Color.clear).frame(width: leftGutter + 8, height: 50)
+
+            ForEach(0..<7, id: \.self) { dayIndex in
+                let date = calendar.date(byAdding: .day, value: dayIndex, to: self.weekStart)!
+                let dayNumber = calendar.component(.day, from: date)
+                let dayNameValue = self.dayName(for: date)
+                let isToday = calendar.isDate(date, inSameDayAs: Date())
+                let isSelectedDay = false // Week view doesn't have individual day selection
+
+                VStack(spacing: 1) {
+                    Text(dayNameValue)
+                        .font(.caption2)
+                        .foregroundColor(isToday ? .red : .secondary)
+
+                    Text("\(dayNumber)")
+                        .font(.title2.weight(.semibold))
+                        .foregroundColor(isToday ? .red : .primary)
+                        
+                    Text(monthAbbr(for: date))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .frame(width: colWidth, height: 50)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isToday ? Color.red.opacity(0.1) : Color.clear)
+                )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Week view doesn't support day selection like day view
+                    // Could potentially add week navigation here
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .background(Color(.systemBackground))
     }
 
     private func hoursGrid(height: CGFloat) -> some View {
@@ -107,7 +173,7 @@ struct WeekTimelineView: View {
                 ForEach(placed.indices, id: \.self) { idx in
                     let item = placed[idx]
                     let frame = frameFor(event: item.event, day: day, dayWidth: colWidth, columns: item.totalColumns, column: item.column)
-                    DayEventBlock(event: item.event, totalColumns: item.totalColumns, manager: calendarManager) {
+                    DayEventBlock(event: item.event, totalColumns: item.totalColumns, manager: calendarManager, draggingEventID: $draggingEventID) {
                         selectedEvent = item.event
                         showingEdit = true
                     }
@@ -151,12 +217,12 @@ struct WeekTimelineView: View {
 
     private func frameFor(event ev: CalendarEvent, day: Date, dayWidth: CGFloat, columns: Int, column: Int) -> CGRect {
         let fractionWidth = dayWidth / CGFloat(max(1, columns))
-        let x = CGFloat(column) * fractionWidth + CGFloat(Calendar.current.component(.weekday, from: day) - 1) * dayWidth
+        let x = CGFloat(column) * fractionWidth + CGFloat(Calendar.current.component(.weekday, from: day) - 1) * dayWidth + 6
         let minutesFromStart = CGFloat(minutesSinceStartOfDay(ev.startDate))
         let minutesLength = CGFloat(max(10, minutesBetween(ev.startDate, ev.endDate)))
         let y = (minutesFromStart / 60.0) * hourHeight
         let h = (minutesLength / 60.0) * hourHeight
-        return CGRect(x: x, y: y, width: fractionWidth - 5, height: max(h, 24))
+        return CGRect(x: x, y: y, width: fractionWidth - 12, height: max(h, 24))
     }
 
     private func events(for day: Date) -> [CalendarEvent] {
@@ -226,6 +292,13 @@ struct WeekTimelineView: View {
         let end = cal.date(byAdding: .day, value: 6, to: weekStart)!
         return df.string(from: weekStart) + " – " + df.string(from: end)
     }
+    
+    private func monthAbbr(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        formatter.locale = Locale.current
+        return formatter.string(from: date).uppercased()
+    }
 
     private func shiftWeek(_ delta: Int) {
         if let d = Calendar.current.date(byAdding: .day, value: delta * 7, to: weekStart) { weekStart = d }
@@ -247,17 +320,26 @@ struct WeekTimelineView: View {
                 withAnimation(.easeOut(duration: 0.2)) { shiftWeek(dx < 0 ? 1 : -1) }
             }
     }
+
+    private func dayName(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        formatter.locale = Locale.current
+        return formatter.string(from: date).uppercased()
+    }
 }
 
 private struct DayEventBlock: View {
     let event: CalendarEvent
     let totalColumns: Int
     @ObservedObject var manager: CalendarManager
+    @Binding var draggingEventID: String?
     var onTap: () -> Void
 
     var body: some View {
         let isCompleted = manager.isCompleted(event)
-        let baseColor = colorFor(event: event) ?? Color.blue
+        let baseColor = colorFor(event: event) ?? Color.red
+        let isDragging = draggingEventID == (event.id ?? event.providerId)
         return ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 8)
                 .fill(isCompleted ? Color.green.opacity(0.18) : baseColor.opacity(0.18))
@@ -274,8 +356,8 @@ private struct DayEventBlock: View {
                     }) {
                         Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(isCompleted ? .green : baseColor)
-                            .font(.title3)
-                            .frame(width: 24, height: 24)
+                            .font(.title2)
+                            .frame(width: 32, height: 32)
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -287,23 +369,180 @@ private struct DayEventBlock: View {
             }
             .padding(8)
         }
+        .scaleEffect(isDragging ? 1.05 : 1.0)
+        .shadow(color: isDragging ? Color.primary.opacity(0.3) : Color.clear, radius: isDragging ? 8 : 0, x: 0, y: isDragging ? 4 : 0)
+        .animation(.easeOut(duration: 0.2), value: isDragging)
+        .gesture(
+            TapGesture()
+                .onEnded {
+                    onTap() // Modifica evento
+                }
+        )
+        .gesture(
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in
+                    Haptics.impactMedium()
+                    draggingEventID = event.id ?? event.providerId
+                }
+        )
         .onDrag {
             Haptics.impactLight()
             return NSItemProvider(object: NSString(string: manager.eventKey(for: event)))
         }
-        .onTapGesture { onTap() }
     }
 
     private func timeString(_ date: Date) -> String { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: date) }
+
+    private func dayName(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        formatter.locale = Locale.current
+        return formatter.string(from: date).uppercased()
+    }
 
     private func colorFor(event: CalendarEvent) -> Color? {
         if let calId = event.calendarId, let cal = manager.calendars.first(where: { $0.id == calId }) {
             if let c = Color(hex: cal.color) { return c }
         }
         switch event.providerType {
-        case .eventKit: return Color.blue
+        case .eventKit: return Color.red
         case .googleCalendar: return Color(red: 0.13, green: 0.52, blue: 0.96)
         case .microsoftGraph: return Color(red: 0.0, green: 0.46, blue: 0.85)
+        }
+    }
+
+    private func dragGesture() -> some Gesture {
+        DragGesture(minimumDistance: 2)
+            .onChanged { value in
+                if draggingEventID == nil {
+                    Haptics.impactLight()
+                    draggingEventID = event.id ?? event.providerId
+                }
+            }
+            .onEnded { value in
+                let wasDragging = draggingEventID != nil
+                draggingEventID = nil
+
+                // Per la vista settimanale, il drag orizzontale cambia il giorno
+                let horizontalDelta = value.translation.width
+                guard abs(horizontalDelta) > 50 else { return } // Soglia minima per evitare movimenti accidentali
+
+                // Calcola il numero di giorni da spostare
+                let daysDelta = Int(horizontalDelta / 100) // Ogni 100px ≈ 1 giorno
+                let clampedDays = max(-6, min(6, daysDelta)) // Limita a ±6 giorni
+                guard clampedDays != 0 else { return }
+
+                let newStart = Calendar.current.date(byAdding: .day, value: clampedDays, to: event.startDate) ?? event.startDate
+                let newEnd = Calendar.current.date(byAdding: .day, value: clampedDays, to: event.endDate) ?? event.endDate
+
+                let updated = CalendarEvent(
+                    id: event.id,
+                    title: event.title,
+                    description: event.description,
+                    startDate: newStart,
+                    endDate: newEnd,
+                    location: event.location,
+                    isAllDay: event.isAllDay,
+                    recurrenceRule: event.recurrenceRule,
+                    attendees: event.attendees,
+                    calendarId: event.calendarId,
+                    url: event.url,
+                    providerId: event.providerId,
+                    providerType: event.providerType,
+                    lastModified: Date()
+                )
+
+                Task {
+                    do {
+                        try await manager.updateEvent(updated)
+                        if wasDragging {
+                            Haptics.success()
+                        }
+                    } catch {
+                        Haptics.selection()
+                        manager.error = "Errore spostamento evento: \(error.localizedDescription)"
+                    }
+                }
+            }
+    }
+
+    private func duplicateEvent() async {
+        let duration = event.endDate.timeIntervalSince(event.startDate)
+        let newStart = event.startDate.addingTimeInterval(3600) // +1 ora
+        let newEnd = newStart.addingTimeInterval(duration)
+
+        let duplicated = CalendarEvent(
+            id: nil, // Nuovo ID
+            title: "\(event.title) (copia)",
+            description: event.description,
+            startDate: newStart,
+            endDate: newEnd,
+            location: event.location,
+            isAllDay: event.isAllDay,
+            recurrenceRule: event.recurrenceRule,
+            attendees: event.attendees,
+            calendarId: event.calendarId,
+            url: event.url,
+            providerId: nil, // Nuovo evento
+            providerType: event.providerType,
+            lastModified: Date()
+        )
+
+        do {
+            let request = CalendarEventRequest(
+                title: duplicated.title,
+                description: duplicated.description,
+                startDate: duplicated.startDate,
+                endDate: duplicated.endDate,
+                location: duplicated.location,
+                isAllDay: duplicated.isAllDay,
+                attendeeEmails: duplicated.attendees.map { $0.email },
+                calendarId: duplicated.calendarId
+            )
+            _ = try await manager.createEvent(request)
+        } catch {
+            manager.error = "Errore duplicazione evento: \(error.localizedDescription)"
+        }
+    }
+
+    private func moveToTomorrow() async {
+        let duration = event.endDate.timeIntervalSince(event.startDate)
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: event.startDate) ?? event.startDate
+        let newStart = Calendar.current.startOfDay(for: tomorrow).addingTimeInterval(
+            TimeInterval(Calendar.current.component(.hour, from: event.startDate) * 3600 +
+                         Calendar.current.component(.minute, from: event.startDate) * 60)
+        )
+        let newEnd = newStart.addingTimeInterval(duration)
+
+        let moved = CalendarEvent(
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            startDate: newStart,
+            endDate: newEnd,
+            location: event.location,
+            isAllDay: event.isAllDay,
+            recurrenceRule: event.recurrenceRule,
+            attendees: event.attendees,
+            calendarId: event.calendarId,
+            url: event.url,
+            providerId: event.providerId,
+            providerType: event.providerType,
+            lastModified: Date()
+        )
+
+        do {
+            try await manager.updateEvent(moved)
+        } catch {
+            manager.error = "Errore spostamento evento: \(error.localizedDescription)"
+        }
+    }
+
+    private func deleteEvent() async {
+        do {
+            try await manager.deleteEvent(event.id ?? "")
+        } catch {
+            manager.error = "Errore eliminazione evento: \(error.localizedDescription)"
         }
     }
 }

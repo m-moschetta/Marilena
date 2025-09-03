@@ -102,15 +102,15 @@ struct ChatsListView: View {
                                 .font(.system(size: 20, weight: .medium))
                                 .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
-                                .background(.ultraThinMaterial, in: Circle())
+                                .background(Color.purple.opacity(0.8), in: Circle())
                                 .overlay(
                                     Circle()
-                                        .stroke(.white.opacity(0.3), lineWidth: 1)
+                                        .stroke(Color.purple.opacity(0.4), lineWidth: 1)
                                 )
-                                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                                .shadow(color: Color.purple.opacity(0.3), radius: 6, x: 0, y: 3)
                         }
                         .padding(.trailing, 20)
-                        .padding(.bottom, 100) // Sopra la tab bar
+                        .padding(.bottom, 70) // Abbassato per migliore posizione
                     }
                 }
             }

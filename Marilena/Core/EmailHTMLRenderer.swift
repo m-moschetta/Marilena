@@ -53,16 +53,19 @@ class EmailHTMLWebViewManager: NSObject, ObservableObject {
         DispatchQueue.main.async {
             // Throttle updates per performance
             self.heightUpdateTimer?.invalidate()
-            
-            self.heightUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { _ in
+
+            self.heightUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { _ in  // Increased to 0.2s
                 let minHeight: CGFloat = 200
                 let safeHeight = max(height, minHeight)
-                
-                if abs(self.contentHeight - safeHeight) > 10 {
-                    print("📧 EmailHTMLRenderer: Height update: \(height) → \(safeHeight)")
+
+                // Only update if change is significant
+                if abs(self.contentHeight - safeHeight) > 20 {  // Increased threshold
+                    print("📧 EmailHTMLRenderer: Height update: \(self.contentHeight) → \(safeHeight)")
                     self.contentHeight = safeHeight
+                } else {
+                    print("📧 EmailHTMLRenderer: Height change too small, skipping update")
                 }
-                
+
                 self.isLoading = false
             }
         }
@@ -100,7 +103,7 @@ struct EmailHTMLWebView: UIViewRepresentable {
     
     func makeUIView(context: Context) -> WKWebView {
         print("📧 EmailHTMLWebView: Creating WKWebView")
-        
+
         // Robust WebView configuration
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
@@ -108,27 +111,36 @@ struct EmailHTMLWebView: UIViewRepresentable {
         configuration.suppressesIncrementalRendering = false
         configuration.allowsAirPlayForMediaPlayback = false
         configuration.dataDetectorTypes = [.phoneNumber, .link, .address]
-        
+
+        // FIX: Add process pool for better stability
+        configuration.processPool = WKProcessPool()
+
+        // FIX: Add website data store
+        configuration.websiteDataStore = WKWebsiteDataStore.default()
+
         // JavaScript message handler for height calculation
         let contentController = WKUserContentController()
         contentController.add(context.coordinator, name: "heightHandler")
         contentController.add(context.coordinator, name: "errorHandler")
         configuration.userContentController = contentController
-        
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        
+
         // Critical WebView settings for proper rendering
         webView.backgroundColor = UIColor.systemBackground
-        webView.isOpaque = true  // Changed from false to true for better rendering
+        webView.isOpaque = true
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.bounces = false
         webView.scrollView.backgroundColor = UIColor.systemBackground
-        
-        // Set minimum frame to prevent zero-size issues
-        webView.frame = CGRect(x: 0, y: 0, width: 320, height: 300) // Use fixed width instead of deprecated UIScreen.main
-        
+
+        // FIX: Better frame handling
+        webView.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 300)
+
+        // FIX: Add custom user agent to prevent issues
+        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
         print("📧 EmailHTMLWebView: WebView created successfully")
         return webView
     }
@@ -369,6 +381,12 @@ struct EmailHTMLWebView: UIViewRepresentable {
                 console.log('📧 EmailHTML: DOM loading started');
                 
                 function calculateHeight() {
+                    if (heightCalculationCount >= MAX_HEIGHT_CALCULATIONS) {
+                        console.log('📧 EmailHTML: Max height calculations reached, stopping');
+                        return;
+                    }
+
+                    heightCalculationCount++;
                     const height = Math.max(
                         document.body.scrollHeight,
                         document.body.offsetHeight,
@@ -376,13 +394,19 @@ struct EmailHTMLWebView: UIViewRepresentable {
                         document.documentElement.scrollHeight,
                         document.documentElement.offsetHeight
                     );
-                    
-                    console.log('📧 EmailHTML: Calculated height:', height);
-                    
-                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.heightHandler) {
-                        window.webkit.messageHandlers.heightHandler.postMessage(height);
+
+                    // Only send if height changed significantly
+                    if (Math.abs(height - lastHeight) > 10) {
+                        console.log('📧 EmailHTML: Height changed from', lastHeight, 'to', height);
+                        lastHeight = height;
+
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.heightHandler) {
+                            window.webkit.messageHandlers.heightHandler.postMessage(height);
+                        }
+                    } else {
+                        console.log('📧 EmailHTML: Height change too small, skipping update');
                     }
-                    
+
                     return height;
                 }
                 
@@ -395,60 +419,72 @@ struct EmailHTMLWebView: UIViewRepresentable {
                 
                 document.addEventListener('DOMContentLoaded', function() {
                     console.log('📧 EmailHTML: DOM Content Loaded');
-                    
+
+                    let heightCalculationCount = 0;
+                    let lastHeight = 0;
+                    const MAX_HEIGHT_CALCULATIONS = 5;
+
                     // Initial height calculation
                     setTimeout(calculateHeight, 100);
-                    
-                    // Monitor for changes
+
+                    // Monitor for changes - LESS AGGRESSIVE
                     const observer = new MutationObserver(function(mutations) {
-                        console.log('📧 EmailHTML: DOM mutation detected');
-                        setTimeout(calculateHeight, 50);
+                        // Only trigger if there are significant changes
+                        const hasSignificantChanges = mutations.some(mutation => {
+                            return mutation.type === 'childList' && mutation.addedNodes.length > 0;
+                        });
+
+                        if (hasSignificantChanges && heightCalculationCount < MAX_HEIGHT_CALCULATIONS) {
+                            console.log('📧 EmailHTML: Significant DOM mutation detected');
+                            setTimeout(calculateHeight, 100); // Increased delay
+                        }
                     });
-                    
+
+                    // Observe only childList changes, not all attributes
                     observer.observe(document.body, {
                         childList: true,
-                        subtree: true,
-                        attributes: true,
-                        attributeFilter: ['style', 'class']
+                        subtree: true
+                        // Removed attributes and attributeFilter to prevent loops
                     });
-                    
-                    // Monitor image loads
+
+                    // Monitor image loads with throttling
                     const images = document.querySelectorAll('img');
                     console.log('📧 EmailHTML: Found', images.length, 'images');
-                    
+
+                    let imageLoadTimeout;
                     images.forEach(function(img, index) {
                         if (img.complete) {
                             console.log('📧 EmailHTML: Image', index, 'already loaded');
-                            setTimeout(calculateHeight, 50);
                         } else {
                             img.addEventListener('load', function() {
                                 console.log('📧 EmailHTML: Image', index, 'loaded');
-                                setTimeout(calculateHeight, 50);
+                                clearTimeout(imageLoadTimeout);
+                                imageLoadTimeout = setTimeout(calculateHeight, 200); // Throttled
                             });
                             img.addEventListener('error', function() {
                                 console.log('📧 EmailHTML: Image', index, 'failed to load');
-                                setTimeout(calculateHeight, 50);
+                                clearTimeout(imageLoadTimeout);
+                                imageLoadTimeout = setTimeout(calculateHeight, 200); // Throttled
                             });
                         }
                     });
-                    
-                    // Handle window resize
+
+                    // Handle window resize with throttling
                     let resizeTimeout;
                     window.addEventListener('resize', function() {
                         clearTimeout(resizeTimeout);
-                        resizeTimeout = setTimeout(calculateHeight, 100);
+                        resizeTimeout = setTimeout(calculateHeight, 200); // Increased delay
                     });
-                    
-                    // Debug info
-                    const debugInfo = document.createElement('div');
-                    debugInfo.className = 'debug-info';
-                    debugInfo.textContent = 'Color: \(colorScheme == .dark ? "Dark" : "Light")';
-                    document.body.appendChild(debugInfo);
-                    
-                    // Remove debug info after 3 seconds
-                    setTimeout(function() {
-                        debugInfo.remove();
-                    }, 3000);
+
+                    // REMOVED debug info to prevent loops
+                    // const debugInfo = document.createElement('div');
+                    // debugInfo.className = 'debug-info';
+                    // debugInfo.textContent = 'Color: \(colorScheme == .dark ? "Dark" : "Light")';
+                    // document.body.appendChild(debugInfo);
+
+                    // setTimeout(function() {
+                    //     debugInfo.remove();
+                    // }, 3000);
                 });
                 
                 window.addEventListener('load', function() {
