@@ -96,7 +96,10 @@ struct EmailHTMLWebView: UIViewRepresentable {
     let email: EmailMessage
     @ObservedObject var renderer: EmailHTMLWebViewManager
     let colorScheme: ColorScheme
-    
+
+    // Cache to prevent reloading same content
+    @State private var lastLoadedContentHash: String = ""
+
     func makeCoordinator() -> Coordinator {
         Coordinator(renderer: renderer)
     }
@@ -149,13 +152,24 @@ struct EmailHTMLWebView: UIViewRepresentable {
         print("📧 EmailHTMLWebView: Updating WebView")
         print("📧 EmailHTMLWebView: HTML content length: \(htmlContent.count)")
         print("📧 EmailHTMLWebView: Color scheme: \(colorScheme)")
+
         let blockImages = (UserDefaults.standard.object(forKey: "email_block_remote_images") as? Bool) ?? false
         let styledHTML = generateRobustHTML(content: htmlContent, colorScheme: colorScheme, blockImages: blockImages)
-        
-        print("📧 EmailHTMLWebView: Generated HTML length: \(styledHTML.count)")
-        print("📧 EmailHTMLWebView: Generated HTML preview: \(String(styledHTML.prefix(300)))")
-        
-        webView.loadHTMLString(styledHTML, baseURL: nil)
+
+        // Create content hash to avoid reloading same content
+        let contentHash = "\(htmlContent.hashValue)_\(colorScheme)_\(blockImages)"
+
+        // Only reload if content actually changed
+        if contentHash != lastLoadedContentHash {
+            print("📧 EmailHTMLWebView: Content changed, reloading...")
+            print("📧 EmailHTMLWebView: Generated HTML length: \(styledHTML.count)")
+            print("📧 EmailHTMLWebView: Generated HTML preview: \(String(styledHTML.prefix(300)))")
+
+            lastLoadedContentHash = contentHash
+            webView.loadHTMLString(styledHTML, baseURL: nil)
+        } else {
+            print("📧 EmailHTMLWebView: Content unchanged, skipping reload")
+        }
     }
     
     private func generateRobustHTML(content: String, colorScheme: ColorScheme, blockImages: Bool) -> String {
@@ -379,38 +393,72 @@ struct EmailHTMLWebView: UIViewRepresentable {
             </style>
             <script>
                 console.log('📧 EmailHTML: DOM loading started');
-                
+
+                // Global variables for height calculation
+                let heightCalculationCount = 0;
+                let lastHeight = 0;
+                const MAX_HEIGHT_CALCULATIONS = 5;
+
                 function calculateHeight() {
-                    if (heightCalculationCount >= MAX_HEIGHT_CALCULATIONS) {
-                        console.log('📧 EmailHTML: Max height calculations reached, stopping');
+                    try {
+                        if (heightCalculationCount >= MAX_HEIGHT_CALCULATIONS) {
+                            console.log('📧 EmailHTML: Max height calculations reached, stopping');
+                            return;
+                        }
+
+                        // Check if document is ready
+                        if (!document.body) {
+                            console.log('📧 EmailHTML: Document body not ready, skipping height calculation');
+                            return;
+                        }
+
+                        heightCalculationCount++;
+                        const height = Math.max(
+                            document.body.scrollHeight || 0,
+                            document.body.offsetHeight || 0,
+                            document.documentElement.clientHeight || 0,
+                            document.documentElement.scrollHeight || 0,
+                            document.documentElement.offsetHeight || 0
+                        );
+
+                        // Validate height is reasonable
+                        if (height <= 0 || height > 10000) {
+                            console.warn('📧 EmailHTML: Invalid height calculated:', height);
+                            return;
+                        }
+
+                        // Only send if height changed significantly
+                        if (Math.abs(height - lastHeight) > 10) {
+                            console.log('📧 EmailHTML: Height changed from', lastHeight, 'to', height);
+                            lastHeight = height;
+
+                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.heightHandler) {
+                                window.webkit.messageHandlers.heightHandler.postMessage(height);
+                            }
+                        } else {
+                            console.log('📧 EmailHTML: Height change too small, skipping update');
+                        }
+
+                        return height;
+                    } catch (error) {
+                        console.error('📧 EmailHTML: Error in calculateHeight:', error);
+                        reportError('calculateHeight error: ' + error.message);
                         return;
                     }
-
-                    heightCalculationCount++;
-                    const height = Math.max(
-                        document.body.scrollHeight,
-                        document.body.offsetHeight,
-                        document.documentElement.clientHeight,
-                        document.documentElement.scrollHeight,
-                        document.documentElement.offsetHeight
-                    );
-
-                    // Only send if height changed significantly
-                    if (Math.abs(height - lastHeight) > 10) {
-                        console.log('📧 EmailHTML: Height changed from', lastHeight, 'to', height);
-                        lastHeight = height;
-
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.heightHandler) {
-                            window.webkit.messageHandlers.heightHandler.postMessage(height);
-                        }
-                    } else {
-                        console.log('📧 EmailHTML: Height change too small, skipping update');
-                    }
-
-                    return height;
                 }
                 
+                // Error reporting with throttling
+                let lastErrorTime = 0;
+                const ERROR_THROTTLE_MS = 1000; // 1 second
+
                 function reportError(message) {
+                    const now = Date.now();
+                    if (now - lastErrorTime < ERROR_THROTTLE_MS) {
+                        console.warn('📧 EmailHTML: Error throttled:', message);
+                        return;
+                    }
+                    lastErrorTime = now;
+
                     console.error('📧 EmailHTML: Error:', message);
                     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.errorHandler) {
                         window.webkit.messageHandlers.errorHandler.postMessage(message);
@@ -420,9 +468,9 @@ struct EmailHTMLWebView: UIViewRepresentable {
                 document.addEventListener('DOMContentLoaded', function() {
                     console.log('📧 EmailHTML: DOM Content Loaded');
 
-                    let heightCalculationCount = 0;
-                    let lastHeight = 0;
-                    const MAX_HEIGHT_CALCULATIONS = 5;
+                    // Reset counters on new content load
+                    heightCalculationCount = 0;
+                    lastHeight = 0;
 
                     // Initial height calculation
                     setTimeout(calculateHeight, 100);
@@ -492,9 +540,21 @@ struct EmailHTMLWebView: UIViewRepresentable {
                     setTimeout(calculateHeight, 200);
                 });
                 
-                // Error handling
+                // Enhanced error handling
                 window.addEventListener('error', function(e) {
-                    reportError('JavaScript error: ' + e.message);
+                    const errorDetails = {
+                        message: e.message || 'Unknown error',
+                        filename: e.filename || 'unknown',
+                        lineno: e.lineno || 0,
+                        colno: e.colno || 0,
+                        stack: e.error ? e.error.stack : 'No stack trace'
+                    };
+                    reportError('JavaScript error: ' + JSON.stringify(errorDetails));
+                });
+
+                // Handle unhandled promise rejections
+                window.addEventListener('unhandledrejection', function(e) {
+                    reportError('Unhandled promise rejection: ' + (e.reason || 'Unknown reason'));
                 });
             </script>
         </head>

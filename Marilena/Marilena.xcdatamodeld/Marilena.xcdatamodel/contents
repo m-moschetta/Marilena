@@ -148,4 +148,98 @@
             </uniquenessConstraint>
         </uniquenessConstraints>
     </entity>
+    <entity name="CachedCalendar" representedClassName="CachedCalendar" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="color" optional="YES" attributeType="String"/>
+        <attribute name="providerType" attributeType="String"/>
+        <attribute name="accountId" optional="YES" attributeType="String"/>
+        <attribute name="isDefault" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="lastSyncDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="events" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CachedCalendarEvent" inverseName="calendar" inverseEntity="CachedCalendarEvent"/>
+        <relationship name="reminders" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CachedReminder" inverseName="calendar" inverseEntity="CachedReminder"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="id"/>
+                <constraint value="providerType"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <entity name="CachedCalendarEvent" representedClassName="CachedCalendarEvent" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="providerId" attributeType="String"/>
+        <attribute name="title" attributeType="String"/>
+        <attribute name="eventDescription" optional="YES" attributeType="String"/>
+        <attribute name="startDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <attribute name="isAllDay" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="completedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="providerType" attributeType="String"/>
+        <attribute name="calendarId" optional="YES" attributeType="String"/>
+        <attribute name="recurrenceRule" optional="YES" attributeType="String"/>
+        <attribute name="url" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="syncStatus" attributeType="String" defaultValueString="synced"/>
+        <attribute name="isDirty" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="calendar" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CachedCalendar" inverseName="events" inverseEntity="CachedCalendar"/>
+        <relationship name="attendees" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CachedEventAttendee" inverseName="event" inverseEntity="CachedEventAttendee"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="providerId"/>
+                <constraint value="providerType"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <entity name="CachedEventAttendee" representedClassName="CachedEventAttendee" syncable="YES" codeGenerationType="class">
+        <attribute name="email" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="status" optional="YES" attributeType="String" defaultValueString="unknown"/>
+        <attribute name="isOrganizer" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="event" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CachedCalendarEvent" inverseName="attendees" inverseEntity="CachedCalendarEvent"/>
+    </entity>
+    <entity name="CachedReminder" representedClassName="CachedReminder" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="String"/>
+        <attribute name="title" attributeType="String"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="dueDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="priority" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="completionDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="creationDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="providerType" attributeType="String"/>
+        <attribute name="calendarId" optional="YES" attributeType="String"/>
+        <attribute name="syncStatus" attributeType="String" defaultValueString="synced"/>
+        <attribute name="isDirty" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="calendar" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CachedCalendar" inverseName="reminders" inverseEntity="CachedCalendar"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="id"/>
+                <constraint value="providerType"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <entity name="SyncMetadata" representedClassName="SyncMetadata" syncable="YES" codeGenerationType="class">
+        <attribute name="key" attributeType="String"/>
+        <attribute name="lastSyncDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="syncToken" optional="YES" attributeType="String"/>
+        <attribute name="providerType" attributeType="String"/>
+        <attribute name="accountId" optional="YES" attributeType="String"/>
+        <attribute name="dataType" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="key"/>
+                <constraint value="providerType"/>
+                <constraint value="dataType"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
 </model>

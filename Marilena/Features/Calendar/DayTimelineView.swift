@@ -444,7 +444,7 @@ struct DayTimelineView: View {
         let visibleDay = cal.isDate(now, inSameDayAs: selectedDate)
         guard visibleDay else { return AnyView(EmptyView()) }
         let minutes = max(0, min(24*60, Int(now.timeIntervalSince(start) / 60)))
-        let y = CGFloat(minutes) / 60.0 * hourHeight
+        let y = CGFloat(minutes) / 60 * hourHeight
         return AnyView(
             ZStack(alignment: .leading) {
                 Rectangle()
@@ -522,15 +522,15 @@ struct DayTimelineView: View {
                     .gesture(resizeGesture(ev: ev, isTop: false))
             }
         }
-        .scaleEffect(isDragging ? 1.05 : 1.0)
+        .scaleEffect(isDragging ? 1.05 : 1)
         .shadow(color: isDragging ? Color.primary.opacity(0.3) : Color.clear, radius: isDragging ? 8 : 0, x: 0, y: isDragging ? 4 : 0)
         .animation(.easeOut(duration: 0.2), value: isDragging)
         .simultaneousGesture(
             // Single unified gesture system that handles all interactions
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
-                    let distance = sqrt(value.translation.x * value.translation.x + value.translation.y * value.translation.y)
-                    
+                    let distance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+
                     // Only start dragging if we've moved enough and it's been long enough
                     if distance > 15 && draggingEventID == nil {
                         Haptics.impactLight()
@@ -538,11 +538,11 @@ struct DayTimelineView: View {
                     }
                 }
                 .onEnded { value in
-                    let distance = sqrt(value.translation.x * value.translation.x + value.translation.y * value.translation.y)
+                    let distance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
                     
                     if draggingEventID == (ev.id ?? ev.providerId) {
                         // Handle drag end - move event
-                        let minutesDelta = Int((value.translation.y / hourHeight) * 60)
+                        let minutesDelta = Int((value.translation.height / hourHeight) * 60)
                         let snappedDelta = snapMinutes(minutesDelta)
                         
                         if snappedDelta != 0 {
@@ -577,8 +577,8 @@ struct DayTimelineView: View {
         guard isSelecting, let s = selectStartMin, let e = selectEndMin else { return AnyView(EmptyView()) }
         let start = CGFloat(min(s, e))
         let end = CGFloat(max(s, e))
-        let y = (start / 60.0) * hourHeight
-        let h = max(8, ((end - start) / 60.0) * hourHeight)
+        let y = (start / 60) * hourHeight
+        let h = max(8, ((end - start) / 60) * hourHeight)
         return AnyView(
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color.red.opacity(0.15))
@@ -862,8 +862,8 @@ struct DayTimelineView: View {
         let x = CGFloat(column) * fractionWidth
         let minutesFromStart = CGFloat(minutesSinceStartOfDay(ev.startDate))
         let minutesLength = CGFloat(max(10, minutesBetween(ev.startDate, ev.endDate)))
-        let y = (minutesFromStart / 60.0) * hourHeight
-        let h = (minutesLength / 60.0) * hourHeight
+        let y = (minutesFromStart / 60) * hourHeight
+        let h = (minutesLength / 60) * hourHeight
         return CGRect(x: x, y: y, width: fractionWidth - 5, height: max(h, 24))
     }
     
@@ -894,7 +894,7 @@ struct DayTimelineView: View {
         }
         
         let minutesFromStart = CGFloat(minutesSinceStartOfDay(dueDate))
-        let y = (minutesFromStart / 60.0) * hourHeight
+        let y = (minutesFromStart / 60) * hourHeight
         let h: CGFloat = 40 // Altezza fissa per i promemoria
         
         return CGRect(x: x, y: y, width: fractionWidth - 5, height: h)
