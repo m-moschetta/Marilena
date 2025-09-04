@@ -1801,7 +1801,7 @@ struct GlassBackground: View {
             if #available(iOS 26.0, *) {
                 // Vero Liquid Glass iOS 26 con API ufficiali
                 RoundedRectangle(cornerRadius: cornerRadius)
-                                                    .liquidGlassEffect(style: variant == .regular ? .regular : .subtle, tint: .white.opacity(opacity))
+                    .liquidGlassEffect(style: variant == .regular ? .regular : .subtle, tint: .white.opacity(opacity))
             } else {
                 // Fallback per iOS < 26
                 legacyGlassBackground

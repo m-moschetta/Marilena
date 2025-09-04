@@ -47,13 +47,13 @@ struct iPadLayout: View {
             VStack(spacing: 0) {
                 // Header con navigazione
                 headerView
-
+                
                 // Contenuto principale
-                .onAppear {
-                    // Collega CalendarManager al RecordingService
-                    recordingService.setCalendarManager(calendarManager)
-                }
                 mainContentView
+                    .onAppear {
+                        // Collega CalendarManager al RecordingService
+                        recordingService.setCalendarManager(calendarManager)
+                    }
             }
             .frame(maxWidth: .infinity)
             .background(Color(.systemGroupedBackground))
