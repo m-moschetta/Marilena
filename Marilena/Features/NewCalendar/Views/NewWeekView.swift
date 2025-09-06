@@ -24,18 +24,26 @@ public struct NewWeekView: View {
 
     public var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: false) {
-                ZStack(alignment: .topLeading) {
-                    // Sfondo con righe orarie
-                    hourLinesBackground
+            VStack(spacing: 0) {
+                // Header fisso con giorni della settimana
+                weekDaysHeader
+                
+                ScrollView(.vertical, showsIndicators: false) {
+                    ZStack(alignment: .topLeading) {
+                        // Sfondo con righe orarie
+                        hourLinesBackground
 
-                    // Timeline degli eventi
-                    eventsTimeline
+                        // Timeline degli eventi
+                        eventsTimeline
 
-                    // Indicatore ora corrente
-                    currentTimeIndicator
+                        // Indicatore ora corrente
+                        currentTimeIndicator
+                    }
+                    .frame(height: hourHeight * 24)
                 }
-                .frame(height: hourHeight * 24)
+            }
+            .refreshable {
+                await calendarService.handlePullToRefresh()
             }
             .onReceive(timer) { _ in
                 currentTime = Date()
@@ -44,7 +52,79 @@ public struct NewWeekView: View {
                 // Scroll all'ora corrente
                 scrollToCurrentHour(proxy: proxy)
             }
+            .gesture(
+                DragGesture()
+                    .onEnded { value in
+                        let horizontalAmount = value.translation.width
+                        let verticalAmount = value.translation.height
+                        
+                        // Solo se il movimento è principalmente orizzontale
+                        if abs(horizontalAmount) > abs(verticalAmount) && abs(horizontalAmount) > 50 {
+                            if horizontalAmount > 0 {
+                                // Swipe verso destra - settimana precedente
+                                calendarService.handleHorizontalSwipe(.right)
+                            } else {
+                                // Swipe verso sinistra - settimana successiva
+                                calendarService.handleHorizontalSwipe(.left)
+                            }
+                        }
+                    }
+            )
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        calendarService.handleViewModePinchGesture(scale: value)
+                    }
+                    .onEnded { _ in
+                        calendarService.completePinchGesture()
+                    }
+            )
         }
+    }
+    
+    // MARK: - Week Days Header
+    private var weekDaysHeader: some View {
+        let weekData = calendarService.weekData(for: calendarService.selectedDate)
+        
+        return HStack(spacing: 0) {
+            // Spazio per allineare con le etichette delle ore
+            Spacer()
+                .frame(width: 62)
+            
+            // Header giorni della settimana
+            ForEach(weekData.days.indices, id: \.self) { dayIndex in
+                let day = weekData.days[dayIndex]
+                
+                VStack(spacing: 4) {
+                    Text(calendarService.weekdayName(for: day.date).prefix(3))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    Text(calendarService.dayNumber(for: day.date))
+                        .font(.system(size: 18, weight: day.isToday ? .bold : .semibold))
+                        .foregroundColor(day.isToday ? .white : .primary)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            Circle()
+                                .fill(day.isToday ? Color.blue : Color.clear)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(day.isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                        )
+                }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    calendarService.selectDate(day.date)
+                }
+            }
+        }
+        .padding(.vertical, 12)
+        .background(
+            Color(.systemGray6)
+                .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: 1)
+        )
     }
 
     // MARK: - Hour Lines Background
@@ -84,7 +164,7 @@ public struct NewWeekView: View {
                     let dayX = dayXPosition(for: dayIndex, totalWidth: geo.size.width)
 
                     ForEach(day.events) { event in
-                        WeekEventView(event: event, dayX: dayX, hourHeight: hourHeight)
+                        WeekEventView(event: event, dayX: dayX, hourHeight: hourHeight, calendarService: calendarService)
                     }
                 }
             }
@@ -100,42 +180,13 @@ public struct NewWeekView: View {
             ForEach(0..<7, id: \.self) { dayIndex in
                 let x = dayXPosition(for: dayIndex, totalWidth: width)
 
-                VStack(spacing: 0) {
-                    // Header del giorno
-                    dayHeader(for: dayIndex, width: dayWidth)
-                        .offset(y: -40)
-
-                    // Separatore verticale
-                    Rectangle()
-                        .fill(Color(.separator).opacity(0.5))
-                        .frame(width: 1)
-                        .offset(x: x)
-                }
+                // Separatore verticale
+                Rectangle()
+                    .fill(Color(.separator).opacity(0.5))
+                    .frame(width: 1)
+                    .offset(x: x)
             }
         }
-    }
-
-    // MARK: - Day Header
-    private func dayHeader(for dayIndex: Int, width: CGFloat) -> some View {
-        let weekData = calendarService.weekData(for: calendarService.selectedDate)
-        let day = weekData.days[dayIndex]
-
-        return VStack(spacing: 2) {
-            Text(calendarService.weekdayName(for: day.date).prefix(3))
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
-
-            Text(calendarService.dayNumber(for: day.date))
-                .font(.system(size: 16, weight: day.isToday ? .bold : .regular))
-                .foregroundColor(day.isToday ? .blue : .primary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(day.isToday ? Color.blue.opacity(0.1) : Color.clear)
-                )
-        }
-        .frame(width: width, height: 30)
     }
 
     // MARK: - Current Time Indicator
@@ -211,6 +262,8 @@ private struct WeekEventView: View {
     let event: NewCalendarEvent
     let dayX: CGFloat
     let hourHeight: CGFloat
+    @ObservedObject var calendarService: NewCalendarService
+    @State private var dragOffset = CGSize.zero
 
     var body: some View {
         let calendar = Calendar.current
@@ -243,9 +296,35 @@ private struct WeekEventView: View {
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(event.uiColor.opacity(0.9))
+                .overlay(
+                    // Indicatore di dragging
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.white.opacity(0.3), lineWidth: dragOffset != .zero ? 2 : 0)
+                )
         )
+        .offset(dragOffset)
         .position(x: dayX, y: y + height / 2)
-        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(dragOffset != .zero ? 0.3 : 0.1), radius: dragOffset != .zero ? 8 : 2, x: 0, y: dragOffset != .zero ? 4 : 1)
+        .scaleEffect(dragOffset != .zero ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = value.translation
+                    calendarService.updateEventDrag(eventId: event.id, offset: value.translation)
+                }
+                .onEnded { value in
+                    let newY = y + value.translation.height
+                    let newHour = max(0, min(23, Int(newY / hourHeight)))
+                    let newStartDate = Calendar.current.date(bySettingHour: newHour, minute: startMinute, second: 0, of: event.startDate) ?? event.startDate
+                    
+                    Task {
+                        await calendarService.completeEventDrag(eventId: event.id, newStartTime: newStartDate)
+                    }
+                    
+                    dragOffset = .zero
+                }
+        )
     }
 }
 

@@ -26,6 +26,27 @@ public struct NewAgendaView: View {
                 agendaList
             }
         }
+        .refreshable {
+            await calendarService.handlePullToRefresh()
+        }
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    let horizontalAmount = value.translation.width
+                    let verticalAmount = value.translation.height
+                    
+                    // Solo se il movimento è principalmente orizzontale
+                    if abs(horizontalAmount) > abs(verticalAmount) && abs(horizontalAmount) > 50 {
+                        if horizontalAmount > 0 {
+                            // Swipe verso destra
+                            calendarService.handleHorizontalSwipe(.right)
+                        } else {
+                            // Swipe verso sinistra
+                            calendarService.handleHorizontalSwipe(.left)
+                        }
+                    }
+                }
+        )
     }
 
     // MARK: - Agenda Header

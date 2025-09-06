@@ -10,6 +10,30 @@ import Foundation
 import SwiftUI
 import Combine
 
+// MARK: - Gesture State Types
+public enum CalendarGestureState {
+    case idle
+    case navigating(direction: NavigationDirection)
+    case creating(startTime: Date, currentTime: Date)
+    case dragging(eventId: String, offset: CGSize)
+    case resizing(eventId: String, newDuration: TimeInterval)
+    case zooming(scale: CGFloat)
+}
+
+public enum NavigationDirection {
+    case left, right, up, down
+}
+
+public struct GesturePreferences {
+    public var isNavigationEnabled: Bool = true
+    public var isPinchToZoomEnabled: Bool = true
+    public var isEventDragEnabled: Bool = true
+    public var isEventCreateEnabled: Bool = true
+    public var hapticFeedbackEnabled: Bool = true
+    
+    public init() {}
+}
+
 /// Service principale per il nuovo calendario ispirato a Fantastical
 public class NewCalendarService: ObservableObject {
     // MARK: - Published Properties
@@ -18,6 +42,11 @@ public class NewCalendarService: ObservableObject {
     @Published public var selectedDate: Date = Date()
     @Published public var viewMode: NewCalendarViewMode = .month
     @Published public var isLoading: Bool = false
+    
+    // MARK: - Gesture Properties
+    @Published public var gestureState: CalendarGestureState = .idle
+    @Published public var isRefreshing: Bool = false
+    public var gesturePreferences: GesturePreferences = GesturePreferences()
 
     // MARK: - Private Properties
     private let _calendarManager: CalendarManager
@@ -278,6 +307,245 @@ public class NewCalendarService: ObservableObject {
 
     public func navigateToToday() {
         selectedDate = Date()
+    }
+    
+    // MARK: - Gesture Handling Methods
+    
+    /// Gestisce lo swipe orizzontale per la navigazione
+    public func handleHorizontalSwipe(_ direction: NavigationDirection) {
+        guard gesturePreferences.isNavigationEnabled else { return }
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            gestureState = .navigating(direction: direction)
+            
+            switch direction {
+            case .left:
+                navigateToNextPeriod()
+            case .right:
+                navigateToPreviousPeriod()
+            default:
+                break
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.gestureState = .idle
+            }
+        }
+        
+        if gesturePreferences.hapticFeedbackEnabled {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+        }
+    }
+    
+    // MARK: - Day View Zoom Properties
+    @Published public var dayViewHourHeight: CGFloat = 60.0
+    private let minHourHeight: CGFloat = 30.0
+    private let maxHourHeight: CGFloat = 120.0
+    
+    /// Gestisce il pinch-to-zoom nella vista giorno per controllare l'altezza delle ore
+    public func handleDayViewPinchGesture(scale: CGFloat) {
+        guard gesturePreferences.isPinchToZoomEnabled && viewMode == .day else { return }
+        
+        gestureState = .zooming(scale: scale)
+        
+        let newHourHeight = dayViewHourHeight * scale
+        
+        // Applica i limiti min/max
+        if newHourHeight >= minHourHeight && newHourHeight <= maxHourHeight {
+            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8)) {
+                dayViewHourHeight = newHourHeight
+            }
+            
+            if gesturePreferences.hapticFeedbackEnabled {
+                let impact = UIImpactFeedbackGenerator(style: .light)
+                impact.impactOccurred(intensity: 0.3)
+            }
+        }
+    }
+    
+    /// Gestisce il pinch-to-zoom per cambiare tra le viste (mantenuto per altre viste)
+    public func handleViewModePinchGesture(scale: CGFloat) {
+        guard gesturePreferences.isPinchToZoomEnabled && viewMode != .day else { return }
+        
+        gestureState = .zooming(scale: scale)
+        
+        // Cambia vista basandosi sulla scala
+        let newViewMode: NewCalendarViewMode
+        if scale > 1.2 {
+            // Zoom in - vista più dettagliata
+            switch viewMode {
+            case .month: newViewMode = .week
+            case .week: newViewMode = .day
+            case .agenda: newViewMode = .day
+            case .year: newViewMode = .month
+            case .day: return // Non cambiare dalla vista giorno
+            }
+        } else if scale < 0.8 {
+            // Zoom out - vista meno dettagliata
+            switch viewMode {
+            case .month: newViewMode = .year
+            case .week: newViewMode = .month
+            case .day: return // Non cambiare dalla vista giorno
+            case .agenda: newViewMode = .month
+            case .year: newViewMode = .year
+            }
+        } else {
+            return
+        }
+        
+        if newViewMode != viewMode {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                viewMode = newViewMode
+            }
+            
+            if gesturePreferences.hapticFeedbackEnabled {
+                let impact = UIImpactFeedbackGenerator(style: .medium)
+                impact.impactOccurred()
+            }
+        }
+    }
+    
+    /// Reimposta l'altezza delle ore al valore predefinito
+    public func resetDayViewZoom() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            dayViewHourHeight = 60.0
+        }
+    }
+    
+    /// Calcola quante ore sono visibili basandosi sull'altezza corrente
+    public func visibleHoursInDayView(screenHeight: CGFloat) -> Int {
+        let availableHeight = screenHeight - 200 // Rimuovi spazio per header/toolbar
+        let visibleHours = Int(availableHeight / dayViewHourHeight)
+        return max(4, min(24, visibleHours)) // Minimo 4 ore, massimo 24
+    }
+    
+    /// Completa il gesto di pinch
+    public func completePinchGesture() {
+        gestureState = .idle
+    }
+    
+    /// Gestisce la creazione di eventi con long press + drag
+    public func startEventCreation(at date: Date) {
+        guard gesturePreferences.isEventCreateEnabled else { return }
+        
+        gestureState = .creating(startTime: date, currentTime: date)
+        
+        if gesturePreferences.hapticFeedbackEnabled {
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+        }
+    }
+    
+    /// Aggiorna la creazione evento durante il drag
+    public func updateEventCreation(endTime: Date) {
+        guard case .creating(let startTime, _) = gestureState else { return }
+        gestureState = .creating(startTime: startTime, currentTime: endTime)
+    }
+    
+    /// Completa la creazione evento
+    public func completeEventCreation() -> (start: Date, end: Date)? {
+        guard case .creating(let startTime, let endTime) = gestureState else { return nil }
+        
+        gestureState = .idle
+        
+        let actualStart = min(startTime, endTime)
+        let actualEnd = max(startTime, endTime)
+        
+        // Assicura durata minima di 30 minuti
+        let minDuration: TimeInterval = 30 * 60
+        let finalEnd = actualEnd.timeIntervalSince(actualStart) < minDuration ?
+            actualStart.addingTimeInterval(minDuration) : actualEnd
+        
+        if gesturePreferences.hapticFeedbackEnabled {
+            let notification = UINotificationFeedbackGenerator()
+            notification.notificationOccurred(.success)
+        }
+        
+        return (actualStart, finalEnd)
+    }
+    
+    /// Cancella la creazione evento
+    public func cancelEventCreation() {
+        gestureState = .idle
+    }
+    
+    /// Gestisce il drag di un evento esistente
+    public func startEventDrag(eventId: String) {
+        guard gesturePreferences.isEventDragEnabled else { return }
+        
+        gestureState = .dragging(eventId: eventId, offset: .zero)
+        
+        if gesturePreferences.hapticFeedbackEnabled {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+        }
+    }
+    
+    /// Aggiorna il drag dell'evento
+    public func updateEventDrag(eventId: String, offset: CGSize) {
+        gestureState = .dragging(eventId: eventId, offset: offset)
+    }
+    
+    /// Completa il drag dell'evento
+    public func completeEventDrag(eventId: String, newStartTime: Date) async {
+        gestureState = .idle
+        
+        // Trova l'evento e aggiorna il suo orario
+        if let eventIndex = events.firstIndex(where: { $0.id == eventId }) {
+            let event = events[eventIndex]
+            let duration = event.endDate.timeIntervalSince(event.startDate)
+            let newEndTime = newStartTime.addingTimeInterval(duration)
+            
+            var updatedEvent = event
+            updatedEvent.startDate = newStartTime
+            updatedEvent.endDate = newEndTime
+            
+            do {
+                try await updateEvent(updatedEvent)
+                
+                if gesturePreferences.hapticFeedbackEnabled {
+                    let notification = UINotificationFeedbackGenerator()
+                    notification.notificationOccurred(.success)
+                }
+            } catch {
+                print("Error updating event: \(error)")
+                
+                if gesturePreferences.hapticFeedbackEnabled {
+                    let notification = UINotificationFeedbackGenerator()
+                    notification.notificationOccurred(.error)
+                }
+            }
+        }
+    }
+    
+    /// Gestisce il pull-to-refresh
+    public func handlePullToRefresh() async {
+        isRefreshing = true
+        await loadEvents()
+        
+        // Simula un piccolo delay per migliorare UX
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        
+        isRefreshing = false
+        
+        if gesturePreferences.hapticFeedbackEnabled {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+        }
+    }
+    
+    /// Gestisce il doppio tap per creazione rapida evento
+    public func handleDoubleTap(at date: Date) {
+        guard gesturePreferences.isEventCreateEnabled else { return }
+        
+        if gesturePreferences.hapticFeedbackEnabled {
+            let impact = UIImpactFeedbackGenerator(style: .medium)
+            impact.impactOccurred()
+        }
+        
+        // Ritorna le date per la creazione rapida
+        // Sarà gestito dalla vista che chiama questo metodo
     }
 
     // MARK: - Private Methods

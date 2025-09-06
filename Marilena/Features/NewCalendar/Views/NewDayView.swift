@@ -22,32 +22,85 @@ public struct NewDayView: View {
     // Timer per aggiornare l'indicatore dell'ora corrente
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
+    @State private var isCreatingEvent = false
+    @State private var eventCreationStart: Date = Date()
+    @State private var eventCreationEnd: Date = Date()
+    @State private var showingEventCreation = false
+
     public var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // Header del giorno
-                    dayHeader
+            VStack(spacing: 0) {
+                // Header fisso con data corrente
+                dayHeaderFixed
 
-                    // Timeline giornaliera
+                ScrollView(.vertical, showsIndicators: false) {
                     ZStack(alignment: .topLeading) {
                         // Sfondo con righe orarie
                         hourLinesBackground
+
+                        // Overlay per creazione eventi con long press
+                        eventCreationOverlay
 
                         // Eventi del giorno
                         dayEvents
 
                         // Indicatore ora corrente
                         currentTimeIndicator
+                        
+                        // Anteprima evento in creazione
+                        if case .creating(let startTime, let endTime) = calendarService.gestureState {
+                            eventCreationPreview(startTime: startTime, endTime: endTime)
+                        }
                     }
-                    .frame(height: hourHeight * 24)
+                    .frame(height: calendarService.dayViewHourHeight * 24)
                 }
+            }
+            .refreshable {
+                await calendarService.handlePullToRefresh()
             }
             .onReceive(timer) { _ in
                 currentTime = Date()
             }
             .onAppear {
                 scrollToCurrentHour(proxy: proxy)
+            }
+            .highPriorityGesture(
+                DragGesture(minimumDistance: CalendarGestureUtils.HorizontalSwipeParams.minimumDistance)
+                    .onEnded { value in
+                        let gestureType = CalendarGestureUtils.analyzeGesture(value.translation)
+                        
+                        switch gestureType {
+                        case .horizontalSwipe(let direction):
+                            switch direction {
+                            case .right:
+                                calendarService.handleHorizontalSwipe(.right)
+                            case .left:
+                                calendarService.handleHorizontalSwipe(.left)
+                            }
+                        case .verticalScroll, .ambiguous:
+                            // Non gestisce scroll verticale o gesti ambigui - lascia passare allo ScrollView
+                            break
+                        }
+                    }
+            )
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        calendarService.handleDayViewPinchGesture(scale: value)
+                    }
+                    .onEnded { _ in
+                        calendarService.completePinchGesture()
+                    }
+            )
+            .sheet(isPresented: $showingEventCreation) {
+                // Sheet per creazione rapida evento
+                NavigationView {
+                    CreateEventView(
+                        calendarManager: calendarService.calendarManager,
+                        suggestedStart: eventCreationStart,
+                        suggestedEnd: eventCreationEnd
+                    )
+                }
             }
         }
     }
@@ -91,12 +144,12 @@ public struct NewDayView: View {
         VStack(spacing: 0) {
             ForEach(hours, id: \.self) { hour in
                 HStack(spacing: 0) {
-                    // Etichetta ora
+                    // Etichetta ora compatta
                     Text(hourLabel(for: hour))
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(.secondary)
-                        .frame(width: 45, alignment: .trailing)
-                        .padding(.trailing, 8)
+                        .frame(width: 35, alignment: .trailing)
+                        .padding(.trailing, 6)
 
                     // Linea orizzontale
                     Rectangle()
@@ -105,11 +158,150 @@ public struct NewDayView: View {
 
                     Spacer()
                 }
-                .frame(height: hourHeight, alignment: .top)
+                .frame(height: calendarService.dayViewHourHeight, alignment: .top)
                 .id(hour)
             }
         }
         .padding(.horizontal, 20)
+    }
+    
+    // MARK: - Day Header Fixed
+    private var dayHeaderFixed: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(calendarService.weekdayName(for: calendarService.selectedDate))
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text(calendarService.dayNumber(for: calendarService.selectedDate))
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.primary)
+                }
+                
+                Text(calendarService.monthTitle(for: calendarService.selectedDate))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            // Indicatore oggi
+            if Calendar.current.isDateInToday(calendarService.selectedDate) {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 8, height: 8)
+                    Text("Oggi")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.red)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+        .background(
+            Color(.systemGray6)
+                .shadow(color: Color.black.opacity(0.05), radius: 1, x: 0, y: 1)
+        )
+    }
+    
+    // MARK: - Event Creation Overlay
+    private var eventCreationOverlay: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .allowsHitTesting(true)
+            .gesture(
+                LongPressGesture(minimumDuration: CalendarGestureUtils.EventCreationParams.longPressMinimumDuration)
+                    .sequenced(before: DragGesture(minimumDistance: CalendarGestureUtils.EventCreationParams.dragMinimumDistance))
+                    .onChanged { value in
+                        switch value {
+                        case .second(true, let drag):
+                            if let drag = drag {
+                                let yPosition = drag.location.y
+                                let (hour, rawMinute) = CalendarGestureUtils.hourFromYPosition(yPosition, hourHeight: calendarService.dayViewHourHeight)
+                                let minute = CalendarGestureUtils.snapToMinuteGrid(rawMinute, gridSize: CalendarGestureUtils.EventCreationParams.snapToMinutes)
+                                
+                                if case .idle = calendarService.gestureState {
+                                    // Inizia creazione evento
+                                    let startDate = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: calendarService.selectedDate) ?? calendarService.selectedDate
+                                    calendarService.startEventCreation(at: startDate)
+                                } else {
+                                    // Aggiorna fine evento
+                                    let endDate = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: calendarService.selectedDate) ?? calendarService.selectedDate
+                                    calendarService.updateEventCreation(endTime: endDate)
+                                }
+                            }
+                        default:
+                            break
+                        }
+                    }
+                    .onEnded { value in
+                        if case .second(true, _) = value {
+                            if let timeRange = calendarService.completeEventCreation() {
+                                eventCreationStart = timeRange.start
+                                eventCreationEnd = timeRange.end
+                                showingEventCreation = true
+                            }
+                        }
+                    },
+                including: .subviews
+            )
+            .onTapGesture(count: 2) { location in
+                // Double tap per creazione rapida
+                let yPosition = location.y
+                let (hour, rawMinute) = CalendarGestureUtils.hourFromYPosition(yPosition, hourHeight: calendarService.dayViewHourHeight)
+                let minute = CalendarGestureUtils.snapToMinuteGrid(rawMinute, gridSize: CalendarGestureUtils.EventCreationParams.snapToMinutes)
+                
+                let startDate = Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: calendarService.selectedDate) ?? calendarService.selectedDate
+                
+                calendarService.handleDoubleTap(at: startDate)
+                eventCreationStart = startDate
+                eventCreationEnd = startDate.addingTimeInterval(3600) // 1 ora di default
+                showingEventCreation = true
+            }
+            .padding(.horizontal, 84)
+    }
+    
+    // MARK: - Helper Methods
+    
+    // MARK: - Event Creation Preview
+    private func eventCreationPreview(startTime: Date, endTime: Date) -> some View {
+        let calendar = Calendar.current
+        let startHour = calendar.component(.hour, from: startTime)
+        let startMinute = calendar.component(.minute, from: startTime)
+        let endHour = calendar.component(.hour, from: endTime)
+        let endMinute = calendar.component(.minute, from: endTime)
+        
+        let startY = (CGFloat(startHour) + CGFloat(startMinute) / 60.0) * calendarService.dayViewHourHeight
+        let endY = (CGFloat(endHour) + CGFloat(endMinute) / 60.0) * calendarService.dayViewHourHeight
+        
+        let actualStartY = min(startY, endY)
+        let height = max(abs(endY - startY), 30) // Minimo 30 pixel
+        
+        return VStack {
+            Text("Nuovo Evento")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white)
+            
+            Text("\(startTime.formatted(date: .omitted, time: .shortened)) - \(endTime.formatted(date: .omitted, time: .shortened))")
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: height, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.blue.opacity(0.7))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.5), style: StrokeStyle(lineWidth: 2, dash: [5]))
+                )
+        )
+        .offset(y: actualStartY)
+        .padding(.horizontal, 88)
+        .animation(.easeInOut(duration: 0.1), value: actualStartY)
     }
 
     // MARK: - Day Events
@@ -119,10 +311,10 @@ public struct NewDayView: View {
         return ZStack(alignment: .topLeading) {
             ForEach(events.indices, id: \.self) { index in
                 let event = events[index]
-                DayEventView(event: event, hourHeight: hourHeight)
+                DayEventView(event: event, hourHeight: calendarService.dayViewHourHeight, calendarService: calendarService)
             }
         }
-        .padding(.horizontal, 96) // Spazio per etichette ora + margine
+        .padding(.horizontal, 84) // Spazio per etichette ora + margine
     }
 
     // MARK: - Current Time Indicator
@@ -134,7 +326,7 @@ public struct NewDayView: View {
 
         let hour = calendar.component(.hour, from: currentTime)
         let minute = calendar.component(.minute, from: currentTime)
-        let y = (CGFloat(hour) + CGFloat(minute) / 60.0) * hourHeight + 20 // +20 per header
+        let y = (CGFloat(hour) + CGFloat(minute) / 60.0) * calendarService.dayViewHourHeight + 20 // +20 per header
 
         return AnyView(
             HStack(spacing: 0) {
@@ -154,7 +346,7 @@ public struct NewDayView: View {
                 Rectangle()
                     .fill(Color.red)
                     .frame(height: 2)
-                    .padding(.leading, 96)
+                    .padding(.leading, 84)
             }
             .offset(y: y)
         )
@@ -188,6 +380,8 @@ public struct NewDayView: View {
 private struct DayEventView: View {
     let event: NewCalendarEvent
     let hourHeight: CGFloat
+    @ObservedObject var calendarService: NewCalendarService
+    @State private var dragOffset = CGSize.zero
 
     var body: some View {
         let calendar = Calendar.current
@@ -224,14 +418,34 @@ private struct DayEventView: View {
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(event.uiColor.opacity(0.9))
-                .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(dragOffset != .zero ? 0.25 : 0.15), radius: dragOffset != .zero ? 8 : 4, x: 0, y: dragOffset != .zero ? 4 : 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                .stroke(Color.white.opacity(dragOffset != .zero ? 0.5 : 0.2), lineWidth: dragOffset != .zero ? 2 : 1)
         )
-        .offset(y: y)
+        .offset(x: dragOffset.width, y: y + dragOffset.height)
+        .scaleEffect(dragOffset != .zero ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: dragOffset)
         .padding(.horizontal, 4)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = value.translation
+                    calendarService.updateEventDrag(eventId: event.id, offset: value.translation)
+                }
+                .onEnded { value in
+                    let newY = y + value.translation.height
+                    let newHour = max(0, min(23, Int(newY / hourHeight)))
+                    let newStartDate = Calendar.current.date(bySettingHour: newHour, minute: startMinute, second: 0, of: event.startDate) ?? event.startDate
+                    
+                    Task {
+                        await calendarService.completeEventDrag(eventId: event.id, newStartTime: newStartDate)
+                    }
+                    
+                    dragOffset = .zero
+                }
+        )
     }
 }
 

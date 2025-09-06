@@ -29,6 +29,36 @@ public struct NewMonthView: View {
             }
             .padding(.horizontal, 20)
         }
+        .refreshable {
+            await calendarService.handlePullToRefresh()
+        }
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    let horizontalAmount = value.translation.width
+                    let verticalAmount = value.translation.height
+                    
+                    // Solo se il movimento è principalmente orizzontale
+                    if abs(horizontalAmount) > abs(verticalAmount) && abs(horizontalAmount) > 50 {
+                        if horizontalAmount > 0 {
+                            // Swipe verso destra - mese precedente
+                            calendarService.handleHorizontalSwipe(.right)
+                        } else {
+                            // Swipe verso sinistra - mese successivo
+                            calendarService.handleHorizontalSwipe(.left)
+                        }
+                    }
+                }
+        )
+        .gesture(
+            MagnificationGesture()
+                .onChanged { value in
+                    calendarService.handleViewModePinchGesture(scale: value)
+                }
+                .onEnded { _ in
+                    calendarService.completePinchGesture()
+                }
+        )
     }
 
     // MARK: - Weekday Header
@@ -59,6 +89,10 @@ public struct NewMonthView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         calendarService.selectDate(day.date)
+                    }
+                    .onTapGesture(count: 2) {
+                        calendarService.handleDoubleTap(at: day.date)
+                        // Potremmo aprire qui un sheet per creare evento veloce
                     }
             }
         }

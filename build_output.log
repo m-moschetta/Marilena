@@ -1,0 +1,214 @@
+Command line invocation:
+    /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild -workspace Marilena.xcworkspace -scheme Marilena-iOS -destination "platform=iOS Simulator,name=iPhone 16" build
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  GTMAppAuth: https://github.com/google/GTMAppAuth.git @ 5.0.0
+  Promises: https://github.com/google/promises.git @ 2.4.0
+  AppCheck: https://github.com/google/app-check.git @ 11.2.0
+  GTMSessionFetcher: https://github.com/google/gtm-session-fetcher.git @ 3.5.0
+  AppAuth: https://github.com/openid/AppAuth-iOS.git @ 2.0.0
+  GoogleUtilities: https://github.com/google/GoogleUtilities.git @ 8.1.0
+  GoogleSignIn: https://github.com/google/GoogleSignIn-iOS.git @ 9.0.0
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (33 targets)
+    Target 'Marilena' in project 'Marilena'
+        ➜ Explicit dependency on target 'GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignInSwift' in project 'GoogleSignIn'
+    Target 'GoogleSignInSwift' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignInSwift' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignIn_GoogleSignInSwift' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppCheckCore' in project 'AppCheck'
+        ➜ Explicit dependency on target 'GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+    Target 'GoogleSignInSwift' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignIn_GoogleSignInSwift' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppCheckCore' in project 'AppCheck'
+        ➜ Explicit dependency on target 'GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+    Target 'GoogleSignIn_GoogleSignInSwift' in project 'GoogleSignIn' (no dependencies)
+    Target 'GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignIn_GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppCheckCore' in project 'AppCheck'
+        ➜ Explicit dependency on target 'GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+    Target 'GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'GoogleSignIn_GoogleSignIn' in project 'GoogleSignIn'
+        ➜ Explicit dependency on target 'AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppCheckCore' in project 'AppCheck'
+        ➜ Explicit dependency on target 'GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+    Target 'GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMAppAuth_GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+    Target 'GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMAppAuth_GTMAppAuth' in project 'GTMAppAuth'
+        ➜ Explicit dependency on target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+    Target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+        ➜ Explicit dependency on target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+        ➜ Explicit dependency on target 'GTMSessionFetcher_GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+    Target 'GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+        ➜ Explicit dependency on target 'GTMSessionFetcher_GTMSessionFetcherCore' in project 'GTMSessionFetcher'
+    Target 'GTMSessionFetcher_GTMSessionFetcherCore' in project 'GTMSessionFetcher' (no dependencies)
+    Target 'GTMAppAuth_GTMAppAuth' in project 'GTMAppAuth' (no dependencies)
+    Target 'AppCheckCore' in project 'AppCheck'
+        ➜ Explicit dependency on target 'AppCheckCore' in project 'AppCheck'
+        ➜ Explicit dependency on target 'FBLPromises' in project 'Promises'
+        ➜ Explicit dependency on target 'GULEnvironment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GULUserDefaults' in project 'GoogleUtilities'
+    Target 'AppCheckCore' in project 'AppCheck'
+        ➜ Explicit dependency on target 'FBLPromises' in project 'Promises'
+        ➜ Explicit dependency on target 'GULEnvironment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GULUserDefaults' in project 'GoogleUtilities'
+    Target 'GULUserDefaults' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities-UserDefaults' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities_GoogleUtilities-UserDefaults' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'third-party-IsAppEncrypted' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities-Environment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities-Logger' in project 'GoogleUtilities'
+    Target 'GoogleUtilities-UserDefaults' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities_GoogleUtilities-UserDefaults' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'third-party-IsAppEncrypted' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities-Environment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities-Logger' in project 'GoogleUtilities'
+    Target 'GoogleUtilities-Logger' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities_GoogleUtilities-Logger' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'third-party-IsAppEncrypted' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities-Environment' in project 'GoogleUtilities'
+    Target 'GoogleUtilities_GoogleUtilities-Logger' in project 'GoogleUtilities' (no dependencies)
+    Target 'GoogleUtilities_GoogleUtilities-UserDefaults' in project 'GoogleUtilities' (no dependencies)
+    Target 'GULEnvironment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities-Environment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities_GoogleUtilities-Environment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'third-party-IsAppEncrypted' in project 'GoogleUtilities'
+    Target 'GoogleUtilities-Environment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'GoogleUtilities_GoogleUtilities-Environment' in project 'GoogleUtilities'
+        ➜ Explicit dependency on target 'third-party-IsAppEncrypted' in project 'GoogleUtilities'
+    Target 'third-party-IsAppEncrypted' in project 'GoogleUtilities' (no dependencies)
+    Target 'GoogleUtilities_GoogleUtilities-Environment' in project 'GoogleUtilities' (no dependencies)
+    Target 'FBLPromises' in project 'Promises'
+        ➜ Explicit dependency on target 'FBLPromises' in project 'Promises'
+        ➜ Explicit dependency on target 'Promises_FBLPromises' in project 'Promises'
+    Target 'FBLPromises' in project 'Promises'
+        ➜ Explicit dependency on target 'Promises_FBLPromises' in project 'Promises'
+    Target 'Promises_FBLPromises' in project 'Promises' (no dependencies)
+    Target 'AppAuthCore' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuth_AppAuthCore' in project 'AppAuth'
+    Target 'AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuth_AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+    Target 'AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuth_AppAuth' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuthCore' in project 'AppAuth'
+    Target 'AppAuthCore' in project 'AppAuth'
+        ➜ Explicit dependency on target 'AppAuth_AppAuthCore' in project 'AppAuth'
+    Target 'AppAuth_AppAuthCore' in project 'AppAuth' (no dependencies)
+    Target 'AppAuth_AppAuth' in project 'AppAuth' (no dependencies)
+    Target 'GoogleSignIn_GoogleSignIn' in project 'GoogleSignIn' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x objective-c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/usr/bin/momc --dry-run --action generate --swift-version 5.0 --sdkroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk --iphonesimulator-deployment-target 26.0 --module Marilena /Users/mariomoschetta/Downloads/Marilena/Marilena/Marilena.xcdatamodeld /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/mariomoschetta/Downloads/Marilena/Marilena/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: c22142931335f0eff0dd8882bac0ba63
+Build description path: /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/XCBuildData/c22142931335f0eff0dd8882bac0ba63.xcbuilddata
+ClangStatCache /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A5324a-fc862078e33f881139a9d2f83bd1a9d0.sdkstatcache
+    cd /Users/mariomoschetta/Downloads/Marilena
+    /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A5324a-fc862078e33f881139a9d2f83bd1a9d0.sdkstatcache
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.build/empty-GTMAppAuth_GTMAppAuth.plist (in target 'GTMAppAuth_GTMAppAuth' from project 'GTMAppAuth')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GTMAppAuth
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.build/empty-GTMAppAuth_GTMAppAuth.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMSessionFetcher.build/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.build/empty-GTMSessionFetcher_GTMSessionFetcherCore.plist (in target 'GTMSessionFetcher_GTMSessionFetcherCore' from project 'GTMSessionFetcher')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/gtm-session-fetcher
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMSessionFetcher.build/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.build/empty-GTMSessionFetcher_GTMSessionFetcherCore.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuthCore.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuthCore.build/empty-AppAuth_AppAuthCore.plist (in target 'AppAuth_AppAuthCore' from project 'AppAuth')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/AppAuth-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuthCore.build/empty-AppAuth_AppAuthCore.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuthCore.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.build/empty-GoogleSignIn_GoogleSignInSwift.plist (in target 'GoogleSignIn_GoogleSignInSwift' from project 'GoogleSignIn')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleSignIn-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.build/empty-GoogleSignIn_GoogleSignInSwift.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.build/empty-GoogleSignIn_GoogleSignIn.plist (in target 'GoogleSignIn_GoogleSignIn' from project 'GoogleSignIn')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleSignIn-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.build/empty-GoogleSignIn_GoogleSignIn.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuth.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuth.build/empty-AppAuth_AppAuth.plist (in target 'AppAuth_AppAuth' from project 'AppAuth')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/AppAuth-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuth.build/empty-AppAuth_AppAuth.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuth.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Promises_FBLPromises.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Promises.build/Debug-iphonesimulator/Promises_FBLPromises.build/empty-Promises_FBLPromises.plist (in target 'Promises_FBLPromises' from project 'Promises')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/promises
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Promises.build/Debug-iphonesimulator/Promises_FBLPromises.build/empty-Promises_FBLPromises.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Promises_FBLPromises.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.build/empty-GoogleUtilities_GoogleUtilities-Environment.plist (in target 'GoogleUtilities_GoogleUtilities-Environment' from project 'GoogleUtilities')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleUtilities
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.build/empty-GoogleUtilities_GoogleUtilities-Environment.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.build/empty-GoogleUtilities_GoogleUtilities-UserDefaults.plist (in target 'GoogleUtilities_GoogleUtilities-UserDefaults' from project 'GoogleUtilities')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleUtilities
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.build/empty-GoogleUtilities_GoogleUtilities-UserDefaults.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.build/empty-GoogleUtilities_GoogleUtilities-Logger.plist (in target 'GoogleUtilities_GoogleUtilities-Logger' from project 'GoogleUtilities')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleUtilities
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.build/empty-GoogleUtilities_GoogleUtilities-Logger.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.bundle/Info.plist
+
+note: Disabling hardened runtime with ad-hoc codesigning. (in target 'Marilena' from project 'Marilena')
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Info.plist /Users/mariomoschetta/Downloads/Marilena/Marilena/Info.plist (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    builtin-infoPlistUtility /Users/mariomoschetta/Downloads/Marilena/Marilena/Info.plist -producttype com.apple.product-type.application -genpkginfo /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_generated_info.plist -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/AppAuth_AppAuth.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/AppAuth_AppAuthCore.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GTMAppAuth_GTMAppAuth.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GTMSessionFetcher_GTMSessionFetcherCore.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleSignIn_GoogleSignIn.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleSignIn_GoogleSignInSwift.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleUtilities_GoogleUtilities-Environment.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleUtilities_GoogleUtilities-Logger.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleUtilities_GoogleUtilities-UserDefaults.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Promises_FBLPromises.bundle -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Info.plist
+
+CopySwiftLibs /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Marilena.debug.dylib --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Frameworks --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/PlugIns --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/SystemExtensions --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Extensions --platform iphonesimulator --toolchain /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+** BUILD SUCCEEDED **
+

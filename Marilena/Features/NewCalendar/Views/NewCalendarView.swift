@@ -48,6 +48,24 @@ public struct NewCalendarView: View {
                 await calendarService.loadEvents()
             }
         }
+        .gesture(
+            DragGesture(minimumDistance: 50)
+                .onEnded { value in
+                    let horizontalAmount = value.translation.width
+                    let verticalAmount = value.translation.height
+                    
+                    // Solo se il movimento è principalmente orizzontale
+                    if abs(horizontalAmount) > abs(verticalAmount) * 1.5 && abs(horizontalAmount) > 60 {
+                        if horizontalAmount > 0 {
+                            // Swipe verso destra - periodo precedente
+                            calendarService.handleHorizontalSwipe(.right)
+                        } else {
+                            // Swipe verso sinistra - periodo successivo
+                            calendarService.handleHorizontalSwipe(.left)
+                        }
+                    }
+                }
+        )
     }
 
     // MARK: - Header View
@@ -62,14 +80,14 @@ public struct NewCalendarView: View {
                 Spacer()
 
                 // Pulsanti di navigazione compatti
-                HStack(spacing: 8) {
+                HStack(spacing: 4) {
                     Button(action: {
                         calendarService.navigateToPreviousPeriod()
                     }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.primary)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 28, height: 28)
                     }
 
                     Button(action: {
@@ -78,19 +96,22 @@ public struct NewCalendarView: View {
                         Text("Today")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 6)
+                            .padding(.horizontal, 8)
                             .padding(.vertical, 3)
                             .background(Color.red)
                             .clipShape(Capsule())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .frame(minWidth: 36)
                     }
 
                     Button(action: {
                         calendarService.navigateToNextPeriod()
                     }) {
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 16, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.primary)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 28, height: 28)
                     }
 
                     // Pulsante AI per creazione evento AI
@@ -99,9 +120,9 @@ public struct NewCalendarView: View {
                         showingEventCreation = true
                     }) {
                         Image(systemName: "brain.head.profile")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.white)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 24, height: 24)
                             .background(Color.purple)
                             .clipShape(Circle())
                     }
@@ -111,9 +132,9 @@ public struct NewCalendarView: View {
                         showingEventCreation = true
                     }) {
                         Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.white)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 24, height: 24)
                             .background(Color.red)
                             .clipShape(Circle())
                     }
@@ -162,20 +183,21 @@ public struct NewCalendarView: View {
             switch calendarService.viewMode {
             case .month:
                 NewMonthView(calendarService: calendarService)
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
             case .week:
                 NewWeekView(calendarService: calendarService)
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
             case .day:
                 NewDayView(calendarService: calendarService)
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
             case .agenda:
                 NewAgendaView(calendarService: calendarService)
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
             case .year:
                 // Implementazione futura
                 Text("Year view - Coming Soon")
                     .foregroundColor(.secondary)
+                    .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
