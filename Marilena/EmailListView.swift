@@ -300,6 +300,7 @@ public struct EmailListView: View {
         }
         .sheet(isPresented: $showingEmailSettings) {
             EmailSettingsView()
+                .environmentObject(emailService)
         }
         .alert("Errore", isPresented: .constant(emailService.error != nil)) {
             Button("OK") {

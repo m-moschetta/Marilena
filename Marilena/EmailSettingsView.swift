@@ -5,12 +5,15 @@ import SwiftUI
 
 struct EmailSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var emailService = EmailService()
+    @EnvironmentObject private var emailService: EmailService
     @StateObject private var aiService = EmailAIService()
     
     @State private var selectedAIModel = "gpt-4o-mini"
     @State private var maxTokens: Double = 1000
     @State private var temperature: Double = 0.7
+    @AppStorage("email_update_limit") private var emailUpdateLimitValue: Int = 100
+    @AppStorage("email_update_unlimited") private var emailUpdateUnlimited: Bool = false
+    @State private var isForceCategorizing = false
     @State private var showingPromptEditor = false
     @State private var selectedPromptType: EmailPromptType = .draft
     @State private var customPrompt = ""
@@ -80,7 +83,7 @@ struct EmailSettingsView: View {
                             Text(model).tag(model)
                         }
                     }
-                    
+
                     VStack {
                         HStack {
                             Text("Temperature")
@@ -89,7 +92,7 @@ struct EmailSettingsView: View {
                         }
                         Slider(value: $temperature, in: 0...2, step: 0.1)
                     }
-                    
+
                     VStack {
                         HStack {
                             Text("Max Tokens")
@@ -97,6 +100,38 @@ struct EmailSettingsView: View {
                             Text(String(format: "%.0f", maxTokens))
                         }
                         Slider(value: $maxTokens, in: 100...4000, step: 100)
+                    }
+                }
+
+                // MARK: - Email Sync Limit Section
+                Section("Aggiornamento Email") {
+                    Toggle(isOn: $emailUpdateUnlimited) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Aggiorna senza limiti")
+                                .font(.headline)
+                            Text("Scarica tutte le email disponibili ad ogni sincronizzazione")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    if !emailUpdateUnlimited {
+                        Stepper(value: $emailUpdateLimitValue, in: 25...1000, step: 25) {
+                            HStack {
+                                Text("Limite email per aggiornamento")
+                                Spacer()
+                                Text("\(emailUpdateLimitValue)")
+                                    .fontWeight(.semibold)
+                            }
+                        }
+
+                        Text("Le nuove sincronizzazioni scaricano fino a \(emailUpdateLimitValue) email per volta")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Le sincronizzazioni scaricano tutte le email disponibili (nessun limite)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -175,6 +210,39 @@ struct EmailSettingsView: View {
                     }
                 }
                 
+                // MARK: - Email Categorization Section
+                Section("Categorizzazione") {
+                    Button {
+                        guard !isForceCategorizing else { return }
+                        isForceCategorizing = true
+                        Task {
+                            await emailService.forceCategorizeAllEmails()
+                            await MainActor.run {
+                                isForceCategorizing = false
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Label("Forza categorizzazione", systemImage: "bolt.fill")
+                            Spacer()
+                            if isForceCategorizing {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(emailService.emails.isEmpty || isForceCategorizing)
+
+                    if emailService.emails.isEmpty {
+                        Text("Sincronizza prima le email per poterle categorizzare")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Ricategorizza tutte le email ora e salva il risultato per i prossimi avvii")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 // MARK: - Email Features Section
                 Section("Funzionalità Email") {
                     NavigationLink {
@@ -255,6 +323,8 @@ struct EmailSettingsView: View {
             // Prima volta: usa il nuovo viewer moderno come default
             useModernViewer = true
         }
+
+        emailUpdateLimitValue = min(max(emailUpdateLimitValue, 25), 1000)
     }
     
     private func saveSettings() {

@@ -7,6 +7,7 @@ public class EmailCategorizationService {
     // MARK: - Properties
 
     private let openAIService = OpenAIService.shared
+    private let appleService = AppleIntelligenceService.shared
     private let groqService = GroqService.shared
     private let anthropicService = AnthropicService.shared
     private let deepSeekService = DeepSeekService()
@@ -65,10 +66,13 @@ public class EmailCategorizationService {
             return (model1.benchmarks.overallScore ?? 0) > (model2.benchmarks.overallScore ?? 0)
         }
 
-        // Default: GPT-4o Mini (equilibrio perfetto tra costo e performance)
-        return sortedModels.first(where: { $0.id == "gpt-4o-mini" }) ??
+        let appleDefaultId = "foundation-medium"
+
+        // Default: Apple Foundation Medium (on-device, privacy-first)
+        return sortedModels.first(where: { $0.id == appleDefaultId }) ??
+               sortedModels.first(where: { $0.provider == .apple }) ??
                sortedModels.first ??
-               AIModelConfiguration.allModels.first(where: { $0.id == "gpt-4o-mini" }) ??
+               AIModelConfiguration.allModels.first(where: { $0.id == appleDefaultId }) ??
                AIModelConfiguration.allModels.first!
     }
 
@@ -691,6 +695,8 @@ public class EmailCategorizationService {
     /// Invia messaggio AI al provider selezionato
     private func sendAIMessage(systemPrompt: String, userPrompt: String) async throws -> String {
         switch selectedProvider {
+        case .apple:
+            return try await sendAppleMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
         case .openai:
             return try await sendOpenAIMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
 
@@ -740,6 +746,30 @@ public class EmailCategorizationService {
         return try await groqService.sendMessage(messages: messages, model: selectedModel.id)
     }
 
+    /// Invia messaggio ad Apple Intelligence
+    private func sendAppleMessage(systemPrompt: String, userPrompt: String) async throws -> String {
+        guard appleService.isAvailable else {
+            throw AppleIntelligenceError.frameworkUnavailable
+        }
+
+        let messages = [
+            AppleChatMessage(role: .system, content: systemPrompt),
+            AppleChatMessage(role: .user, content: userPrompt)
+        ]
+
+        let maxTokens = min(1024, selectedModel.maxOutputTokens)
+        let config = AppleGenerationConfiguration(
+            instructions: nil,
+            temperature: 0.2,
+            maxOutputTokens: maxTokens
+        )
+        return try await appleService.sendMessage(
+            messages: messages,
+            model: selectedModel.id,
+            configuration: config
+        )
+    }
+
     /// Invia messaggio a Anthropic
     private func sendAnthropicMessage(systemPrompt: String, userPrompt: String) async throws -> String {
         // Anthropic usa un formato diverso per i messaggi
@@ -751,7 +781,9 @@ public class EmailCategorizationService {
         ]
 
         return try await withCheckedThrowingContinuation { continuation in
-            anthropicService.sendMessage(messages: messages, model: selectedModel.id, maxTokens: 1000, temperature: 0.7) { result in
+            let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+            anthropicService.sendMessage(messages: messages, model: selectedModel.id, maxTokens: min(maxTokens, 1000), temperature: temperature) { result in
                 switch result {
                 case .success(let response):
                     continuation.resume(returning: response)
@@ -770,7 +802,9 @@ public class EmailCategorizationService {
         ]
 
         return try await withCheckedThrowingContinuation { continuation in
-            deepSeekService.sendMessage(messages: messages, model: selectedModel.id, maxTokens: 1000, temperature: 0.7) { result in
+            let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+            deepSeekService.sendMessage(messages: messages, model: selectedModel.id, maxTokens: min(maxTokens, 1000), temperature: temperature) { result in
                 switch result {
                 case .success(let response):
                     continuation.resume(returning: response)

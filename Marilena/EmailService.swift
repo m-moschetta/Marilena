@@ -25,7 +25,7 @@ public class EmailService: ObservableObject {
     @Published public var isOnline = true
     @Published public var syncStatus: SyncStatus = .idle
     @Published public var pendingOperationsCount = 0
-    
+
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
     private let keychainManager = KeychainManager.shared
@@ -33,6 +33,8 @@ public class EmailService: ObservableObject {
     private let cacheService = EmailCacheService()
     private let categorizationService = EmailCategorizationService()
     private lazy var offlineSyncService = OfflineSyncService.shared
+    private let emailUpdateLimitKey = "email_update_limit"
+    private let emailUpdateUnlimitedKey = "email_update_unlimited"
     
     // Variabili per gestire il rate limiting
     private var lastRequestTime: Date?
@@ -49,6 +51,19 @@ public class EmailService: ObservableObject {
     private var hasValidCache: Bool {
         guard let lastCacheTime = lastSuccessfulCacheTime else { return false }
         return Date().timeIntervalSince(lastCacheTime) < cacheValidityInterval
+    }
+
+    private var configuredEmailUpdateLimit: Int {
+        if UserDefaults.standard.bool(forKey: emailUpdateUnlimitedKey) {
+            return Int.max
+        }
+
+        if UserDefaults.standard.object(forKey: emailUpdateLimitKey) == nil {
+            return 100
+        }
+
+        let storedValue = UserDefaults.standard.integer(forKey: emailUpdateLimitKey)
+        return min(max(storedValue, 25), 1000)
     }
     
     // MARK: - Email Providers
@@ -255,9 +270,17 @@ public class EmailService: ObservableObject {
                 messages = try await fetchEmailsWithMicrosoftGraph(accessToken: account.accessToken)
             }
 
-            // Limita il numero di email per evitare sovraccarico
-            let limitedMessages = Array(messages.prefix(100))
-            print("📧 EmailService: Limitato a \(limitedMessages.count) email per ottimizzazione")
+            // Limita il numero di email per evitare sovraccarico (configurabile)
+            let limit = configuredEmailUpdateLimit
+            let limitedMessages: [EmailMessage]
+
+            if limit == Int.max {
+                limitedMessages = messages
+                print("📧 EmailService: Nessun limite applicato, caricate \(limitedMessages.count) email")
+            } else {
+                limitedMessages = Array(messages.prefix(limit))
+                print("📧 EmailService: Limitato a \(limitedMessages.count)/\(messages.count) email per impostazione utente")
+            }
 
             // Carica prima le email senza categorizzazione per UI reattiva
             self.emails = limitedMessages
@@ -1726,6 +1749,60 @@ public class EmailService: ObservableObject {
         }
         
         print("✅ EmailService: Email categorizzata come \(category.displayName)")
+    }
+
+    /// Ricategorizza tutte le email disponibili rispettando l'impostazione utente e persiste i risultati
+    public func forceCategorizeAllEmails() async {
+        guard !emails.isEmpty else {
+            print("🤖 EmailService: Nessuna email da categorizzare")
+            return
+        }
+
+        print("🤖 EmailService: Avvio categorizzazione forzata di \(emails.count) email")
+
+        let wasLoading = isLoading
+        if !wasLoading {
+            isLoading = true
+        }
+
+        let previousSyncStatus = syncStatus
+        syncStatus = .syncing
+
+        defer {
+            if !wasLoading {
+                isLoading = false
+            }
+
+            switch previousSyncStatus {
+            case .error(let message):
+                syncStatus = .error(message)
+            default:
+                syncStatus = .idle
+            }
+        }
+
+        let snapshot = emails
+        let categorizedEmails = await categorizationService.categorizeEmails(snapshot)
+
+        var updatedEmails = emails
+        for categorizedEmail in categorizedEmails {
+            if let index = updatedEmails.firstIndex(where: { $0.id == categorizedEmail.id }) {
+                updatedEmails[index] = categorizedEmail
+            } else {
+                updatedEmails.append(categorizedEmail)
+            }
+        }
+
+        emails = updatedEmails
+
+        if let account = currentAccount {
+            await cacheService.cacheEmails(updatedEmails, for: account.email)
+        }
+
+        categorizationService.syncWithEmailCache(updatedEmails)
+        await organizeEmailsIntoConversations()
+
+        print("✅ EmailService: Categorizzazione forzata completata (\(categorizedEmails.count) email)")
     }
     
     /// Filtra le email per categoria

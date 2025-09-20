@@ -130,6 +130,7 @@ public struct EmailDetailView: View {
         }
         .sheet(isPresented: $showingEmailSettings) {
             EmailSettingsView()
+                .environmentObject(emailService)
         }
         .alert("Genera risposta personalizzata", isPresented: $showingCustomPrompt) {
             TextField("Inserisci istruzioni per la risposta", text: $customPrompt)

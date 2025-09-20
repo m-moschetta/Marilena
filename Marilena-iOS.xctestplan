@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "875EDE9A-B130-4DDE-822A-2BA72F9D5D33",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Marilena.xcodeproj",
+      "identifier" : "ED82CABD2E2A4B5200BB5506",
+      "name" : "Marilena"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Marilena.xcodeproj",
+        "identifier" : "ED82CAD12E2A4B5300BB5506",
+        "name" : "MarilenaTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Marilena.xcodeproj",
+        "identifier" : "ED82CADB2E2A4B5300BB5506",
+        "name" : "MarilenaUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

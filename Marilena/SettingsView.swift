@@ -24,6 +24,13 @@ struct SettingsView: View {
     @State private var anthropicApiKey = ""
     @State private var selectedAnthropicModel = "claude-3-5-sonnet-20241022"
 
+    // xAI settings
+    @State private var xaiApiKey = ""
+    @State private var selectedXAIModel = "grok-4-latest"
+
+    // Apple Intelligence settings
+    @State private var selectedAppleModel = "foundation-medium"
+
     // DeepSeek settings
     @State private var deepSeekApiKey = ""
     @State private var selectedDeepSeekModel = "deepseek-chat"
@@ -35,6 +42,7 @@ struct SettingsView: View {
     @State private var selectedProvider = "openai"
     // Routing
     @State private var forceGateway = false
+    @StateObject private var emailService = EmailService()
     
     let availableModels = OpenAIModels.availableModels
     
@@ -89,9 +97,11 @@ struct SettingsView: View {
     ]
     
     let availableProviders = [
+        ("apple", "Apple Intelligence", "Modelli on-device privati su dispositivi compatibili"),
         ("openai", "OpenAI", "Modelli GPT più avanzati e versatili"),
         ("anthropic", "Anthropic Claude", "Modelli Claude per ragionamento profondo"),
         ("groq", "Groq", "Velocità ultra-rapida con Qwen 3 e DeepSeek R1"),
+        ("xai", "xAI Grok", "Modelli Grok-2 con ragionamento e tool-use in tempo reale"),
         ("deepseek", "DeepSeek", "Modelli molto economici per ragionamento avanzato")
     ]
     
@@ -228,6 +238,52 @@ struct SettingsView: View {
                         .foregroundColor(.blue)
                         
                         Text("🧠 Anthropic Claude: Eccellente per ragionamento e analisi profonda")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else if selectedProvider == "xai" {
+                    Section("xAI Grok Configuration") {
+                        SecureField("xAI API Key", text: $xaiApiKey)
+                            .textContentType(.password)
+
+                        ModelPickerView(provider: .xai, selectedModel: $selectedXAIModel)
+
+                        Button("Test Connessione xAI") {
+                            testXAIConnection()
+                        }
+                        .foregroundColor(.blue)
+
+                        Text("🤖 xAI Grok: risposte fresche con ricostruzione in tempo reale, ideali per brainstorming e ricerca veloce")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else if selectedProvider == "apple" {
+                    Section("Apple Intelligence") {
+                        ModelPickerView(provider: .apple, selectedModel: $selectedAppleModel)
+
+                        let availability = AppleIntelligenceService.shared.availability()
+
+                        switch availability {
+                        case .available:
+                            Label {
+                                Text("Apple Intelligence attiva sul dispositivo")
+                            } icon: {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                            .font(.callout)
+                        case .unavailable(let reason):
+                            Label {
+                                Text(reason.description)
+                            } icon: {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                            }
+                            .font(.callout)
+                            .foregroundColor(.orange)
+                        }
+
+                        Text("🔒 Tutto resta sul dispositivo quando usi Apple Intelligence. Richiede iOS 18/macOS Sequoia e un dispositivo compatibile.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -400,6 +456,7 @@ struct SettingsView: View {
                 Section("Impostazioni Email") {
                     NavigationLink {
                         EmailSettingsView()
+                            .environmentObject(emailService)
                     } label: {
                         Label("Prompt Email", systemImage: "envelope.badge.person.crop")
                     }
@@ -538,15 +595,19 @@ struct SettingsView: View {
         _ = KeychainManager.shared.saveAPIKey(groqApiKey, for: "groq")
         _ = KeychainManager.shared.saveAPIKey(anthropicApiKey, for: "anthropic")
         _ = KeychainManager.shared.saveAPIKey(deepSeekApiKey, for: "deepseek")
+        _ = KeychainManager.shared.saveAPIKey(xaiApiKey, for: "xai")
         
         // Salva provider selezionato e modelli
         UserDefaults.standard.set(selectedProvider, forKey: "selectedProvider")
         UserDefaults.standard.set(forceGateway, forKey: "force_gateway")
         UserDefaults.standard.set(selectedModel, forKey: "selected_model")
+        UserDefaults.standard.set(selectedModel, forKey: "selectedChatModel")
         UserDefaults.standard.set(selectedPerplexityModel, forKey: "selected_perplexity_model")
         UserDefaults.standard.set(selectedGroqModel, forKey: "selectedGroqChatModel")
         UserDefaults.standard.set(selectedAnthropicModel, forKey: "selectedAnthropicModel")
         UserDefaults.standard.set(selectedDeepSeekModel, forKey: "selectedDeepSeekModel")
+        UserDefaults.standard.set(selectedXAIModel, forKey: "selectedXAIChatModel")
+        UserDefaults.standard.set(selectedAppleModel, forKey: "selectedAppleModel")
         UserDefaults.standard.set(temperature, forKey: "temperature")
         UserDefaults.standard.set(maxTokens, forKey: "max_tokens")
         UserDefaults.standard.set(selectedTranscriptionMode, forKey: "transcription_mode")
@@ -574,14 +635,21 @@ struct SettingsView: View {
         groqApiKey = KeychainManager.shared.getAPIKey(for: "groq") ?? ""
         anthropicApiKey = KeychainManager.shared.getAPIKey(for: "anthropic") ?? ""
         deepSeekApiKey = KeychainManager.shared.getAPIKey(for: "deepseek") ?? ""
+        xaiApiKey = KeychainManager.shared.getAPIKey(for: "xai") ?? ""
 
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
         forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
-        selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
+        if let chatModel = UserDefaults.standard.string(forKey: "selectedChatModel") {
+            selectedModel = chatModel
+        } else {
+            selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
+        }
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         selectedGroqModel = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.1-8b-instant"
         selectedAnthropicModel = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
         selectedDeepSeekModel = UserDefaults.standard.string(forKey: "selectedDeepSeekModel") ?? "deepseek-chat"
+        selectedAppleModel = UserDefaults.standard.string(forKey: "selectedAppleModel") ?? "foundation-medium"
+        selectedXAIModel = UserDefaults.standard.string(forKey: "selectedXAIChatModel") ?? "grok-4-latest"
         temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
         maxTokens = UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000
         selectedTranscriptionMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
@@ -781,6 +849,44 @@ struct SettingsView: View {
             } catch {
                 await MainActor.run {
                     alertMessage = "❌ Test Groq fallito:\n\nErrore: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
+    }
+
+    private func testXAIConnection() {
+        // Persisti chiave e modello prima di eseguire il test
+        _ = KeychainManager.shared.saveAPIKey(xaiApiKey, for: "xai")
+        UserDefaults.standard.set(selectedXAIModel, forKey: "selectedXAIChatModel")
+        UserDefaults.standard.synchronize()
+
+        let trimmedKey = xaiApiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            alertMessage = "❌ Test xAI fallito:\n\nImposta prima una API key valida."
+            showAlert = true
+            return
+        }
+
+        Task {
+            do {
+                let request = AIRequest(
+                    messages: [AIMessage(role: "user", content: "Test connessione xAI")],
+                    model: selectedXAIModel,
+                    maxTokens: 64,
+                    temperature: 0.2
+                )
+                let service = ModernXAIService(apiKey: trimmedKey)
+                let response = try await service.sendMessage(request)
+
+                await MainActor.run {
+                    let preview = String(response.content.prefix(120))
+                    alertMessage = "✅ Test xAI riuscito:\n\n• Modello: \(response.model)\n• Risposta: \(preview)" + (response.content.count > 120 ? "…" : "")
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    alertMessage = "❌ Test xAI fallito:\n\nErrore: \(error.localizedDescription)"
                     showAlert = true
                 }
             }
