@@ -168,6 +168,8 @@ class AICoordinator: ObservableObject {
         switch type {
         case .openAI:
             service = ModernOpenAIService(apiKey: apiKey)
+        case .xai:
+            service = ModernXAIService(apiKey: apiKey)
         case .anthropic:
             // For now, return nil as we don't have a modern Anthropic service
             logger.error("Servizio Anthropic non ancora implementato")
@@ -203,6 +205,8 @@ class AICoordinator: ObservableObject {
         switch type {
         case .openAI:
             keyName = "openai"
+        case .xai:
+            keyName = "xai"
         case .anthropic:
             keyName = "anthropic"
         case .perplexity:
@@ -351,6 +355,7 @@ enum AIServiceType: String, CaseIterable, Hashable {
     case openAI = "OpenAI"
     case anthropic = "Anthropic"
     case perplexity = "Perplexity"
+    case xai = "xAI"
 }
 
 struct SystemHealth {

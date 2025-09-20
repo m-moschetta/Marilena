@@ -210,6 +210,8 @@ public class ConfigurationManager: ObservableObject {
     
     public func getCurrentModelId() -> String {
         switch aiConfiguration.selectedProvider {
+        case .apple:
+            return "foundation-medium" // Apple Intelligence default
         case .openai:
             return aiConfiguration.openAIModel
         case .anthropic:
@@ -222,8 +224,15 @@ public class ConfigurationManager: ObservableObject {
             return aiConfiguration.perplexityModel
         case .groq:
             return aiConfiguration.groqModel
-        case .xai, .mistral, .deepseek:
-            return "gpt-4.1" // Fallback
+        case .xai:
+            return "grok-4-latest" // xAI Grok default
+        case .mistral:
+            return "mistral-large-latest"
+        case .deepseek:
+            return "deepseek-chat"
+        @unknown default:
+            print("⚠️ ConfigurationManager: Unknown AI provider, falling back to OpenAI model")
+            return aiConfiguration.openAIModel
         }
     }
     

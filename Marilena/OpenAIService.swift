@@ -30,19 +30,28 @@ class OpenAIService {
     
     public init() {}
     
+    private lazy var responsesClient = OpenAIResponsesClient(
+        apiKeyProvider: { KeychainManager.shared.load(key: "openai_api_key") },
+        forceGatewayFlag: { UserDefaults.standard.bool(forKey: "force_gateway") }
+    )
+    
+    private var useResponsesAPI: Bool {
+        UserDefaults.standard.bool(forKey: "use_responses_api")
+    }
+
     func sendMessage(messages: [OpenAIMessage], model: String, completion: @escaping (Result<String, Error>) -> Void) {
         let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
         let hasAPIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-        if forceGateway || !hasAPIKey {
-            let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
-            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+        let resolvedTemperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+        let resolvedMaxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+        if (forceGateway || !hasAPIKey) && !useResponsesAPI {
             Task {
                 do {
                     let text = try await CloudflareGatewayClient.shared.sendChat(
                         messages: messages,
                         model: model,
-                        maxTokens: maxTokens,
-                        temperature: temperature
+                        maxTokens: resolvedMaxTokens,
+                        temperature: resolvedTemperature
                     )
                     DispatchQueue.main.async { completion(.success(text)) }
                 } catch {
@@ -52,15 +61,38 @@ class OpenAIService {
             return
         }
         
+        if useResponsesAPI {
+            Task {
+                do {
+                    let request = AIStreamingRequest(
+                        messages: messages.map { AIMessage(role: $0.role, content: $0.content) },
+                        model: model,
+                        maxTokens: resolvedMaxTokens == 0 ? nil : resolvedMaxTokens,
+                        temperature: resolvedTemperature,
+                        provider: .openai
+                    )
+                    let completionResult = try await responsesClient.complete(for: request)
+                    DispatchQueue.main.async {
+                        completion(.success(completionResult.text))
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        completion(.failure(error))
+                    }
+                }
+            }
+            return
+        }
+
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(KeychainManager.shared.load(key: "openai_api_key") ?? "")", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
-        let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
-        
+        let temperature = resolvedTemperature
+        let maxTokens = resolvedMaxTokens
+
         let requestBody = OpenAIRequest(
             model: model,
             messages: messages,
@@ -104,6 +136,66 @@ class OpenAIService {
                 }
             }
         }.resume()
+    }
+
+    func streamMessage(
+        messages: [OpenAIMessage],
+        model: String,
+        onChunk: @escaping (String) -> Void,
+        onToolCallDelta: ((AIToolCallDelta) -> Void)? = nil,
+        onUsageDelta: ((AIUsageDelta) -> Void)? = nil,
+        onComplete: @escaping () -> Void,
+        onError: @escaping (Error) -> Void
+    ) {
+        let resolvedTemperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+        let resolvedMaxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+        
+        if useResponsesAPI {
+            let request = AIStreamingRequest(
+                messages: messages.map { AIMessage(role: $0.role, content: $0.content) },
+                model: model,
+                maxTokens: resolvedMaxTokens == 0 ? nil : resolvedMaxTokens,
+                temperature: resolvedTemperature,
+                provider: .openai
+            )
+            let stream = responsesClient.streamResponses(for: request)
+            Task {
+                do {
+                    for try await chunk in stream {
+                        if !chunk.textDelta.isEmpty {
+                            onChunk(chunk.textDelta)
+                        }
+                        if let toolDelta = chunk.toolCallDelta {
+                            onToolCallDelta?(toolDelta)
+                        }
+                        if let usage = chunk.usageDelta {
+                            onUsageDelta?(usage)
+                        }
+                    }
+                    onComplete()
+                } catch {
+                    onError(error)
+                }
+            }
+            return
+        }
+
+        let stream = CloudflareGatewayClient.shared.streamChat(
+            messages: messages,
+            model: model,
+            maxTokens: resolvedMaxTokens == 0 ? nil : resolvedMaxTokens,
+            temperature: resolvedTemperature
+        )
+        Task {
+            do {
+                for try await delta in stream {
+                    onChunk(delta)
+                }
+                onComplete()
+            } catch {
+                onError(error)
+            }
+        }
     }
 }
 

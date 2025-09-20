@@ -28,6 +28,8 @@ public struct ModularChatView: View {
     @State private var selectedProvider = "openai"
     @State private var selectedGroqModel = "llama-3.1-8b-instant"
     @State private var selectedAnthropicModel = "claude-3-5-sonnet-20241022"
+    @State private var selectedAppleModel = "foundation-medium"
+    @State private var selectedXAIModel = "grok-4-latest"
     // Gateway error alert
     @State private var showGatewayErrorAlert = false
     @State private var gatewayErrorMessage = ""
@@ -37,6 +39,7 @@ public struct ModularChatView: View {
     private let perplexityService = PerplexityService.shared
     private let groqService = GroqService.shared
     private let anthropicService = AnthropicService.shared
+    private let appleService = AppleIntelligenceService.shared
     @StateObject private var emailChatService = EmailChatService()
     
     // Modelli Perplexity disponibili per ricerca
@@ -85,6 +88,24 @@ public struct ModularChatView: View {
         "claude-3-5-haiku-20241022",
         "claude-3-haiku-20240307",
         "claude-3-opus-20240229"
+    ]
+
+    // Modelli Apple Intelligence disponibili
+    private let availableAppleModels = [
+        "foundation-medium",
+        "foundation-small"
+    ]
+
+    // Modelli xAI Grok disponibili
+    private let availableXAIModels = [
+        "grok-4-latest",
+        "grok-4-fast-reasoning",
+        "grok-4-fast-non-reasoning",
+        "grok-3",
+        "grok-3-mini",
+        "grok-code-fast-1",
+        "grok-2-vision-1212",
+        "grok-2-image-1212"
     ]
     
     // MARK: - Configuration
@@ -287,9 +308,16 @@ public struct ModularChatView: View {
                                         case "anthropic":
                                             selectedAnthropicModel = model
                                             UserDefaults.standard.set(model, forKey: "selectedAnthropicModel")
+                                        case "apple":
+                                            selectedAppleModel = model
+                                            UserDefaults.standard.set(model, forKey: "selectedAppleModel")
+                                        case "xai":
+                                            selectedXAIModel = model
+                                            UserDefaults.standard.set(model, forKey: "selectedXAIChatModel")
                                         default: // "openai"
                                             selectedModel = model
                                             UserDefaults.standard.set(model, forKey: "selected_model")
+                                            UserDefaults.standard.set(model, forKey: "selectedChatModel")
                                         }
                                         inviaMessaggio()
                                     }) {
@@ -395,6 +423,62 @@ public struct ModularChatView: View {
         let conversationHistory = buildConversationHistory(newMessage: messaggioTesto)
         
         switch selectedProvider {
+        case "apple":
+            guard appleService.isAvailable else {
+                let messaggioErrore = MessaggioMarilena(context: viewContext)
+                messaggioErrore.id = UUID()
+                messaggioErrore.contenuto = "Apple Intelligence non è disponibile su questo dispositivo. Assicurati di essere su iOS 18/macOS Sequoia con un dispositivo compatibile."
+                messaggioErrore.isUser = false
+                messaggioErrore.dataCreazione = Date()
+                messaggioErrore.chat = chat
+                try? viewContext.save()
+                isLoading = false
+                return
+            }
+
+            Task {
+                do {
+                    let appleMessages = conversationHistory.map { message in
+                        AppleChatMessage(role: message.role, content: message.content)
+                    }
+                    let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+                    let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+                    let config = AppleGenerationConfiguration(
+                        instructions: nil,
+                        temperature: temperature,
+                        maxOutputTokens: maxTokens
+                    )
+                    let risposta = try await appleService.sendMessage(
+                        messages: appleMessages,
+                        model: selectedAppleModel,
+                        configuration: config
+                    )
+
+                    await MainActor.run {
+                        let messaggioAI = MessaggioMarilena(context: viewContext)
+                        messaggioAI.id = UUID()
+                        messaggioAI.contenuto = risposta
+                        messaggioAI.isUser = false
+                        messaggioAI.dataCreazione = Date()
+                        messaggioAI.chat = chat
+                        try? viewContext.save()
+                        isLoading = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("Errore Apple Intelligence: \(error)")
+                        let messaggioErrore = MessaggioMarilena(context: viewContext)
+                        messaggioErrore.id = UUID()
+                        messaggioErrore.contenuto = "Mi dispiace, non riesco a usare Apple Intelligence al momento."
+                        messaggioErrore.isUser = false
+                        messaggioErrore.dataCreazione = Date()
+                        messaggioErrore.chat = chat
+                        try? viewContext.save()
+                        isLoading = false
+                    }
+                }
+            }
+
         case "groq":
             let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
             let hasGroqKey = (KeychainManager.shared.getAPIKey(for: "groq") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
@@ -546,7 +630,9 @@ public struct ModularChatView: View {
                     }
                 )
             } else {
-                anthropicService.sendMessage(messages: anthropicMessages, model: selectedAnthropicModel, maxTokens: 4096, temperature: 0.7) { result in
+                let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+                let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+                anthropicService.sendMessage(messages: anthropicMessages, model: selectedAnthropicModel, maxTokens: maxTokens, temperature: temperature) { result in
                     DispatchQueue.main.async {
                         isLoading = false
                         
@@ -575,7 +661,61 @@ public struct ModularChatView: View {
                     }
                 }
             }
-            
+
+        case "xai":
+            let trimmedKey = (KeychainManager.shared.getAPIKey(for: "xai") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedKey.isEmpty else {
+                let messaggioErrore = MessaggioMarilena(context: viewContext)
+                messaggioErrore.id = UUID()
+                messaggioErrore.contenuto = "Configura una API key xAI nelle impostazioni per usare i modelli Grok."
+                messaggioErrore.isUser = false
+                messaggioErrore.dataCreazione = Date()
+                messaggioErrore.chat = chat
+                try? viewContext.save()
+                isLoading = false
+                return
+            }
+
+            Task {
+                do {
+                    let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+                    let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+                    let request = AIRequest(
+                        messages: conversationHistory.map { AIMessage(role: $0.role, content: $0.content) },
+                        model: selectedXAIModel,
+                        maxTokens: maxTokens,
+                        temperature: temperature
+                    )
+                    let service = ModernXAIService(apiKey: trimmedKey)
+                    let risposta = try await service.sendMessage(request)
+
+                    await MainActor.run {
+                        let messaggioAI = MessaggioMarilena(context: viewContext)
+                        messaggioAI.id = UUID()
+                        messaggioAI.contenuto = risposta.content
+                        messaggioAI.isUser = false
+                        messaggioAI.dataCreazione = Date()
+                        messaggioAI.chat = chat
+
+                        try? viewContext.save()
+                        isLoading = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("Errore xAI: \(error)")
+                        let messaggioErrore = MessaggioMarilena(context: viewContext)
+                        messaggioErrore.id = UUID()
+                        messaggioErrore.contenuto = "Mi dispiace, non riesco a raggiungere xAI Grok in questo momento."
+                        messaggioErrore.isUser = false
+                        messaggioErrore.dataCreazione = Date()
+                        messaggioErrore.chat = chat
+
+                        try? viewContext.save()
+                        isLoading = false
+                    }
+                }
+            }
+
         default: // "openai"
             // Se manca la chiave OpenAI, usa streaming via Cloudflare Gateway
             let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
@@ -846,11 +986,17 @@ public struct ModularChatView: View {
     // MARK: - Provider Settings Functions
     
     func loadChatSettings() {
-        selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
+        if let chatModel = UserDefaults.standard.string(forKey: "selectedChatModel") {
+            selectedModel = chatModel
+        } else {
+            selectedModel = UserDefaults.standard.string(forKey: "selected_model") ?? "gpt-4o-mini"
+        }
         selectedPerplexityModel = UserDefaults.standard.string(forKey: "selected_perplexity_model") ?? "sonar-pro"
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
         let groqUD = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.1-8b-instant"
         let anthropicUD = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
+        selectedXAIModel = UserDefaults.standard.string(forKey: "selectedXAIChatModel") ?? "grok-4-latest"
+        selectedAppleModel = UserDefaults.standard.string(forKey: "selectedAppleModel") ?? "foundation-medium"
         selectedGroqModel = normalizeModel(groqUD)
         selectedAnthropicModel = normalizeModel(anthropicUD)
     }
@@ -858,12 +1004,21 @@ public struct ModularChatView: View {
     // Modelli dinamici basati sul provider selezionato
     private var currentProviderModels: [String] {
         switch selectedProvider {
+        case "apple":
+            let dynamic = ModelCatalog.shared.models(for: .apple)
+            return dynamic.isEmpty ? availableAppleModels : dynamic.map { $0.name }
         case "groq":
-            return availableGroqModels
+            let dynamic = ModelCatalog.shared.models(for: .groq)
+            return dynamic.isEmpty ? availableGroqModels : dynamic.map { $0.name }
         case "anthropic":
-            return availableAnthropicModels
+            let dynamic = ModelCatalog.shared.models(for: .anthropic)
+            return dynamic.isEmpty ? availableAnthropicModels : dynamic.map { $0.name }
+        case "xai":
+            let dynamic = ModelCatalog.shared.models(for: .xai)
+            return dynamic.isEmpty ? availableXAIModels : dynamic.map { $0.name }
         default: // "openai"
-            return availableOpenAIModels
+            let dynamic = ModelCatalog.shared.models(for: .openai)
+            return dynamic.isEmpty ? availableOpenAIModels : dynamic.map { $0.name }
         }
     }
 
@@ -873,8 +1028,10 @@ public struct ModularChatView: View {
         if !trimmed.contains(" ") && !trimmed.contains("/") { return trimmed }
         // Prova a risolvere con ModelCatalog per provider corrente
         let lists: [[AIModelInfo]] = [
+            ModelCatalog.shared.models(for: .apple),
             ModelCatalog.shared.models(for: .groq),
-            ModelCatalog.shared.models(for: .anthropic)
+            ModelCatalog.shared.models(for: .anthropic),
+            ModelCatalog.shared.models(for: .xai)
         ]
         for list in lists {
             if let match = list.first(where: { $0.description.caseInsensitiveCompare(trimmed) == .orderedSame }) {
@@ -885,16 +1042,24 @@ public struct ModularChatView: View {
         let lower = trimmed.lowercased()
         if lower.contains("claude") { return "claude-3-5-sonnet-20241022" }
         if lower.contains("qwen") || lower.contains("deepseek") || lower.contains("llama") { return "llama-3.1-8b-instant" }
+        if selectedProvider == "xai" {
+            if lower == "grok-4" || lower.contains("grok-4-latest") { return "grok-4-latest" }
+            if lower.contains("grok-4-fast") { return lower.contains("non") ? "grok-4-fast-non-reasoning" : "grok-4-fast-reasoning" }
+        }
         return trimmed
     }
     
     // Modello attualmente selezionato per il provider
     private var currentSelectedModel: String {
         switch selectedProvider {
+        case "apple":
+            return selectedAppleModel
         case "groq":
             return selectedGroqModel
         case "anthropic":
             return selectedAnthropicModel
+        case "xai":
+            return selectedXAIModel
         default: // "openai"
             return selectedModel
         }
@@ -977,8 +1142,61 @@ public struct ModularChatView: View {
         }
     }
     
-    // Mostra sempre l'ID esatto del modello (quello inviato alle API)
-    func getCurrentProviderModelDisplayName(_ model: String) -> String { model }
+    func getAppleModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "foundation-medium":
+            return "🍎 Foundation Medium"
+        case "foundation-small":
+            return "⚡ Foundation Small"
+        default:
+            return model
+        }
+    }
+
+    func getXAIModelDisplayName(_ model: String) -> String {
+        switch model {
+        case "grok-4":
+            return "🛰️ Grok 4 (Latest)"
+        case "grok-4-fast":
+            return "⚡ Grok 4 Fast"
+        case "grok-4-latest":
+            return "🛰️ Grok 4 Latest"
+        case "grok-3":
+            return "🚀 Grok 3"
+        case "grok-3-mini":
+            return "🚀 Grok 3 Mini"
+        case "grok-2-vision-1212":
+            return "👁️ Grok 2 Vision"
+        case "grok-vision-beta":
+            return "👁️ Grok Vision Beta"
+        case "grok-code-fast-1":
+            return "💻 Grok Code Fast"
+        case "grok-beta":
+            return "🧪 Grok Beta"
+        case "grok-2-image-1212":
+            return "🖼️ Grok 2 Image"
+        default:
+            return model
+        }
+    }
+
+    // Mostra l'ID del modello con display name contestuale al provider corrente
+    func getCurrentProviderModelDisplayName(_ model: String) -> String {
+        switch selectedProvider {
+        case "openai":
+            return getOpenAIModelDisplayName(model)
+        case "anthropic":
+            return getAnthropicModelDisplayName(model)
+        case "groq":
+            return getGroqModelDisplayName(model)
+        case "apple":
+            return getAppleModelDisplayName(model)
+        case "xai":
+            return getXAIModelDisplayName(model)
+        default:
+            return model
+        }
+    }
 }
 
 // MARK: - Modular Message Row (COPIA ESATTA COMPLETA)

@@ -718,13 +718,27 @@ public class EmailCategorizationService {
 
     /// Invia messaggio a OpenAI
     private func sendOpenAIMessage(systemPrompt: String, userPrompt: String) async throws -> String {
-        let messages = [
-            OpenAIMessage(role: "system", content: systemPrompt),
-            OpenAIMessage(role: "user", content: userPrompt)
+        let aiMessages = [
+            AIMessage(role: "system", content: systemPrompt),
+            AIMessage(role: "user", content: userPrompt)
         ]
 
+        if let streamingClient = AIProviderManager.shared.streamingClient(for: .openai),
+           UserDefaults.standard.bool(forKey: "use_responses_api") {
+            let request = AIStreamingRequest(
+                messages: aiMessages,
+                model: selectedModel.id,
+                maxTokens: selectedModel.maxOutputTokens,
+                temperature: 0.2,
+                provider: .openai
+            )
+            let completion = try await streamingClient.complete(for: request)
+            return completion.text
+        }
+
+        let legacyMessages = aiMessages.map { OpenAIMessage(role: $0.role, content: $0.content) }
         return try await withCheckedThrowingContinuation { continuation in
-            openAIService.sendMessage(messages: messages, model: selectedModel.id) { result in
+            openAIService.sendMessage(messages: legacyMessages, model: selectedModel.id) { result in
                 switch result {
                 case .success(let response):
                     continuation.resume(returning: response)

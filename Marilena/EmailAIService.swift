@@ -254,50 +254,136 @@ public class EmailAIService: ObservableObject {
     }
     
     private func sendToAI(prompt: String) async throws -> String {
-        // Usa il provider AI configurato
-        let provider = AIProviderManager.shared.getBestChatProvider()
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            switch provider?.provider {
-            case .openai:
-                let message = OpenAIMessage(role: "user", content: prompt)
-                // Usa il modello scelto nel provider dinamico se presente
-                let model = provider?.model ?? selectedModel
-                openAIService.sendMessage(messages: [message], model: model) { result in
-                    switch result {
-                    case .success(let response):
-                        continuation.resume(returning: response)
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    }
+        let providers = AIProviderManager.shared.getOrderedChatProviders()
+        guard !providers.isEmpty else {
+            throw EmailAIError.noProviderConfigured
+        }
+
+        var lastAppleError: Error?
+
+        for provider in providers {
+            do {
+                let response = try await send(prompt: prompt, using: provider)
+                if provider.provider == .apple {
+                    AIProviderManager.shared.clearTemporaryUnavailability(for: .apple)
                 }
-            case .anthropic:
-                let content = AnthropicContent(type: "text", text: prompt)
-                let message = AnthropicMessage(role: "user", content: [content])
-                let model = provider?.model ?? (UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022")
-                anthropicService.sendMessage(messages: [message], model: model, maxTokens: maxTokens, temperature: temperature) { result in
-                    switch result {
-                    case .success(let response):
-                        continuation.resume(returning: response)
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
+                return response
+            } catch {
+                if provider.provider == .apple {
+                    if shouldDisableApple(after: error) {
+                        AIProviderManager.shared.markChatProviderUnavailable(.apple)
                     }
+                    lastAppleError = error
+                    continue
                 }
-            case .groq:
-                let message = OpenAIMessage(role: "user", content: prompt)
-                let model = provider?.model ?? (UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.1-8b-instant")
-                Task {
-                    do {
-                        let text = try await GroqService.shared.sendMessage(messages: [message], model: model)
-                        continuation.resume(returning: text)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            default:
-                continuation.resume(throwing: EmailAIError.noProviderConfigured)
+                throw error
             }
         }
+
+        if let appleError = lastAppleError {
+            throw appleError
+        }
+
+        throw EmailAIError.noProviderConfigured
+    }
+
+    private func send(
+        prompt: String,
+        using provider: (provider: AIProviderManager.ChatProvider, model: String)
+    ) async throws -> String {
+        switch provider.provider {
+        case .apple:
+            let message = AppleChatMessage(role: .user, content: prompt)
+            let config = AppleGenerationConfiguration(
+                instructions: nil,
+                temperature: temperature,
+                maxOutputTokens: maxTokens
+            )
+            return try await AppleIntelligenceService.shared.sendMessage(
+                messages: [message],
+                model: provider.model,
+                configuration: config
+            )
+
+        case .openai:
+            let messages = [AIMessage(role: "user", content: prompt)]
+            if let streamingClient = AIProviderManager.shared.streamingClient(for: .openai),
+               UserDefaults.standard.bool(forKey: "use_responses_api") {
+                let request = AIStreamingRequest(
+                    messages: messages,
+                    model: provider.model,
+                    maxTokens: maxTokens == 0 ? nil : maxTokens,
+                    temperature: temperature,
+                    provider: .openai
+                )
+                let completion = try await streamingClient.complete(for: request)
+                return completion.text
+            }
+
+            let legacyMessages = messages.map { OpenAIMessage(role: $0.role, content: $0.content) }
+            return try await withCheckedThrowingContinuation { continuation in
+                openAIService.sendMessage(messages: legacyMessages, model: provider.model) { result in
+                    switch result {
+                    case .success(let response): continuation.resume(returning: response)
+                    case .failure(let error): continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+        case .anthropic:
+            let content = AnthropicContent(type: "text", text: prompt)
+            let message = AnthropicMessage(role: "user", content: [content])
+            return try await withCheckedThrowingContinuation { continuation in
+                anthropicService.sendMessage(
+                    messages: [message],
+                    model: provider.model,
+                    maxTokens: maxTokens,
+                    temperature: temperature
+                ) { result in
+                    switch result {
+                    case .success(let response): continuation.resume(returning: response)
+                    case .failure(let error): continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+        case .groq:
+            let message = OpenAIMessage(role: "user", content: prompt)
+            return try await GroqService.shared.sendMessage(messages: [message], model: provider.model)
+
+        case .xai:
+            let apiKey = KeychainManager.shared.getAPIKey(for: "xai") ?? ""
+            if apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                throw EmailAIError.noProviderConfigured
+            }
+            let request = AIRequest(
+                messages: [AIMessage(role: "user", content: prompt)],
+                model: provider.model,
+                maxTokens: maxTokens,
+                temperature: temperature
+            )
+            let service = ModernXAIService(apiKey: apiKey)
+            let response = try await service.sendMessage(request)
+            return response.content
+        }
+    }
+
+    private func shouldDisableApple(after error: Error) -> Bool {
+        if error is AppleIntelligenceError {
+            return true
+        }
+
+        let nsError = error as NSError
+        if nsError.domain.lowercased().contains("foundationmodels") {
+            return true
+        }
+
+        let lowerDescription = nsError.localizedDescription.lowercased()
+        if lowerDescription.contains("unsupported") || lowerDescription.contains("framework") || lowerDescription.contains("device") {
+            return true
+        }
+
+        return false
     }
     
     private func parseEmailAnalysis(_ response: String) -> EmailAnalysis? {

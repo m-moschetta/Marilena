@@ -43,6 +43,8 @@ struct SettingsView: View {
     // Routing
     @State private var forceGateway = false
     @StateObject private var emailService = EmailService()
+    @State private var useResponsesAPI = UserDefaults.standard.bool(forKey: "use_responses_api")
+    @State private var enableResponsesStreaming = UserDefaults.standard.bool(forKey: "enable_responses_streaming")
     
     let availableModels = OpenAIModels.availableModels
     
@@ -117,6 +119,28 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                }
+
+                Section("Responses API") {
+                    Toggle(isOn: $useResponsesAPI) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Usa OpenAI Responses API")
+                            Text("Permette tool use avanzato e payload unificati")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Toggle(isOn: $enableResponsesStreaming) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Streaming token-by-token")
+                            Text("Mostra le risposte OpenAI in tempo reale")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .disabled(!useResponsesAPI)
+                    .opacity(useResponsesAPI ? 1 : 0.5)
                 }
                 Section("🎯 Selettore Provider AI") {
                     Picker("Provider AI", selection: $selectedProvider) {
@@ -584,6 +608,16 @@ struct SettingsView: View {
             } message: {
                 Text(alertMessage)
             }
+            .onChange(of: useResponsesAPI) { newValue in
+                UserDefaults.standard.set(newValue, forKey: "use_responses_api")
+                if !newValue {
+                    enableResponsesStreaming = false
+                    UserDefaults.standard.set(false, forKey: "enable_responses_streaming")
+                }
+            }
+            .onChange(of: enableResponsesStreaming) { newValue in
+                UserDefaults.standard.set(newValue && useResponsesAPI, forKey: "enable_responses_streaming")
+            }
         }
     }
     
@@ -611,6 +645,8 @@ struct SettingsView: View {
         UserDefaults.standard.set(temperature, forKey: "temperature")
         UserDefaults.standard.set(maxTokens, forKey: "max_tokens")
         UserDefaults.standard.set(selectedTranscriptionMode, forKey: "transcription_mode")
+        UserDefaults.standard.set(useResponsesAPI, forKey: "use_responses_api")
+        UserDefaults.standard.set(useResponsesAPI && enableResponsesStreaming, forKey: "enable_responses_streaming")
 
         // Salva il modello selezionato per la categorizzazione email
         if let emailModel = selectedEmailCategorizationModel {
@@ -653,6 +689,9 @@ struct SettingsView: View {
         temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
         maxTokens = UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000
         selectedTranscriptionMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
+        useResponsesAPI = UserDefaults.standard.bool(forKey: "use_responses_api")
+        let streamingFlag = UserDefaults.standard.bool(forKey: "enable_responses_streaming")
+        enableResponsesStreaming = useResponsesAPI ? streamingFlag : false
 
         // Carica il modello selezionato per la categorizzazione email
         if let modelId = UserDefaults.standard.string(forKey: "emailCategorizationModel") {

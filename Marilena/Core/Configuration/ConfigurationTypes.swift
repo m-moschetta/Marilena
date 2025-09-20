@@ -7,6 +7,7 @@ public struct AIConfiguration: Codable {
     public let selectedProvider: AIModelProvider
     public let openAIModel: String
     public let anthropicModel: String
+    public let xaiModel: String
     public let perplexityModel: String
     public let groqModel: String
     public let temperature: Double
@@ -20,6 +21,7 @@ public struct AIConfiguration: Codable {
         selectedProvider: AIModelProvider = .openai,
         openAIModel: String = "gpt-4.1",
         anthropicModel: String = "claude-sonnet-4-20250514",
+        xaiModel: String = "grok-4",
         perplexityModel: String = "sonar-pro",
         groqModel: String = "llama-4-maverick",
         temperature: Double = 0.7,
@@ -32,6 +34,7 @@ public struct AIConfiguration: Codable {
         self.selectedProvider = selectedProvider
         self.openAIModel = openAIModel
         self.anthropicModel = anthropicModel
+        self.xaiModel = xaiModel
         self.perplexityModel = perplexityModel
         self.groqModel = groqModel
         self.temperature = temperature

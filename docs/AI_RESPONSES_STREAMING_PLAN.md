@@ -43,17 +43,18 @@
 - [ ] Aggiornare `CloudflareGatewayClient` contract: nuova route `/v1/responses` da affiancare a legacy finché client non migrano completamente.
 
 ### Fase 1 – Refactor core layer
-- [ ] Creare `AIStreamingClientProtocol` nel core (p.es. `Core/AI/Protocols`).
-- [ ] Implementare `StreamingChatClient` generico in `AIProviderManager` registrando provider disponibili.
-- [ ] Aggiornare `ChatService` per lavorare su protocollo astratto (iniezione provider-specific client). Prevedere fallback: se streaming disabilitato, accumula chunk e restituisce al termine.
+- [x] Creare `AIStreamingClientProtocol` nel core (p.es. `Core/AI/Protocols`). *(Implementato come `AIStreamingClientProtocol` e tipi ausiliari in `Core/AI/Streaming`)*
+- [x] Implementare `StreamingChatClient` generico in `AIProviderManager` registrando provider disponibili. *(Metodo `streamingClient(for:)` con cache e gestione flag Responses)*
+- [x] Aggiornare `ChatService` per lavorare su protocollo astratto (iniezione provider-specific client). Prevedere fallback: se streaming disabilitato, accumula chunk e restituisce al termine.
 - [ ] Aggiornare `EmailCategorizationService` e servizi offline per utilizzare modalità “complete” ma attraverso nuovo protocollo (per future ottimizzazioni).
 
-### Fase 2 – OpenAI Responses API
-- [ ] Creare `OpenAIResponsesClient`:
+- [x] Creare `OpenAIResponsesClient`:
   - Request: `POST /v1/responses` con payload `input`, `model`, `modalities`, `metadata`. Supportare `response_format: { type: "text" }`.
   - Streaming: impostare `stream: { mode: "text" }` o `?stream=true`, leggere SSE `event: response.output_text.delta` / `response.completed`.
   - Parsing error events (`response.error`) e `response.output_text` finale.
-- [ ] Aggiornare `OpenAIService` mantenendo un adapter per retrocompatibilità (deprecate `sendMessage`).
+- [x] Aggiornare `OpenAIService` mantenendo un adapter per retrocompatibilità (deprecate `sendMessage`).
+- [x] Adeguare consumer principali (ChatService, EmailAIService, EmailCategorizationService) a usare il nuovo layer quando disponibile.
+- [x] Gestire eventi streaming aggiuntivi (`tool_calls`, usage delta) per Responses API.
 - [ ] Estendere Cloudflare worker (OpenAI Proxy) per accettare nuovi payload e inoltrarli a OpenAI Responses.
 - [ ] QA: chat UI, email categorizzazione, funzioni prompt mail, test fallback worker.
 
@@ -114,6 +115,7 @@
   - iOS background refresh: assicurarsi che stream venga cancellato correttamente quando view scompare.
 - **Performance**: misurare TTFB (time-to-first-byte) pre/post migrazione, uso CPU/UI.
 - **Regression**: assicurarsi che export conversazione, cronologia CoreData, session persistence funzionino.
+- **Stato corrente**: build completa (`xcodebuild -workspace Marilena.xcworkspace -scheme Marilena-iOS -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.0' build`) superata con i nuovi flag Responses attivi.
 
 ## 8. Rischi e mitigazioni
 - **Disallineamento formati SSE** → Mitigare con parser per provider e fallback a completa.

@@ -67,6 +67,7 @@ public struct MessageMetadata: Codable, Equatable {
     public let provider: String?
     public let cost: Double?
     public let confidence: Double?
+    public let toolCalls: [MessageToolCall]?
     
     public init(
         model: String? = nil,
@@ -76,7 +77,8 @@ public struct MessageMetadata: Codable, Equatable {
         context: String? = nil,
         provider: String? = nil,
         cost: Double? = nil,
-        confidence: Double? = nil
+        confidence: Double? = nil,
+        toolCalls: [MessageToolCall]? = nil
     ) {
         self.model = model
         self.tokens = tokens
@@ -86,6 +88,41 @@ public struct MessageMetadata: Codable, Equatable {
         self.provider = provider
         self.cost = cost
         self.confidence = confidence
+        self.toolCalls = toolCalls
+    }
+}
+
+public struct MessageToolCall: Codable, Equatable {
+    public let id: String?
+    public let name: String?
+    public let arguments: String
+    public let isCompleted: Bool
+    
+    public init(id: String?, name: String?, arguments: String, isCompleted: Bool) {
+        self.id = id
+        self.name = name
+        self.arguments = arguments
+        self.isCompleted = isCompleted
+    }
+}
+
+public extension MessageMetadata {
+    func with(
+        tokens: Int? = nil,
+        provider: String? = nil,
+        toolCalls: [MessageToolCall]? = nil
+    ) -> MessageMetadata {
+        MessageMetadata(
+            model: model,
+            tokens: tokens ?? self.tokens,
+            processingTime: processingTime,
+            error: error,
+            context: context,
+            provider: provider ?? self.provider,
+            cost: cost,
+            confidence: confidence,
+            toolCalls: toolCalls ?? self.toolCalls
+        )
     }
 }
 

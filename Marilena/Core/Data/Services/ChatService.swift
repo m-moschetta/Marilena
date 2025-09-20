@@ -34,6 +34,21 @@ public class ChatService: ObservableObject {
     private var processingStartTime: Date?
     private var selectedModel = "gpt-4o-mini"
     private var selectedPerplexityModel = "sonar-pro"
+    private var streamingToolCallBuilders: [UUID: [Int: ToolCallAccumulator]] = [:]
+    
+    private struct ToolCallAccumulator {
+        var id: String?
+        var name: String?
+        var arguments: String
+        var isCompleted: Bool
+
+        init(id: String? = nil, name: String? = nil, arguments: String = "", isCompleted: Bool = false) {
+            self.id = id
+            self.name = name
+            self.arguments = arguments
+            self.isCompleted = isCompleted
+        }
+    }
     
     // MARK: - Initialization
     
@@ -79,6 +94,8 @@ public class ChatService: ObservableObject {
         // Fallback streaming via Cloudflare Gateway se manca la chiave OpenAI
         let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
         let hasOpenAIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        let useResponsesAPI = UserDefaults.standard.bool(forKey: "use_responses_api")
+        let enableResponsesStreaming = UserDefaults.standard.bool(forKey: "enable_responses_streaming")
         if forceGateway || !hasOpenAIKey {
             let assistantId = UUID()
             let userContext = getUserContext()
@@ -134,6 +151,70 @@ public class ChatService: ObservableObject {
                     self.isProcessing = false
                     self.processingStartTime = nil
                     print("❌ ChatService: Errore streaming gateway: \(error)")
+                }
+            )
+            return
+        }
+
+        if useResponsesAPI && enableResponsesStreaming {
+            let assistantId = UUID()
+            let userContext = getUserContext()
+            let assistantMessage = ModularChatMessage(
+                id: assistantId,
+                content: "",
+                role: .assistant,
+                metadata: MessageMetadata(
+                    model: selectedModel,
+                    context: userContext,
+                    provider: "OpenAI"
+                )
+            )
+            messages.append(assistantMessage)
+
+            let conversationHistory = buildConversationHistory(newMessage: text, context: userContext)
+
+            streamingToolCallBuilders[assistantId] = [:]
+
+            openAIService.streamMessage(
+                messages: conversationHistory,
+                model: selectedModel,
+                onChunk: { [weak self] delta in
+                    guard let self = self else { return }
+                    if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                        let updated = ModularChatMessage(
+                            id: assistantId,
+                            content: self.messages[idx].content + delta,
+                            role: .assistant,
+                            timestamp: self.messages[idx].timestamp,
+                            metadata: self.messages[idx].metadata
+                        )
+                        self.messages[idx] = updated
+                    }
+                },
+                onToolCallDelta: { [weak self] delta in
+                    self?.handleToolCallDelta(delta, assistantId: assistantId)
+                },
+                onUsageDelta: { [weak self] usage in
+                    self?.handleUsageDelta(usage, assistantId: assistantId)
+                },
+                onComplete: { [weak self] in
+                    guard let self = self else { return }
+                    self.isProcessing = false
+                    self.processingStartTime = nil
+                    if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                        self.saveCoreDataMessage(self.messages[idx])
+                    }
+                    self.updateCurrentSession()
+                    self.updateCoreDataSession()
+                    self.streamingToolCallBuilders.removeValue(forKey: assistantId)
+                },
+                onError: { [weak self] error in
+                    guard let self = self else { return }
+                    self.error = error.localizedDescription
+                    self.isProcessing = false
+                    self.processingStartTime = nil
+                    print("❌ ChatService: Errore streaming Responses API: \(error)")
+                    self.streamingToolCallBuilders.removeValue(forKey: assistantId)
                 }
             )
             return
@@ -353,16 +434,20 @@ public class ChatService: ObservableObject {
     
     private func buildConversationHistory(newMessage: String, context: String = "") -> [OpenAIMessage] {
         var messages: [OpenAIMessage] = []
-        
+
         // Sistema prompt con contesto utente usando PromptManager
         let systemPrompt = PromptManager.getPrompt(for: .chatBase, replacements: [
             "CONTESTO_UTENTE": context.isEmpty ? "Nessun contesto specifico disponibile" : context
         ])
         messages.append(OpenAIMessage(role: "system", content: systemPrompt))
-        
+
         // Aggiungi cronologia conversazione (ultimi 15 messaggi)
         let recentMessages = Array(self.messages.suffix(15))
         for message in recentMessages {
+            // Salta i placeholder vuoti (ad es. assistant appena creato per streaming)
+            if message.role == .assistant && message.content.isEmpty {
+                continue
+            }
             messages.append(OpenAIMessage(
                 role: message.role.rawValue,
                 content: message.content
@@ -486,6 +571,74 @@ public class ChatService: ObservableObject {
         } catch {
             print("❌ ChatService: Errore cancellazione messaggi: \(error)")
         }
+    }
+}
+
+// MARK: - Streaming Handling
+private extension ChatService {
+    func handleToolCallDelta(_ delta: AIToolCallDelta, assistantId: UUID) {
+        guard let messageIndex = messages.firstIndex(where: { $0.id == assistantId }) else { return }
+
+        var builders = streamingToolCallBuilders[assistantId] ?? [:]
+        var builder = builders[delta.index] ?? ToolCallAccumulator()
+        if let id = delta.id, !id.isEmpty { builder.id = id }
+        if let name = delta.name, !name.isEmpty { builder.name = name }
+        if !delta.argumentsDelta.isEmpty { builder.arguments += delta.argumentsDelta }
+        if delta.isCompleted { builder.isCompleted = true }
+        builders[delta.index] = builder
+        streamingToolCallBuilders[assistantId] = builders
+
+        let toolCalls = builders
+            .sorted { $0.key < $1.key }
+            .map { entry in
+                MessageToolCall(
+                    id: entry.value.id,
+                    name: entry.value.name,
+                    arguments: entry.value.arguments,
+                    isCompleted: entry.value.isCompleted
+                )
+            }
+
+        let currentMessage = messages[messageIndex]
+        let updatedMetadata: MessageMetadata
+        if let metadata = currentMessage.metadata {
+            updatedMetadata = metadata.with(toolCalls: toolCalls)
+        } else {
+            updatedMetadata = MessageMetadata(
+                model: selectedModel,
+                provider: "OpenAI",
+                toolCalls: toolCalls
+            )
+        }
+
+        messages[messageIndex] = ModularChatMessage(
+            id: currentMessage.id,
+            content: currentMessage.content,
+            role: currentMessage.role,
+            timestamp: currentMessage.timestamp,
+            metadata: updatedMetadata
+        )
+    }
+
+    func handleUsageDelta(_ usage: AIUsageDelta, assistantId: UUID) {
+        guard let messageIndex = messages.firstIndex(where: { $0.id == assistantId }) else { return }
+
+        let currentMessage = messages[messageIndex]
+        let existingMetadata = currentMessage.metadata ?? MessageMetadata(
+            model: selectedModel,
+            provider: "OpenAI"
+        )
+
+        let totalTokens = usage.totalTokens ?? existingMetadata.tokens ?? usage.completionTokens ?? usage.promptTokens
+        let updatedMetadata = existingMetadata.with(tokens: totalTokens)
+
+        messages[messageIndex] = ModularChatMessage(
+            id: currentMessage.id,
+            content: currentMessage.content,
+            role: currentMessage.role,
+            timestamp: currentMessage.timestamp,
+            metadata: updatedMetadata
+        )
     }
 }
 

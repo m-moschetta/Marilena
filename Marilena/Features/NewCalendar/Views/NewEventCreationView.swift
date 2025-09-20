@@ -25,6 +25,7 @@ public struct NewEventCreationView: View {
     @State private var isAllDay = false
     @State private var showAdvancedOptions = false
     @State private var isCreating = false
+    @State private var parsingTask: Task<Void, Never>? = nil
 
     private let calendar = Calendar.current
 
@@ -78,6 +79,9 @@ public struct NewEventCreationView: View {
                 (colorScheme == .dark ? Color(.systemGray6) : Color(.systemGray6))
                     .edgesIgnoringSafeArea(.all)
             )
+            .onDisappear {
+                parsingTask?.cancel()
+            }
         }
     }
 
@@ -105,7 +109,7 @@ public struct NewEventCreationView: View {
                         .padding(.vertical, 12)
                         .frame(height: 100)
                         .onChange(of: naturalLanguageText) { newValue in
-                            parseNaturalLanguage(newValue)
+                            scheduleParsing(for: newValue)
                         }
 
                     if naturalLanguageText.isEmpty {
@@ -276,6 +280,55 @@ public struct NewEventCreationView: View {
 
     // MARK: - Helper Methods
 
+    private func scheduleParsing(for text: String) {
+        parsingTask?.cancel()
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            parsingTask = nil
+            Task { @MainActor in resetForm() }
+            return
+        }
+
+        parsingTask = Task {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard !Task.isCancelled else { return }
+            let suggestion = await calendarService.suggestedEvent(from: text)
+            guard !Task.isCancelled else { return }
+            if let suggestion {
+                await MainActor.run { applySuggestion(suggestion) }
+            }
+        }
+    }
+
+    @MainActor
+    private func applySuggestion(_ event: NewCalendarEvent) {
+        title = event.title
+        notes = event.notes ?? ""
+        location = event.location ?? ""
+        isAllDay = event.isAllDay
+        startTime = event.startDate
+        endTime = event.endDate
+        selectedDate = event.startDate
+
+        if let calendarId = event.calendarId,
+           let index = calendarService.calendars.firstIndex(where: { $0.id == calendarId }) {
+            selectedCalendarIndex = index
+        }
+    }
+
+    @MainActor
+    private func resetForm() {
+        title = ""
+        notes = ""
+        location = ""
+        isAllDay = false
+        let now = Date()
+        selectedDate = now
+        startTime = now
+        endTime = now.addingTimeInterval(3600)
+    }
+
     private var formattedDateTime: String {
         let formatter = DateFormatter()
         if isAllDay {
@@ -288,52 +341,6 @@ public struct NewEventCreationView: View {
             let start = formatter.string(from: startTime)
             let end = formatter.string(from: endTime)
             return "\(start) - \(end)"
-        }
-    }
-
-    private func parseNaturalLanguage(_ text: String) {
-        // Parsing semplice per dimostrazione
-        // In una versione completa, questo userebbe NLP più sofisticato
-
-        let lowerText = text.lowercased()
-
-        // Estrai titolo (rimuovi parole chiave temporali)
-        var parsedTitle = text
-        var parsedDate: Date?
-        var parsedLocation: String?
-
-        // Pattern temporali
-        let timePatterns = [
-            "oggi": Date(),
-            "domani": calendar.date(byAdding: .day, value: 1, to: Date()),
-            "dopodomani": calendar.date(byAdding: .day, value: 2, to: Date()),
-            "questa sera": calendar.date(bySettingHour: 19, minute: 0, second: 0, of: Date()),
-            "stasera": calendar.date(bySettingHour: 19, minute: 0, second: 0, of: Date())
-        ]
-
-        for (pattern, date) in timePatterns {
-            if lowerText.contains(pattern) {
-                parsedDate = date
-                parsedTitle = parsedTitle.replacingOccurrences(of: pattern, with: "", options: .caseInsensitive)
-                break
-            }
-        }
-
-        // Estrai location (pattern semplice)
-        if let locationRange = text.range(of: " a | in | presso ", options: .caseInsensitive) {
-            parsedLocation = String(text[locationRange.upperBound...]).trimmingCharacters(in: .whitespaces)
-            parsedTitle = String(text[..<locationRange.lowerBound]).trimmingCharacters(in: .whitespaces)
-        }
-
-        // Aggiorna i campi
-        title = parsedTitle.trimmingCharacters(in: .whitespaces)
-        if let date = parsedDate {
-            selectedDate = date
-            startTime = date
-            endTime = date.addingTimeInterval(3600)
-        }
-        if let location = parsedLocation {
-            self.location = location
         }
     }
 
@@ -393,3 +400,4 @@ struct NewEventCreationView_Previews: PreviewProvider {
         NewEventCreationView(calendarService: service)
     }
 }
+

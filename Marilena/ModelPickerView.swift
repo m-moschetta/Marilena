@@ -103,7 +103,7 @@ struct ModelPickerView: View {
                     }
                 }
 
-                // Pulsante specifico per aggiornare Groq
+                // Pulsanti specifici per provider con endpoint dinamici non standard
                 if provider == .groq {
                     HStack {
                         Spacer()
@@ -128,6 +128,36 @@ struct ModelPickerView: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
                                     .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .padding(.top, 8)
+                } else if provider == .xai {
+                    HStack {
+                        Spacer()
+
+                        Button(action: {
+                            Task {
+                                await modelCatalog.fetchModels(for: .xai, forceRefresh: true)
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.clockwise.circle.fill")
+                                    .foregroundColor(.indigo)
+                                Text("Aggiorna xAI")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.indigo)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.indigo.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.indigo.opacity(0.3), lineWidth: 1)
                             )
                         }
                         .buttonStyle(.bordered)
@@ -252,7 +282,10 @@ struct ModelPickerView: View {
     private func saveSelectedModel(_ modelId: String, for provider: AIModelProvider) {
         let key: String
         switch provider {
-        case .openai: key = "selected_model"
+        case .apple: key = "selectedAppleModel"
+        case .openai:
+            key = "selected_model"
+            UserDefaults.standard.set(modelId, forKey: "selectedChatModel")
         case .anthropic: key = "selectedAnthropicModel"
         case .groq: key = "selectedGroqChatModel"
         case .mistral: key = "selectedMistralModel"

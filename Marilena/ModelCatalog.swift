@@ -82,6 +82,7 @@ public final class ModelCatalog: ObservableObject {
                     )
                 }
                 availableModels[provider] = modelInfos
+                errors[provider] = nil
                 print("✅ Fallback a modelli statici per \(provider.displayName): \(modelInfos.count) modelli")
             }
         }
@@ -117,12 +118,15 @@ public final class ModelCatalog: ObservableObject {
     private func hasValidAPIKey(for provider: AIModelProvider) -> Bool {
         let keyName: String
         switch provider {
+        case .apple:
+            return AppleIntelligenceService.shared.isAvailable
         case .openai: keyName = "openai"
         case .anthropic: keyName = "anthropic"
         case .groq: keyName = "groq"
         case .mistral: keyName = "mistral"
         case .perplexity: keyName = "perplexity"
         case .deepseek: keyName = "deepseek"
+        case .xai: keyName = "xai"
         default: return false
         }
 
@@ -147,6 +151,8 @@ public final class ModelCatalog: ObservableObject {
 
     private func fetchFromAPI(for provider: AIModelProvider) async throws -> [APIModel] {
         switch provider {
+        case .apple:
+            return getStaticModels(for: provider)
         case .openai:
             return try await fetchOpenAIModels()
         case .anthropic:
@@ -155,6 +161,8 @@ public final class ModelCatalog: ObservableObject {
             return try await fetchGroqModels()
         case .mistral:
             return try await fetchMistralModels()
+        case .xai:
+            return try await fetchXAIModels()
         default:
             // Per provider non supportati, usa modelli statici
             return getStaticModels(for: provider)
@@ -167,6 +175,15 @@ public final class ModelCatalog: ObservableObject {
 extension ModelCatalog {
 
     private func fetchOpenAIModels() async throws -> [APIModel] {
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasAPIKey = KeychainManager.shared.getAPIKey(for: "openai") != nil
+
+        if forceGateway || !hasAPIKey {
+            // Use Cloudflare Gateway
+            let modelsData = try await CloudflareGatewayClient.shared.fetchModels(for: "openai")
+            return modelsData.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+        }
+
         guard let apiKey = KeychainManager.shared.getAPIKey(for: "openai") else {
             throw ModelCatalogError.missingAPIKey
         }
@@ -188,6 +205,15 @@ extension ModelCatalog {
     }
 
     private func fetchAnthropicModels() async throws -> [APIModel] {
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasAPIKey = KeychainManager.shared.getAPIKey(for: "anthropic") != nil
+
+        if forceGateway || !hasAPIKey {
+            // Use Cloudflare Gateway
+            let modelsData = try await CloudflareGatewayClient.shared.fetchModels(for: "anthropic")
+            return modelsData.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+        }
+
         guard let apiKey = KeychainManager.shared.getAPIKey(for: "anthropic") else {
             throw ModelCatalogError.missingAPIKey
         }
@@ -210,6 +236,15 @@ extension ModelCatalog {
     }
 
     private func fetchGroqModels() async throws -> [APIModel] {
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasAPIKey = KeychainManager.shared.getAPIKey(for: "groq") != nil
+
+        if forceGateway || !hasAPIKey {
+            // Use Cloudflare Gateway
+            let modelsData = try await CloudflareGatewayClient.shared.fetchModels(for: "groq")
+            return modelsData.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+        }
+
         guard let apiKey = KeychainManager.shared.getAPIKey(for: "groq") else {
             throw ModelCatalogError.missingAPIKey
         }
@@ -231,6 +266,15 @@ extension ModelCatalog {
     }
 
     private func fetchMistralModels() async throws -> [APIModel] {
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasAPIKey = KeychainManager.shared.getAPIKey(for: "mistral") != nil
+
+        if forceGateway || !hasAPIKey {
+            // Use Cloudflare Gateway
+            let modelsData = try await CloudflareGatewayClient.shared.fetchModels(for: "mistral")
+            return modelsData.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+        }
+
         guard let apiKey = KeychainManager.shared.getAPIKey(for: "mistral") else {
             throw ModelCatalogError.missingAPIKey
         }
@@ -251,36 +295,92 @@ extension ModelCatalog {
         return apiResponse.data.map { APIModel(id: $0.id, name: $0.id, description: $0.description) }
     }
 
+    private func fetchXAIModels() async throws -> [APIModel] {
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasAPIKey = KeychainManager.shared.getAPIKey(for: "xai") != nil
+
+        if forceGateway || !hasAPIKey {
+            // Use Cloudflare Gateway
+            do {
+                let modelsData = try await CloudflareGatewayClient.shared.fetchModels(for: "xai")
+                return modelsData.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+            } catch {
+                // Fallback to static models if Cloudflare fails
+                return getStaticModels(for: .xai)
+            }
+        }
+
+        guard let apiKey = KeychainManager.shared.getAPIKey(for: "xai") else {
+            throw ModelCatalogError.missingAPIKey
+        }
+
+        let url = URL(string: "https://api.x.ai/v1/models")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            // xAI risponde 400 se l'account non ha accesso; usa fallback statico
+            let staticModels = getStaticModels(for: .xai)
+            if !staticModels.isEmpty {
+                return staticModels
+            }
+            throw ModelCatalogError.invalidResponse
+        }
+
+        // xAI usa lo stesso formato OpenAI per la risposta dei modelli
+        let apiResponse = try JSONDecoder().decode(OpenAIModelsResponse.self, from: data)
+        return apiResponse.data.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+    }
+
     private func getStaticModels(for provider: AIModelProvider) -> [APIModel] {
         // Fallback per provider senza API dinamica
         switch provider {
         case .openai:
             return [
-                APIModel(id: "gpt-4o", name: "GPT-4o", description: "Latest GPT-4o model"),
+                // Rimuoviamo modelli duplicati che sono già in AIModelCatalog
+                // APIModel(id: "gpt-4o", name: "GPT-4o", description: "Latest GPT-4o model"), // Duplicato
                 APIModel(id: "gpt-4o-mini", name: "GPT-4o Mini", description: "Cost-effective GPT-4o"),
-                APIModel(id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "Enhanced GPT-4")
+                APIModel(id: "chatgpt-4o-latest", name: "ChatGPT-4o Latest", description: "Latest ChatGPT-4o model"),
+                APIModel(id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "Enhanced GPT-4"),
+                APIModel(id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", description: "Classic GPT-3.5"),
+                APIModel(id: "o1", name: "o1", description: "Advanced reasoning model"),
+                APIModel(id: "o1-mini", name: "o1 Mini", description: "Fast reasoning model"),
+                APIModel(id: "o1-preview", name: "o1 Preview", description: "Preview reasoning model"),
+                APIModel(id: "o3-mini", name: "o3 Mini", description: "Latest compact reasoning model")
             ]
         case .anthropic:
             return [
-                APIModel(id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Anthropic's most advanced model"),
+                APIModel(id: "claude-opus-4-20250514", name: "Claude 4 Opus", description: "Most capable Claude model"),
+                APIModel(id: "claude-sonnet-4-20250514", name: "Claude 4 Sonnet", description: "High performance Claude model"),
+                APIModel(id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Enhanced Claude 3.7"),
+                // APIModel(id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Balanced Claude 3.5"), // Duplicato in AIModelCatalog
                 APIModel(id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", description: "Fast and cost-effective"),
+                APIModel(id: "claude-3-opus-20240229", name: "Claude 3 Opus", description: "Legacy premium model"),
                 APIModel(id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", description: "Fast responses")
             ]
         case .groq:
             return [
-                APIModel(id: "llama3-8b-8192", name: "Llama 3 8B", description: "Fast and efficient chat model"),
-                APIModel(id: "llama3-70b-8192", name: "Llama 3 70B", description: "Powerful and comprehensive model"),
-                APIModel(id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", description: "Ultra-fast inference"),
+                APIModel(id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B Versatile", description: "Latest Llama model"),
+                APIModel(id: "llama-3.1-405b-reasoning", name: "Llama 3.1 405B Reasoning", description: "Largest reasoning model"),
                 APIModel(id: "llama-3.1-70b-versatile", name: "Llama 3.1 70B Versatile", description: "Most capable model"),
-                APIModel(id: "llama-3.1-405b-instruct", name: "Llama 3.1 405B", description: "Largest context window"),
+                APIModel(id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", description: "Ultra-fast inference"),
                 APIModel(id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", description: "Mixture of experts model"),
-                APIModel(id: "gemma-7b-it", name: "Gemma 7B", description: "Google's efficient model")
+                APIModel(id: "gemma2-9b-it", name: "Gemma 2 9B", description: "Google's efficient model"),
+                APIModel(id: "qwen2.5-72b-instruct", name: "Qwen 2.5 72B", description: "Enhanced capabilities model"),
+                APIModel(id: "qwen2.5-32b-instruct", name: "Qwen 2.5 32B", description: "Fast general purpose model"),
+                APIModel(id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 Llama 70B", description: "Advanced reasoning model"),
+                APIModel(id: "deepseek-r1-distill-qwen-32b", name: "DeepSeek R1 Qwen 32B", description: "Fast reasoning model")
             ]
         case .mistral:
             return [
-                APIModel(id: "mistral-large-latest", name: "Mistral Large", description: "Most capable Mistral model"),
-                APIModel(id: "mistral-medium", name: "Mistral Medium", description: "Balanced performance"),
-                APIModel(id: "mistral-small", name: "Mistral Small", description: "Fast and efficient")
+                APIModel(id: "mistral-large-latest", name: "Mistral Large Latest", description: "Most capable Mistral model"),
+                APIModel(id: "mistral-small-latest", name: "Mistral Small Latest", description: "Fast and efficient"),
+                APIModel(id: "mistral-medium-latest", name: "Mistral Medium Latest", description: "Balanced performance")
             ]
         case .perplexity:
             return [
@@ -291,6 +391,9 @@ extension ModelCatalog {
             return [
                 APIModel(id: "deepseek-chat", name: "DeepSeek Chat", description: "Advanced reasoning model")
             ]
+        case .apple:
+            // I modelli Apple sono ora definiti in AIModelCatalog per evitare duplicati
+            return []
         case .google:
             return [
                 APIModel(id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Google's advanced multimodal model"),
@@ -303,8 +406,21 @@ extension ModelCatalog {
             ]
         case .xai:
             return [
-                APIModel(id: "grok-1", name: "Grok-1", description: "xAI's advanced reasoning model"),
-                APIModel(id: "grok-1.5", name: "Grok-1.5", description: "Enhanced version of Grok")
+                // Grok 4 - Most intelligent models (2025)
+                APIModel(id: "grok-4-latest", name: "Grok 4 Latest", description: "Latest Grok 4 model with auto-updates"),
+                APIModel(id: "grok-4", name: "Grok 4", description: "Most intelligent model with tool use and real-time search"),
+                APIModel(id: "grok-4-fast", name: "Grok 4 Fast", description: "Cost-efficient reasoning model with high throughput"),
+                APIModel(id: "grok-4-fast-non-reasoning-latest", name: "Grok 4 Fast Non-Reasoning", description: "Fast version without advanced reasoning"),
+                APIModel(id: "grok-4-fast-reasoning-latest", name: "Grok 4 Fast Reasoning", description: "Fast version with enhanced reasoning"),
+
+                // Grok 3 - Balanced performance
+                APIModel(id: "grok-3", name: "Grok 3", description: "Balanced Grok 3 model"),
+                APIModel(id: "grok-3-mini", name: "Grok 3 Mini", description: "Cost efficient Grok 3 variant"),
+
+                // Specialized models
+                APIModel(id: "grok-code-fast-1", name: "Grok Code Fast", description: "Specialized for rapid code generation"),
+                APIModel(id: "grok-vision-beta", name: "Grok Vision Beta", description: "Beta version with enhanced visual understanding"),
+                APIModel(id: "grok-beta", name: "Grok Beta", description: "General purpose beta model")
             ]
         }
     }
@@ -312,12 +428,14 @@ extension ModelCatalog {
     private func getDefaultContextTokens(for provider: AIModelProvider) -> Int {
         // Token di contesto predefiniti per provider
         switch provider {
+        case .apple: return 32_000
         case .openai: return 128_000
         case .anthropic: return 200_000
         case .groq: return 128_000
         case .mistral: return 128_000
         case .perplexity: return 128_000
         case .deepseek: return 32_768
+        case .xai: return 256_000 // Grok 4 supports larger context windows
         default: return 4096
         }
     }

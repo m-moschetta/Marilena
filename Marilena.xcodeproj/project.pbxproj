@@ -29,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		ED50B0A32E7EC3A700789598 /* Marilena-iOS.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Marilena-iOS.xctestplan"; sourceTree = "<group>"; };
 		ED82CABE2E2A4B5200BB5506 /* Marilena.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Marilena.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED82CAD22E2A4B5300BB5506 /* MarilenaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MarilenaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED82CADC2E2A4B5300BB5506 /* MarilenaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MarilenaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -95,6 +96,7 @@
 		ED82CAB52E2A4B5100BB5506 = {
 			isa = PBXGroup;
 			children = (
+				ED50B0A32E7EC3A700789598 /* Marilena-iOS.xctestplan */,
 				ED82CAC02E2A4B5200BB5506 /* Marilena */,
 				ED82CAD52E2A4B5300BB5506 /* MarilenaTests */,
 				ED82CADF2E2A4B5300BB5506 /* MarilenaUITests */,

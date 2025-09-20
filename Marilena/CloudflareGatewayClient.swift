@@ -1,5 +1,22 @@
 import Foundation
 
+// MARK: - Models API Response Structures
+struct ModelsListResponse: Codable {
+    let data: [OpenAIModelInfo]
+}
+
+struct OpenAIModelInfo: Codable {
+    let id: String
+    let object: String?
+    let owned_by: String?
+
+    init(id: String, object: String? = nil, owned_by: String? = nil) {
+        self.id = id
+        self.object = object
+        self.owned_by = owned_by
+    }
+}
+
 // MARK: - Cloudflare Gateway Client
 // Fallback client per instradare le chiamate al Cloudflare Worker
 // quando le API key dei provider non sono configurate nelle impostazioni.
@@ -34,6 +51,32 @@ final class CloudflareGatewayClient {
     }
 
     // MARK: - API
+
+    // MARK: - Models Endpoint
+    func fetchModels(for provider: String) async throws -> [OpenAIModelInfo] {
+        guard let url = URL(string: "\(baseURL)/v1/models") else {
+            throw CloudflareGatewayError.invalidURL
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue(provider, forHTTPHeaderField: "x-provider")
+
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse else {
+            throw CloudflareGatewayError.invalidResponse
+        }
+        guard http.statusCode == 200 else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw CloudflareGatewayError.http(status: http.statusCode, body: "provider=\(provider) body=\(body)")
+        }
+
+        let decoded = try JSONDecoder().decode(ModelsListResponse.self, from: data)
+        return decoded.data
+    }
+
+    // MARK: - Chat Completions
     func sendChat(
         messages: [OpenAIMessage],
         model: String,
@@ -172,13 +215,25 @@ final class CloudflareGatewayClient {
     // MARK: - Provider Detection
     private func detectProvider(for model: String) -> String? {
         let m = model.lowercased()
+
+        // xAI detection (highest priority for grok models)
+        if m.contains("grok") || m.hasPrefix("xai-") { return "xai" }
+
+        // Claude detection
         if m.contains("claude") { return "anthropic" }
+
+        // Mistral detection
         if m.contains("mistral") { return "mistral" }
+
+        // OpenAI detection
         if m.hasPrefix("gpt-") || m.contains("chatgpt") || m.hasPrefix("o1") || m.hasPrefix("o3") { return "openai" }
-        // Groq: escludi ID in formato namespace (con "/") che non sono supportati da Groq
-        if (m.contains("llama") || m.contains("mixtral") || m.contains("gemma") || m.contains("qwen") || m.contains("deepseek")) && !m.contains("/") {
+
+        // Groq detection (exclude namespaced models with "/")
+        if (m.contains("llama") || m.contains("mixtral") || m.contains("gemma") ||
+            m.contains("qwen") || m.contains("deepseek")) && !m.contains("/") {
             return "groq"
         }
+
         return nil
     }
 
@@ -206,3 +261,4 @@ final class CloudflareGatewayClient {
         }
     }
 }
+

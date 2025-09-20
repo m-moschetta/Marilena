@@ -121,8 +121,12 @@ struct ModelPickerForCategorizationView: View {
                 )
             }
 
-            // 2. Combina modelli statici e dinamici
-            let allModelsCombined = AIModelConfiguration.allModels + dynamicModels
+            // 2. Combina modelli statici e dinamici rimuovendo duplicati
+            let staticModels = AIModelConfiguration.allModels
+            let uniqueDynamicModels = dynamicModels.filter { dynamic in
+                !staticModels.contains { staticModel in staticModel.id == dynamic.id }
+            }
+            let allModelsCombined = staticModels + uniqueDynamicModels
 
             // 3. Filtra i modelli adatti
             let filteredModels = allModelsCombined.filter { model in
@@ -160,7 +164,9 @@ struct ModelPickerForCategorizationView: View {
         let lowerName = modelName.lowercased()
 
         // Rilevamento provider basato sul nome del modello
-        if lowerName.contains("gpt") || lowerName.contains("openai") {
+        if lowerName.contains("foundation") || lowerName.contains("apple") {
+            return .apple
+        } else if lowerName.contains("gpt") || lowerName.contains("openai") {
             return .openai
         } else if lowerName.contains("claude") || lowerName.contains("anthropic") {
             return .anthropic
@@ -185,6 +191,14 @@ struct ModelPickerForCategorizationView: View {
         let lowerName = modelName.lowercased()
 
         switch provider {
+        case .apple:
+            return AIPricing(
+                inputTokens: PricingTier(price: 0, description: "On-device"),
+                outputTokens: PricingTier(price: 0, description: "On-device"),
+                currency: "USD",
+                billingUnit: "on-device"
+            )
+
         case .openai:
             if lowerName.contains("gpt-4o-mini") {
                 return AIPricing(

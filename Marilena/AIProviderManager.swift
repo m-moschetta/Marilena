@@ -5,12 +5,49 @@ import Foundation
 public class AIProviderManager {
     public static let shared = AIProviderManager()
     
-    private init() {}
+    private var settingsObserver: NSObjectProtocol?
+
+    private init() {
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: .settingsChanged,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.clearStreamingClientCache()
+            self?.providerStateQueue.async(flags: .barrier) {
+                self?.temporarilyUnavailableChatProviders.removeAll()
+            }
+        }
+    }
+
+    deinit {
+        if let settingsObserver {
+            NotificationCenter.default.removeObserver(settingsObserver)
+        }
+    }
+
+    private let providerStateQueue = DispatchQueue(
+        label: "AIProviderManager.providerStateQueue",
+        attributes: .concurrent
+    )
+    private var temporarilyUnavailableChatProviders: Set<ChatProvider> = []
+    private var cachedStreamingClients: [ChatProvider: AIStreamingClientProtocol] = [:]
     
     // MARK: - Provider Types
     
-    enum ChatProvider {
-        case openai, anthropic, groq
+    enum ChatProvider: Hashable {
+        case apple, openai, anthropic, groq, xai
+
+        init?(rawValue: String) {
+            switch rawValue.lowercased() {
+            case "apple", "apple-intelligence": self = .apple
+            case "openai": self = .openai
+            case "anthropic": self = .anthropic
+            case "groq": self = .groq
+            case "xai", "grok": self = .xai
+            default: return nil
+            }
+        }
     }
     
     enum SearchProvider {
@@ -24,42 +61,132 @@ public class AIProviderManager {
     // MARK: - Chat Provider Selection
     
     func getBestChatProvider() -> (provider: ChatProvider, model: String)? {
-        // Verifica quali provider hanno API keys configurate
+        getOrderedChatProviders().first
+    }
+
+    func getOrderedChatProviders() -> [(provider: ChatProvider, model: String)] {
+        let hasApple = AppleIntelligenceService.shared.isAvailable
         let hasOpenAI = hasValidAPIKey(for: "openai")
         let hasAnthropic = hasValidAPIKey(for: "anthropic")
         let hasGroq = hasValidAPIKey(for: "groq")
+        let hasXAI = hasValidAPIKey(for: "xai")
 
-        // Scegli il modello preferito: UserDefaults -> ModelCatalog live -> fallback sicuro
-        func preferredModel(for provider: ChatProvider) -> String? {
+        let storedProviderId = UserDefaults.standard.string(forKey: "selectedProvider")
+
+        var orderedProviders: [ChatProvider] = [.apple, .openai, .anthropic, .groq, .xai]
+        if let stored = storedProviderId.flatMap({ ChatProvider(rawValue: $0) }),
+           let index = orderedProviders.firstIndex(of: stored) {
+            orderedProviders.remove(at: index)
+            orderedProviders.insert(stored, at: 0)
+        }
+
+        var resolved: [(provider: ChatProvider, model: String)] = []
+
+        for provider in orderedProviders {
+            guard !isTemporarilyUnavailable(provider) else { continue }
+
             switch provider {
+            case .apple:
+                guard hasApple, let model = preferredModel(for: .apple) else { continue }
+                resolved.append((.apple, model))
             case .openai:
-                if let ud = UserDefaults.standard.string(forKey: "selectedChatModel"), !ud.isEmpty { return ud }
-                if let live = ModelCatalog.shared.models(for: .openai).first?.name { return live }
-                return "gpt-4o"
+                guard hasOpenAI, let model = preferredModel(for: .openai) else { continue }
+                resolved.append((.openai, model))
             case .anthropic:
-                if let ud = UserDefaults.standard.string(forKey: "selectedAnthropicModel"), !ud.isEmpty { return normalize(model: ud, provider: .anthropic) }
-                if let live = ModelCatalog.shared.models(for: .anthropic).first?.name { return live }
-                return "claude-3-5-sonnet-20241022"
+                guard hasAnthropic, let model = preferredModel(for: .anthropic) else { continue }
+                resolved.append((.anthropic, model))
             case .groq:
-                if let ud = UserDefaults.standard.string(forKey: "selectedGroqChatModel"), !ud.isEmpty { return normalize(model: ud, provider: .groq) }
-                if let live = ModelCatalog.shared.models(for: .groq).first?.name { return live }
-                return "llama-3.1-8b-instant"
+                guard hasGroq, let model = preferredModel(for: .groq) else { continue }
+                resolved.append((.groq, model))
+            case .xai:
+                guard hasXAI, let model = preferredModel(for: .xai) else { continue }
+                resolved.append((.xai, model))
             }
         }
 
-        // Logica di priorità semplice: OpenAI > Anthropic > Groq (quando disponibili)
-        if hasOpenAI, let model = preferredModel(for: .openai) { return (.openai, model) }
-        if hasAnthropic, let model = preferredModel(for: .anthropic) { return (.anthropic, model) }
-        if hasGroq, let model = preferredModel(for: .groq) { return (.groq, model) }
+        return resolved
+    }
 
-        return nil // Nessun provider configurato
+    /// Restituisce il client di streaming dedicato per il provider specificato se disponibile.
+    func streamingClient(for provider: ChatProvider) -> AIStreamingClientProtocol? {
+        if let cached = providerStateQueue.sync(execute: { cachedStreamingClients[provider] }) {
+            return cached
+        }
+
+        let client: AIStreamingClientProtocol?
+        switch provider {
+        case .openai:
+            guard UserDefaults.standard.bool(forKey: "use_responses_api"),
+                  hasValidAPIKey(for: "openai") else {
+                client = nil
+                break
+            }
+            client = OpenAIResponsesClient(
+                apiKeyProvider: { KeychainManager.shared.getAPIKey(for: "openai") },
+                forceGatewayFlag: { UserDefaults.standard.bool(forKey: "force_gateway") }
+            )
+        case .apple:
+            client = nil // FoundationModels non espone ancora streaming token-by-token
+        case .anthropic, .groq, .xai:
+            client = nil // Verrà implementato nelle fasi successive della roadmap
+        }
+
+        if let client {
+            providerStateQueue.async(flags: .barrier) {
+                self.cachedStreamingClients[provider] = client
+            }
+        }
+
+        return client
+    }
+
+    private func clearStreamingClientCache() {
+        providerStateQueue.async(flags: .barrier) {
+            self.cachedStreamingClients.removeAll()
+        }
+    }
+
+    private func preferredModel(for provider: ChatProvider) -> String? {
+        switch provider {
+        case .apple:
+            if let ud = UserDefaults.standard.string(forKey: "selectedAppleModel"), !ud.isEmpty { return ud }
+            if let live = ModelCatalog.shared.models(for: .apple).first?.name { return live }
+            return "foundation-medium"
+        case .openai:
+            if let ud = UserDefaults.standard.string(forKey: "selectedChatModel"), !ud.isEmpty { return ud }
+            if let live = ModelCatalog.shared.models(for: .openai).first?.name { return live }
+            return "gpt-4o"
+        case .anthropic:
+            if let ud = UserDefaults.standard.string(forKey: "selectedAnthropicModel"), !ud.isEmpty { return normalize(model: ud, provider: .anthropic) }
+            if let live = ModelCatalog.shared.models(for: .anthropic).first?.name { return live }
+            return "claude-3-5-sonnet-20241022"
+        case .groq:
+            if let ud = UserDefaults.standard.string(forKey: "selectedGroqChatModel"), !ud.isEmpty { return normalize(model: ud, provider: .groq) }
+            if let live = ModelCatalog.shared.models(for: .groq).first?.name { return live }
+            return "llama-3.1-8b-instant"
+        case .xai:
+            if let ud = UserDefaults.standard.string(forKey: "selectedXAIChatModel"), !ud.isEmpty { return normalize(model: ud, provider: .xai) }
+            if let live = ModelCatalog.shared.models(for: .xai).first?.name { return live }
+            return "grok-4-latest"
+        }
     }
 
     // Normalizza selezioni legacy che salvavano display name invece di ID
     private func normalize(model: String, provider: AIModelProvider) -> String {
         let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
         // Se sembra già un ID (niente spazi o slash), mantienilo
-        if !trimmed.contains(" ") && !trimmed.contains("/") { return trimmed }
+        if !trimmed.contains(" ") && !trimmed.contains("/") {
+            if provider == .xai {
+                let lower = trimmed.lowercased()
+                switch lower {
+                case "grok-4", "grok-4-latest": return "grok-4-latest"
+                case "grok-4-mini": return "grok-4-fast-reasoning"
+                case "grok-4-vision", "grok-4-vision-latest": return "grok-4-fast-non-reasoning"
+                default: return trimmed
+                }
+            }
+            return trimmed
+        }
         // Prova a mappare usando la description (spesso contiene il display name)
         let candidates = ModelCatalog.shared.models(for: provider)
         if let match = candidates.first(where: { $0.description.caseInsensitiveCompare(trimmed) == .orderedSame }) {
@@ -70,6 +197,7 @@ public class AIProviderManager {
         switch provider {
         case .anthropic: return "claude-3-5-sonnet-20241022"
         case .groq: return "llama-3.1-8b-instant"
+        case .xai: return "grok-4-latest"
         case .openai: return "gpt-4o"
         default: return trimmed
         }
@@ -147,6 +275,24 @@ public class AIProviderManager {
             return false
         }
         return true
+    }
+
+    private func isTemporarilyUnavailable(_ provider: ChatProvider) -> Bool {
+        providerStateQueue.sync {
+            temporarilyUnavailableChatProviders.contains(provider)
+        }
+    }
+
+    func markChatProviderUnavailable(_ provider: ChatProvider) {
+        providerStateQueue.async(flags: .barrier) {
+            self.temporarilyUnavailableChatProviders.insert(provider)
+        }
+    }
+
+    func clearTemporaryUnavailability(for provider: ChatProvider) {
+        providerStateQueue.async(flags: .barrier) {
+            self.temporarilyUnavailableChatProviders.remove(provider)
+        }
     }
     
     // MARK: - Provider Information

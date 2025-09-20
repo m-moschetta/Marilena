@@ -50,6 +50,7 @@ public class NewCalendarService: ObservableObject {
 
     // MARK: - Private Properties
     private let _calendarManager: CalendarManager
+    private let eventParser = FoundationModelsEventParser.shared
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Public Properties
@@ -133,20 +134,25 @@ public class NewCalendarService: ObservableObject {
         }
     }
 
-    /// Crea evento da testo naturale (Fantastical-style)
+    /// Crea evento da testo naturale sfruttando Apple Foundation Models quando disponibili
     public func createEventFromNaturalLanguage(_ text: String) async throws -> NewCalendarEvent {
-        // Analizza il testo per estrarre informazioni
-        let parsed = parseNaturalLanguage(text)
-
-        let event = NewCalendarEvent(
-            title: parsed.title,
-            startDate: parsed.startDate ?? Date(),
-            endDate: parsed.endDate ?? (parsed.startDate?.addingTimeInterval(3600) ?? Date().addingTimeInterval(3600)),
-            location: parsed.location
-        )
-
+        let candidate = try await eventParser.parseEvent(from: text, referenceDate: selectedDate)
+        let event = buildEvent(from: candidate, fallbackText: text, referenceDate: selectedDate)
         try await createEvent(event)
         return event
+    }
+
+    /// Restituisce un evento suggerito senza crearlo, utile per l'anteprima
+    public func suggestedEvent(from text: String) async -> NewCalendarEvent? {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+
+        do {
+            let candidate = try await eventParser.parseEvent(from: text, referenceDate: selectedDate)
+            return buildEvent(from: candidate, fallbackText: text, referenceDate: selectedDate)
+        } catch {
+            print("Errore analisi linguaggio naturale: \(error)")
+            return nil
+        }
     }
 
     // MARK: - View Data Methods
@@ -550,6 +556,79 @@ public class NewCalendarService: ObservableObject {
 
     // MARK: - Private Methods
 
+    private func buildEvent(from candidate: FoundationModelEventCandidate, fallbackText: String, referenceDate: Date) -> NewCalendarEvent {
+        let calendar = Calendar.current
+        var start = candidate.startDate ?? referenceDate
+        var isAllDay = candidate.isAllDay
+
+        if isAllDay {
+            start = calendar.startOfDay(for: start)
+        }
+
+        var end: Date
+        if isAllDay {
+            let startOfDay = calendar.startOfDay(for: start)
+            end = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? startOfDay.addingTimeInterval(86_400)
+        } else if let specifiedEnd = candidate.endDate, specifiedEnd > start {
+            end = specifiedEnd
+        } else {
+            let defaultEnd = calendar.date(byAdding: .hour, value: 1, to: start) ?? start.addingTimeInterval(3600)
+            end = defaultEnd
+            if let specifiedEnd = candidate.endDate, specifiedEnd <= start {
+                isAllDay = false
+            }
+        }
+
+        let cleanedTitle = candidate.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = (cleanedTitle?.isEmpty == false ? cleanedTitle : fallbackText).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } ?? fallbackText
+
+        let cleanedNotes = candidate.notes?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedLocation = candidate.location?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let attendees = mapAttendees(candidate.attendees)
+
+        let calendarId = defaultCalendarId()
+        let color = defaultCalendarColor()
+
+        return NewCalendarEvent(
+            title: title.isEmpty ? fallbackText : title,
+            notes: cleanedNotes?.isEmpty == true ? nil : cleanedNotes,
+            startDate: isAllDay ? calendar.startOfDay(for: start) : start,
+            endDate: isAllDay ? end : max(end, start.addingTimeInterval(900)),
+            isAllDay: isAllDay,
+            location: cleanedLocation?.isEmpty == true ? nil : cleanedLocation,
+            attendees: attendees,
+            calendarId: calendarId,
+            color: color
+        )
+    }
+
+    private func mapAttendees(_ rawValues: [String]) -> [Attendee] {
+        rawValues.compactMap { value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+
+            if let emailRangeStart = trimmed.firstIndex(of: "<"), let emailRangeEnd = trimmed.firstIndex(of: ">"), emailRangeStart < emailRangeEnd {
+                let name = trimmed[..<emailRangeStart].trimmingCharacters(in: .whitespacesAndNewlines)
+                let email = trimmed[trimmed.index(after: emailRangeStart)..<emailRangeEnd].trimmingCharacters(in: .whitespacesAndNewlines)
+                return Attendee(name: name.isEmpty ? email : name, email: email)
+            }
+
+            if trimmed.contains("@") {
+                return Attendee(name: trimmed, email: trimmed)
+            }
+
+            return Attendee(name: trimmed, email: "")
+        }
+    }
+
+    private func defaultCalendarId() -> String? {
+        calendars.first(where: { $0.isVisible })?.id ?? calendars.first?.id
+    }
+
+    private func defaultCalendarColor() -> Color {
+        calendars.first(where: { $0.isVisible })?.uiColor ?? calendars.first?.uiColor ?? .blue
+    }
+
     private func setupDefaultCalendars() {
         calendars = [
             NewCalendar(title: "Personale", color: .blue, accountType: .local),
@@ -590,52 +669,6 @@ public class NewCalendarService: ObservableObject {
             providerType: .eventKit,
             lastModified: event.modified
         )
-    }
-
-    private func parseNaturalLanguage(_ text: String) -> (title: String, startDate: Date?, endDate: Date?, location: String?) {
-        // Implementazione semplice del parsing del linguaggio naturale
-        // In una versione completa, questo dovrebbe usare NLP più sofisticato
-
-        let lowerText = text.lowercased()
-
-        // Estrai titolo (tutto tranne le parole chiave temporali)
-        var title = text
-        var startDate: Date?
-        var endDate: Date?
-        var location: String?
-
-        // Pattern semplici per il riconoscimento temporale
-        let timePatterns = [
-            "oggi": Date(),
-            "domani": Calendar.current.date(byAdding: .day, value: 1, to: Date()),
-            "dopodomani": Calendar.current.date(byAdding: .day, value: 2, to: Date())
-        ]
-
-        for (pattern, date) in timePatterns {
-            if lowerText.contains(pattern) {
-                startDate = date
-                title = title.replacingOccurrences(of: pattern, with: "", options: .caseInsensitive)
-                break
-            }
-        }
-
-        // Se non trova date specifiche, assume oggi
-        if startDate == nil {
-            startDate = Date()
-        }
-
-        // Imposta durata predefinita di 1 ora
-        if let start = startDate {
-            endDate = start.addingTimeInterval(3600)
-        }
-
-        // Pulisce il titolo
-        title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if title.isEmpty {
-            title = "Nuovo evento"
-        }
-
-        return (title, startDate, endDate, location)
     }
 
     private func startOfMonth(for date: Date) -> Date {
