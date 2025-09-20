@@ -265,6 +265,11 @@ function transformChatCompletionsToResponses(body) {
   };
 
   if (body.stream) payload.stream = { mode: "text" };
+  if (typeof body.max_output_tokens === "number") {
+    payload.max_output_tokens = body.max_output_tokens;
+  } else if (typeof body.max_tokens === "number") {
+    payload.max_output_tokens = body.max_tokens;
+  }
   if (body.response_format) payload.response_format = body.response_format;
   if (body.tools) payload.tools = body.tools;
   if (body.tool_choice) payload.tool_choice = body.tool_choice;
@@ -561,6 +566,11 @@ async function handleResponsesEndpoint(request, env) {
           messages.push({ role: "user", content: body.input });
         }
         requestBody = { model: body.model, messages, stream: !!(body.stream && body.stream.mode === "text") };
+        if (typeof body.max_output_tokens === "number") {
+          requestBody.max_tokens = body.max_output_tokens;
+        } else if (typeof body.max_tokens === "number") {
+          requestBody.max_tokens = body.max_tokens;
+        }
         if (body.response_format) requestBody.response_format = body.response_format;
         if (body.tools) requestBody.tools = body.tools;
         if (body.tool_choice) requestBody.tool_choice = body.tool_choice;
@@ -665,6 +675,14 @@ async function handleChatCompletionsEndpoint(request, env) {
     let requestBody = body;
     if (providerName === "anthropic") {
       requestBody = transformForAnthropic(body);
+    }
+    if (providerName === "openai") {
+      const lowerModel = (requestBody.model || "").toLowerCase();
+      const requiresCompletion = lowerModel.includes("gpt-5") || lowerModel.startsWith("o1") || lowerModel.startsWith("o3");
+      if (requiresCompletion && typeof requestBody.max_tokens === "number") {
+        requestBody.max_completion_tokens = requestBody.max_tokens;
+        delete requestBody.max_tokens;
+      }
     }
 
     const headers = {
