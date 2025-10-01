@@ -79,27 +79,33 @@ public struct NewWeekView: View {
                         calendarService.completePinchGesture()
                     }
             )
+            .sheet(isPresented: $calendarService.showingEventDetail) {
+                // Sheet per dettagli/modifica evento
+                if let event = calendarService.selectedEvent {
+                    EventDetailView(calendarService: calendarService)
+                }
+            }
         }
     }
     
     // MARK: - Week Days Header
     private var weekDaysHeader: some View {
         let weekData = calendarService.weekData(for: calendarService.selectedDate)
-        
+
         return HStack(spacing: 0) {
             // Spazio per allineare con le etichette delle ore
             Spacer()
-                .frame(width: 62)
-            
+                .frame(width: 50)
+
             // Header giorni della settimana
             ForEach(weekData.days.indices, id: \.self) { dayIndex in
                 let day = weekData.days[dayIndex]
-                
+
                 VStack(spacing: 4) {
                     Text(calendarService.weekdayName(for: day.date).prefix(3))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                    
+
                     Text(calendarService.dayNumber(for: day.date))
                         .font(.system(size: 18, weight: day.isToday ? .bold : .semibold))
                         .foregroundColor(day.isToday ? .white : .primary)
@@ -136,7 +142,7 @@ public struct NewWeekView: View {
                     Text(hourLabel(for: hour))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(.secondary)
-                        .frame(width: 35, alignment: .trailing)
+                        .frame(width: 42, alignment: .trailing)
                         .padding(.trailing, 8)
 
                     // Linea orizzontale
@@ -153,38 +159,83 @@ public struct NewWeekView: View {
     private var eventsTimeline: some View {
         let weekData = calendarService.weekData(for: calendarService.selectedDate)
 
-        return GeometryReader { geo in
-            ZStack(alignment: .topLeading) {
-                // Separatori verticali per i giorni
-                daySeparators(width: geo.size.width)
+        return VStack(spacing: 0) {
+            // Sezione eventi tutto il giorno
+            allDayEventsSection(weekData: weekData)
+                .padding(.leading, 50)
 
-                // Eventi per ogni giorno
-                ForEach(weekData.days.indices, id: \.self) { dayIndex in
-                    let day = weekData.days[dayIndex]
-                    let dayX = dayXPosition(for: dayIndex, totalWidth: geo.size.width)
+            // Timeline eventi con orario
+            GeometryReader { geo in
+                ZStack(alignment: .topLeading) {
+                    // Separatori verticali per i giorni
+                    daySeparators(width: geo.size.width)
 
-                    ForEach(day.events) { event in
-                        WeekEventView(event: event, dayX: dayX, hourHeight: hourHeight, calendarService: calendarService)
+                    // Eventi con orario per ogni giorno
+                    ForEach(weekData.days.indices, id: \.self) { dayIndex in
+                        let day = weekData.days[dayIndex]
+                        let dayWidth = (geo.size.width - 50) / 7
+                        let dayX = CGFloat(dayIndex) * dayWidth
+                        let timedEvents = day.events.filter { !$0.isAllDay }
+
+                        ForEach(timedEvents) { event in
+                            WeekEventView(event: event, dayX: dayX, dayWidth: dayWidth, hourHeight: hourHeight, calendarService: calendarService)
+                        }
                     }
                 }
             }
+            .padding(.leading, 50)
         }
-        .padding(.leading, 62) // Spazio per le etichette orarie
+    }
+
+    // MARK: - All Day Events Section
+    private func allDayEventsSection(weekData: NewCalendarWeek) -> some View {
+        let hasAllDayEvents = weekData.days.contains { day in
+            day.events.contains { $0.isAllDay }
+        }
+
+        return Group {
+            if hasAllDayEvents {
+                GeometryReader { geo in
+                    HStack(spacing: 0) {
+                        ForEach(weekData.days.indices, id: \.self) { dayIndex in
+                            let day = weekData.days[dayIndex]
+                            let allDayEvents = day.events.filter { $0.isAllDay }
+
+                            VStack(spacing: 2) {
+                                ForEach(allDayEvents) { event in
+                                    Text(event.title)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .lineLimit(1)
+                                        .padding(.horizontal, 4)
+                                        .padding(.vertical, 2)
+                                        .frame(maxWidth: .infinity)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(event.uiColor.opacity(0.9))
+                                        )
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .frame(height: 40)
+                .padding(.bottom, 8)
+            }
+        }
     }
 
     // MARK: - Day Separators
     private func daySeparators(width: CGFloat) -> some View {
-        let dayWidth = (width - 62) / 7
+        let dayWidth = (width - 50) / 7
 
-        return ZStack {
+        return HStack(spacing: 0) {
             ForEach(0..<7, id: \.self) { dayIndex in
-                let x = dayXPosition(for: dayIndex, totalWidth: width)
-
-                // Separatore verticale
                 Rectangle()
-                    .fill(Color(.separator).opacity(0.5))
-                    .frame(width: 1)
-                    .offset(x: x)
+                    .fill(Color(.separator).opacity(0.2))
+                    .frame(width: dayIndex < 6 ? 1 : 0)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
@@ -242,7 +293,7 @@ public struct NewWeekView: View {
     }
 
     private func dayXPosition(for dayIndex: Int, totalWidth: CGFloat) -> CGFloat {
-        let availableWidth = totalWidth - 62
+        let availableWidth = totalWidth - 50
         let dayWidth = availableWidth / 7
         return CGFloat(dayIndex) * dayWidth + dayWidth / 2
     }
@@ -261,11 +312,16 @@ public struct NewWeekView: View {
 private struct WeekEventView: View {
     let event: NewCalendarEvent
     let dayX: CGFloat
+    let dayWidth: CGFloat
     let hourHeight: CGFloat
     @ObservedObject var calendarService: NewCalendarService
     @State private var dragOffset = CGSize.zero
 
     var body: some View {
+        timedEventContent
+    }
+
+    private var timedEventContent: some View {
         let calendar = Calendar.current
         let startHour = calendar.component(.hour, from: event.startDate)
         let startMinute = calendar.component(.minute, from: event.startDate)
@@ -273,6 +329,7 @@ private struct WeekEventView: View {
 
         let y = (CGFloat(startHour) + CGFloat(startMinute) / 60.0) * hourHeight
         let height = max(duration * hourHeight, 24)
+        let eventWidth = dayWidth * 0.9
 
         return VStack(alignment: .leading, spacing: 0) {
             // Titolo evento
@@ -292,39 +349,52 @@ private struct WeekEventView: View {
                     .padding(.bottom, 4)
             }
         }
-        .frame(width: 80, height: height, alignment: .topLeading)
+        .frame(width: eventWidth, height: height, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(event.uiColor.opacity(0.9))
+                .fill(event.uiColor.opacity(event.displayOpacity() * 0.9))
                 .overlay(
-                    // Indicatore di dragging
                     RoundedRectangle(cornerRadius: 6)
                         .stroke(Color.white.opacity(0.3), lineWidth: dragOffset != .zero ? 2 : 0)
                 )
         )
+        .offset(x: dayX + dayWidth * 0.05, y: y)
         .offset(dragOffset)
-        .position(x: dayX, y: y + height / 2)
         .shadow(color: Color.black.opacity(dragOffset != .zero ? 0.3 : 0.1), radius: dragOffset != .zero ? 8 : 2, x: 0, y: dragOffset != .zero ? 4 : 1)
         .scaleEffect(dragOffset != .zero ? 1.05 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: dragOffset)
         .gesture(
-            DragGesture()
-                .onChanged { value in
-                    dragOffset = value.translation
-                    calendarService.updateEventDrag(eventId: event.id, offset: value.translation)
+            LongPressGesture(minimumDuration: 0.3)
+                .onEnded { _ in
+                    calendarService.startEventDrag(eventId: event.id)
                 }
-                .onEnded { value in
-                    let newY = y + value.translation.height
-                    let newHour = max(0, min(23, Int(newY / hourHeight)))
-                    let newStartDate = Calendar.current.date(bySettingHour: newHour, minute: startMinute, second: 0, of: event.startDate) ?? event.startDate
-                    
-                    Task {
-                        await calendarService.completeEventDrag(eventId: event.id, newStartTime: newStartDate)
-                    }
-                    
-                    dragOffset = .zero
-                }
+                .simultaneously(with:
+                    DragGesture(minimumDistance: 5, coordinateSpace: .local)
+                        .onChanged { value in
+                            if calendarService.isDraggingEvent {
+                                dragOffset = value.translation
+                                calendarService.updateEventDrag(eventId: event.id, offset: value.translation)
+                            }
+                        }
+                        .onEnded { value in
+                            if calendarService.isDraggingEvent {
+                                let newY = y + dragOffset.height + value.translation.height
+                                let newHour = max(0, min(23, Int(newY / hourHeight)))
+                                let newStartDate = Calendar.current.date(bySettingHour: newHour, minute: startMinute, second: 0, of: event.startDate) ?? event.startDate
+
+                                Task {
+                                    await calendarService.completeEventDrag(eventId: event.id, newStartTime: newStartDate)
+                                }
+
+                                dragOffset = .zero
+                            }
+                            calendarService.cancelEventDrag()
+                        }
+                )
         )
+        .onTapGesture {
+            calendarService.openEventDetails(eventId: event.id)
+        }
     }
 }
 
