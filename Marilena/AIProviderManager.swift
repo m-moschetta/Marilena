@@ -36,7 +36,7 @@ public class AIProviderManager {
     // MARK: - Provider Types
     
     enum ChatProvider: Hashable {
-        case apple, openai, anthropic, groq, xai
+        case apple, openai, anthropic, groq, xai, openclaw
 
         init?(rawValue: String) {
             switch rawValue.lowercased() {
@@ -45,6 +45,7 @@ public class AIProviderManager {
             case "anthropic": self = .anthropic
             case "groq": self = .groq
             case "xai", "grok": self = .xai
+            case "openclaw": self = .openclaw
             default: return nil
             }
         }
@@ -70,10 +71,11 @@ public class AIProviderManager {
         let hasAnthropic = hasValidAPIKey(for: "anthropic")
         let hasGroq = hasValidAPIKey(for: "groq")
         let hasXAI = hasValidAPIKey(for: "xai")
+        let hasOpenClaw = hasOpenClawConfigured()
 
         let storedProviderId = UserDefaults.standard.string(forKey: "selectedProvider")
 
-        var orderedProviders: [ChatProvider] = [.apple, .openai, .anthropic, .groq, .xai]
+        var orderedProviders: [ChatProvider] = [.openclaw, .apple, .openai, .anthropic, .groq, .xai]
         if let stored = storedProviderId.flatMap({ ChatProvider(rawValue: $0) }),
            let index = orderedProviders.firstIndex(of: stored) {
             orderedProviders.remove(at: index)
@@ -101,10 +103,22 @@ public class AIProviderManager {
             case .xai:
                 guard hasXAI, let model = preferredModel(for: .xai) else { continue }
                 resolved.append((.xai, model))
+            case .openclaw:
+                guard hasOpenClaw, let model = preferredModel(for: .openclaw) else { continue }
+                resolved.append((.openclaw, model))
             }
         }
 
         return resolved
+    }
+
+    /// Verifica se OpenClaw è configurato (endpoint salvato)
+    private func hasOpenClawConfigured() -> Bool {
+        guard let endpoint = UserDefaults.standard.string(forKey: "openclaw_endpoint"),
+              !endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        return true
     }
 
     /// Restituisce il client di streaming dedicato per il provider specificato se disponibile.
@@ -129,6 +143,8 @@ public class AIProviderManager {
             client = nil // FoundationModels non espone ancora streaming token-by-token
         case .anthropic, .groq, .xai:
             client = nil // Verrà implementato nelle fasi successive della roadmap
+        case .openclaw:
+            client = nil // OpenClaw gestisce lo streaming internamente via WebSocket
         }
 
         if let client {
@@ -168,6 +184,9 @@ public class AIProviderManager {
             if let ud = UserDefaults.standard.string(forKey: "selectedXAIChatModel"), !ud.isEmpty { return normalize(model: ud, provider: .xai) }
             if let live = ModelCatalog.shared.models(for: .xai).first?.name { return live }
             return "grok-4-latest"
+        case .openclaw:
+            // OpenClaw usa il modello configurato nel Gateway, qui è solo un placeholder
+            return "openclaw-agent"
         }
     }
 
@@ -299,25 +318,33 @@ public class AIProviderManager {
     
     func getProviderInfo() -> String {
         var info = "🤖 Configurazione Provider AI:\n\n"
-        
+
         // Chat
         if let chatProvider = getBestChatProvider() {
-            info += "💬 Chat: \(chatProvider.provider) (\(chatProvider.model))\n"
+            let providerName: String
+            switch chatProvider.provider {
+            case .openclaw:
+                let endpoint = UserDefaults.standard.string(forKey: "openclaw_endpoint") ?? "localhost"
+                providerName = "OpenClaw (\(endpoint))"
+            default:
+                providerName = "\(chatProvider.provider)"
+            }
+            info += "💬 Chat: \(providerName) (\(chatProvider.model))\n"
         } else {
             info += "💬 Chat: ❌ Non configurato\n"
         }
-        
+
         // Search
         if let searchProvider = getBestSearchProvider() {
             info += "🔍 Ricerca: \(searchProvider.provider) (\(searchProvider.model))\n"
         } else {
             info += "🔍 Ricerca: ❌ Non configurato\n"
         }
-        
+
         // Transcription
         let transcriptionProvider = getBestTranscriptionProvider()
         info += "🎤 Trascrizione: \(transcriptionProvider.provider) (\(transcriptionProvider.model))\n"
-        
+
         return info
     }
 } 

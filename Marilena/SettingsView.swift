@@ -35,6 +35,11 @@ struct SettingsView: View {
     @State private var deepSeekApiKey = ""
     @State private var selectedDeepSeekModel = "deepseek-chat"
 
+    // OpenClaw settings
+    @State private var openclawEndpoint = ""
+    @State private var openclawConnectionStatus = ""
+    @State private var isTestingOpenClaw = false
+
     // Email categorization model selection
     @State private var selectedEmailCategorizationModel: AIModelConfiguration?
 
@@ -99,6 +104,7 @@ struct SettingsView: View {
     ]
     
     let availableProviders = [
+        ("openclaw", "OpenClaw", "Agente AI personale self-hosted con browser, automazioni e skills"),
         ("apple", "Apple Intelligence", "Modelli on-device privati su dispositivi compatibili"),
         ("openai", "OpenAI", "Modelli GPT più avanzati e versatili"),
         ("anthropic", "Anthropic Claude", "Modelli Claude per ragionamento profondo"),
@@ -327,6 +333,157 @@ struct SettingsView: View {
                         Text("🧠 DeepSeek: Modelli molto economici per ragionamento avanzato")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                    }
+                } else if selectedProvider == "openclaw" {
+                    Section("OpenClaw Configuration") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Endpoint Gateway")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            TextField("ws://127.0.0.1:18789", text: $openclawEndpoint)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+
+                            Text("Inserisci l'indirizzo WebSocket del tuo Gateway OpenClaw")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Button(action: {
+                            testOpenClawConnection()
+                        }) {
+                            HStack {
+                                if isTestingOpenClaw {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle())
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "network")
+                                }
+                                Text("Test Connessione")
+                            }
+                        }
+                        .disabled(isTestingOpenClaw)
+                        .foregroundColor(.blue)
+
+                        if !openclawConnectionStatus.isEmpty {
+                            Text(openclawConnectionStatus)
+                                .font(.caption)
+                                .foregroundColor(openclawConnectionStatus.contains("✅") ? .green : .red)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("🤖 OpenClaw: Agente AI personale self-hosted")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("Controllo browser automatico", systemImage: "globe")
+                                Label("Automazioni e skills estensibili", systemImage: "gearshape.2")
+                                Label("Memoria persistente", systemImage: "brain")
+                                Label("Canali: WhatsApp, Telegram, Discord", systemImage: "message")
+                            }
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+
+                        Link(destination: URL(string: "https://openclaw.ai")!) {
+                            Label("Scopri OpenClaw", systemImage: "arrow.up.right.square")
+                                .font(.caption)
+                        }
+                    }
+
+                    // Sezione Contesto/Memoria per OpenClaw
+                    Section("Memoria Contestuale") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Scegli quali dati condividere con OpenClaw per una memoria RAG-like")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeCalendar },
+                            set: { OpenClawContextProvider.shared.includeCalendar = $0 }
+                        )) {
+                            Label("Calendario", systemImage: "calendar")
+                            Text("Eventi di oggi e prossimi appuntamenti")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeReminders },
+                            set: { OpenClawContextProvider.shared.includeReminders = $0 }
+                        )) {
+                            Label("Promemoria", systemImage: "checklist")
+                            Text("Todo e promemoria in scadenza")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeTranscriptions },
+                            set: { OpenClawContextProvider.shared.includeTranscriptions = $0 }
+                        )) {
+                            Label("Trascrizioni", systemImage: "waveform")
+                            Text("Ultime registrazioni audio trascritte")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeUserProfile },
+                            set: { OpenClawContextProvider.shared.includeUserProfile = $0 }
+                        )) {
+                            Label("Profilo Utente", systemImage: "person.circle")
+                            Text("Nome, preferenze e contesto AI")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeRecentChats },
+                            set: { OpenClawContextProvider.shared.includeRecentChats = $0 }
+                        )) {
+                            Label("Chat Recenti", systemImage: "bubble.left.and.bubble.right")
+                            Text("Riassunto conversazioni recenti")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeLocation },
+                            set: { OpenClawContextProvider.shared.includeLocation = $0 }
+                        )) {
+                            Label("Posizione", systemImage: "location")
+                            Text("Posizione attuale (richiede permesso)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Button(action: {
+                            OpenClawContextProvider.shared.saveSettings()
+                            alertMessage = "Impostazioni memoria salvate"
+                            showAlert = true
+                        }) {
+                            Label("Salva Preferenze Memoria", systemImage: "square.and.arrow.down")
+                        }
+                        .foregroundColor(.blue)
+
+                        Button(action: {
+                            Task {
+                                let context = await OpenClawContextProvider.shared.gatherContext()
+                                let preview = context.toPromptText()
+                                alertMessage = preview.isEmpty ? "Nessun contesto disponibile" : String(preview.prefix(500)) + (preview.count > 500 ? "..." : "")
+                                showAlert = true
+                            }
+                        }) {
+                            Label("Anteprima Contesto", systemImage: "eye")
+                        }
+                        .foregroundColor(.orange)
                     }
                 } else if selectedProvider == "groq" {
                     Section("Groq AI Configuration") {
@@ -630,6 +787,9 @@ struct SettingsView: View {
         _ = KeychainManager.shared.saveAPIKey(anthropicApiKey, for: "anthropic")
         _ = KeychainManager.shared.saveAPIKey(deepSeekApiKey, for: "deepseek")
         _ = KeychainManager.shared.saveAPIKey(xaiApiKey, for: "xai")
+
+        // Salva endpoint OpenClaw
+        UserDefaults.standard.set(openclawEndpoint, forKey: "openclaw_endpoint")
         
         // Salva provider selezionato e modelli
         UserDefaults.standard.set(selectedProvider, forKey: "selectedProvider")
@@ -672,6 +832,7 @@ struct SettingsView: View {
         anthropicApiKey = KeychainManager.shared.getAPIKey(for: "anthropic") ?? ""
         deepSeekApiKey = KeychainManager.shared.getAPIKey(for: "deepseek") ?? ""
         xaiApiKey = KeychainManager.shared.getAPIKey(for: "xai") ?? ""
+        openclawEndpoint = UserDefaults.standard.string(forKey: "openclaw_endpoint") ?? ""
 
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
         forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
@@ -976,6 +1137,52 @@ struct SettingsView: View {
             } catch {
                 await MainActor.run {
                     alertMessage = "❌ Test DeepSeek fallito:\n\nErrore: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
+    }
+
+    private func testOpenClawConnection() {
+        // Salva l'endpoint prima di testare
+        let endpoint = openclawEndpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+        if endpoint.isEmpty {
+            openclawConnectionStatus = "❌ Inserisci un endpoint valido"
+            return
+        }
+
+        UserDefaults.standard.set(endpoint, forKey: "openclaw_endpoint")
+        isTestingOpenClaw = true
+        openclawConnectionStatus = ""
+
+        Task {
+            do {
+                try await OpenClawService.shared.connect(to: endpoint)
+                OpenClawService.shared.disconnect()
+
+                await MainActor.run {
+                    isTestingOpenClaw = false
+                    openclawConnectionStatus = "✅ Connesso a OpenClaw Gateway"
+                    alertMessage = "✅ Test OpenClaw riuscito:\n\n• Gateway raggiungibile\n• Handshake completato\n• Pronto per l'uso"
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    isTestingOpenClaw = false
+
+                    if let openClawError = error as? OpenClawError {
+                        switch openClawError {
+                        case .pairingRequired:
+                            openclawConnectionStatus = "⚠️ Pairing richiesto - approva dal Gateway"
+                            alertMessage = "⚠️ Pairing Richiesto\n\nApprova la connessione di Marilena dal pannello di controllo OpenClaw.\n\nPoi riprova il test."
+                        default:
+                            openclawConnectionStatus = "❌ \(openClawError.localizedDescription)"
+                            alertMessage = "❌ Test OpenClaw fallito:\n\n\(openClawError.localizedDescription)"
+                        }
+                    } else {
+                        openclawConnectionStatus = "❌ \(error.localizedDescription)"
+                        alertMessage = "❌ Test OpenClaw fallito:\n\nErrore: \(error.localizedDescription)"
+                    }
                     showAlert = true
                 }
             }
