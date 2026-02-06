@@ -415,6 +415,16 @@ struct SettingsView: View {
                         }
 
                         Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeReminders },
+                            set: { OpenClawContextProvider.shared.includeReminders = $0 }
+                        )) {
+                            Label("Promemoria", systemImage: "checklist")
+                            Text("Todo e promemoria in scadenza")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
                             get: { OpenClawContextProvider.shared.includeTranscriptions },
                             set: { OpenClawContextProvider.shared.includeTranscriptions = $0 }
                         )) {
@@ -440,6 +450,16 @@ struct SettingsView: View {
                         )) {
                             Label("Chat Recenti", systemImage: "bubble.left.and.bubble.right")
                             Text("Riassunto conversazioni recenti")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeLocation },
+                            set: { OpenClawContextProvider.shared.includeLocation = $0 }
+                        )) {
+                            Label("Posizione", systemImage: "location")
+                            Text("Posizione attuale (richiede permesso)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
