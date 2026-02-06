@@ -433,9 +433,24 @@ public class ChatService: ObservableObject {
         )
         messages.append(assistantMessage)
 
+        // Raccogli contesto RAG (calendario, trascrizioni, profilo)
+        let contextPrompt = await OpenClawContextProvider.shared.getContextPrompt()
+
+        // Costruisci messaggio arricchito con contesto
+        var enrichedMessage = text
+        if !contextPrompt.isEmpty {
+            enrichedMessage = """
+            [CONTESTO MEMORIA MARILENA]
+            \(contextPrompt)
+
+            [RICHIESTA UTENTE]
+            \(text)
+            """
+        }
+
         // Usa streaming per OpenClaw
         openClawService.streamMessage(
-            messages: buildConversationHistory(newMessage: text, context: userContext),
+            messages: [OpenAIMessage(role: "user", content: enrichedMessage)],
             model: "openclaw-agent",
             onChunk: { [weak self] delta in
                 guard let self = self else { return }

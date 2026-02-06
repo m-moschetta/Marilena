@@ -395,6 +395,76 @@ struct SettingsView: View {
                                 .font(.caption)
                         }
                     }
+
+                    // Sezione Contesto/Memoria per OpenClaw
+                    Section("Memoria Contestuale") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Scegli quali dati condividere con OpenClaw per una memoria RAG-like")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeCalendar },
+                            set: { OpenClawContextProvider.shared.includeCalendar = $0 }
+                        )) {
+                            Label("Calendario", systemImage: "calendar")
+                            Text("Eventi di oggi e prossimi appuntamenti")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeTranscriptions },
+                            set: { OpenClawContextProvider.shared.includeTranscriptions = $0 }
+                        )) {
+                            Label("Trascrizioni", systemImage: "waveform")
+                            Text("Ultime registrazioni audio trascritte")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeUserProfile },
+                            set: { OpenClawContextProvider.shared.includeUserProfile = $0 }
+                        )) {
+                            Label("Profilo Utente", systemImage: "person.circle")
+                            Text("Nome, preferenze e contesto AI")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Toggle(isOn: Binding(
+                            get: { OpenClawContextProvider.shared.includeRecentChats },
+                            set: { OpenClawContextProvider.shared.includeRecentChats = $0 }
+                        )) {
+                            Label("Chat Recenti", systemImage: "bubble.left.and.bubble.right")
+                            Text("Riassunto conversazioni recenti")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Button(action: {
+                            OpenClawContextProvider.shared.saveSettings()
+                            alertMessage = "Impostazioni memoria salvate"
+                            showAlert = true
+                        }) {
+                            Label("Salva Preferenze Memoria", systemImage: "square.and.arrow.down")
+                        }
+                        .foregroundColor(.blue)
+
+                        Button(action: {
+                            Task {
+                                let context = await OpenClawContextProvider.shared.gatherContext()
+                                let preview = context.toPromptText()
+                                alertMessage = preview.isEmpty ? "Nessun contesto disponibile" : String(preview.prefix(500)) + (preview.count > 500 ? "..." : "")
+                                showAlert = true
+                            }
+                        }) {
+                            Label("Anteprima Contesto", systemImage: "eye")
+                        }
+                        .foregroundColor(.orange)
+                    }
                 } else if selectedProvider == "groq" {
                     Section("Groq AI Configuration") {
                         SecureField("Groq API Key", text: $groqApiKey)
