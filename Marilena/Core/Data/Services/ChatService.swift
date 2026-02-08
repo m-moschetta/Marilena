@@ -28,6 +28,7 @@ public class ChatService: ObservableObject {
     private let openAIService = OpenAIService.shared
     private let profiloService = ProfiloUtenteService.shared
     private let perplexityService = PerplexityService.shared
+    private let openClawService = OpenClawService.shared
     
     // MARK: - Private Properties
     private var cancellables = Set<AnyCancellable>()
@@ -90,7 +91,14 @@ public class ChatService: ObservableObject {
         
         // Salva il messaggio utente in Core Data
         saveCoreDataMessage(userMessage)
-        
+
+        // OpenClaw: se selezionato come provider, usa il WebSocket Gateway
+        let selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? ""
+        if selectedProvider == "openclaw" {
+            await sendMessageViaOpenClaw(text)
+            return
+        }
+
         // Fallback streaming via Cloudflare Gateway se manca la chiave OpenAI
         let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
         let hasOpenAIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
@@ -410,6 +418,79 @@ public class ChatService: ObservableObject {
         }
     }
     
+    private func sendMessageViaOpenClaw(_ text: String) async {
+        let assistantId = UUID()
+        let userContext = getUserContext()
+        let assistantMessage = ModularChatMessage(
+            id: assistantId,
+            content: "",
+            role: .assistant,
+            metadata: MessageMetadata(
+                model: "openclaw-agent",
+                context: userContext,
+                provider: "OpenClaw"
+            )
+        )
+        messages.append(assistantMessage)
+
+        // Raccogli contesto RAG (calendario, trascrizioni, profilo)
+        let contextPrompt = await OpenClawContextProvider.shared.getContextPrompt()
+
+        // Costruisci messaggio arricchito con contesto
+        var enrichedMessage = text
+        if !contextPrompt.isEmpty {
+            enrichedMessage = """
+            [CONTESTO MEMORIA MARILENA]
+            \(contextPrompt)
+
+            [RICHIESTA UTENTE]
+            \(text)
+            """
+        }
+
+        // Usa streaming per OpenClaw
+        openClawService.streamMessage(
+            messages: [OpenAIMessage(role: "user", content: enrichedMessage)],
+            model: "openclaw-agent",
+            onChunk: { [weak self] delta in
+                guard let self = self else { return }
+                Task { @MainActor in
+                    if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                        let updated = ModularChatMessage(
+                            id: assistantId,
+                            content: self.messages[idx].content + delta,
+                            role: .assistant,
+                            timestamp: self.messages[idx].timestamp,
+                            metadata: self.messages[idx].metadata
+                        )
+                        self.messages[idx] = updated
+                    }
+                }
+            },
+            onComplete: { [weak self] in
+                guard let self = self else { return }
+                Task { @MainActor in
+                    self.isProcessing = false
+                    self.processingStartTime = nil
+                    if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
+                        self.saveCoreDataMessage(self.messages[idx])
+                    }
+                    self.updateCurrentSession()
+                    self.updateCoreDataSession()
+                }
+            },
+            onError: { [weak self] error in
+                guard let self = self else { return }
+                Task { @MainActor in
+                    self.error = error.localizedDescription
+                    self.isProcessing = false
+                    self.processingStartTime = nil
+                    print("❌ ChatService: Errore OpenClaw: \(error)")
+                }
+            }
+        )
+    }
+
     private func processMessage(_ text: String, context: String = "") async throws -> String {
         // Costruisci la cronologia della conversazione
         let conversationHistory = buildConversationHistory(newMessage: text, context: context)
