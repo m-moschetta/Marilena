@@ -5,7 +5,7 @@ import Foundation
 protocol ServiceContainerProtocol {
     func register<T>(_ type: T.Type, factory: @escaping () -> T)
     func register<T>(_ type: T.Type, singleton: T)
-    func resolve<T>(_ type: T.Type) -> T
+    func resolve<T>(_ type: T.Type) -> T?
     func isRegistered<T>(_ type: T.Type) -> Bool
 }
 
@@ -60,27 +60,27 @@ public class ServiceContainer: ServiceContainerProtocol {
     // MARK: - Resolution Methods
     
     /// Risolve una dipendenza dal container
-    public func resolve<T>(_ type: T.Type) -> T {
+    public func resolve<T>(_ type: T.Type) -> T? {
         let key = String(describing: type)
-        
+
         // 1. Check singletons first
         if let singleton = singletons[key] as? T {
             return singleton
         }
-        
+
         // 2. Check factories
-        if let factory = factories[key] {
-            let instance = factory() as! T
+        if let factory = factories[key], let instance = factory() as? T {
             return instance
         }
-        
+
         // 3. Check registered services
         if let service = services[key] as? T {
             return service
         }
-        
-        // 4. If not found, try to create a default instance (fallback)
-        fatalError("❌ ServiceContainer: Service \(key) not registered. Available services: \(Array(services.keys))")
+
+        // 4. Not found
+        print("⚠️ ServiceContainer: Service \(key) not registered. Available services: \(Array(services.keys))")
+        return nil
     }
     
     /// Verifica se un servizio è registrato
@@ -126,12 +126,12 @@ public class ServiceContainer: ServiceContainerProtocol {
 /// Service Locator per accesso semplificato ai servizi
 @MainActor
 public enum ServiceLocator {
-    
+
     /// Risolve un servizio dal container principale
-    public static func resolve<T>(_ type: T.Type) -> T {
+    public static func resolve<T>(_ type: T.Type) -> T? {
         return ServiceContainer.shared.resolve(type)
     }
-    
+
     /// Verifica se un servizio è disponibile
     public static func isAvailable<T>(_ type: T.Type) -> Bool {
         return ServiceContainer.shared.isRegistered(type)
@@ -144,13 +144,13 @@ public enum ServiceLocator {
 @propertyWrapper
 public struct Injected<T> {
     private let type: T.Type
-    
+
     public init(_ type: T.Type) {
         self.type = type
     }
-    
+
     @MainActor
-    public var wrappedValue: T {
+    public var wrappedValue: T? {
         return ServiceLocator.resolve(type)
     }
 }
@@ -158,14 +158,6 @@ public struct Injected<T> {
 // MARK: - Extensions for Common Types
 
 extension ServiceContainer {
-    
-    /// Registra servizio con configurazione lambda
-    public func configure<T>(_ type: T.Type, configuration: @escaping (T) -> T) {
-        register(type) {
-            let instance = self.resolve(type)
-            return configuration(instance)
-        }
-    }
     
     /// Registra servizio condizionale
     public func registerIf<T>(_ condition: Bool, _ type: T.Type, factory: @escaping () -> T) {

@@ -133,7 +133,7 @@ public extension ServiceContainer {
     }
     
     /// Risolve EmailChatService dal container
-    func resolveEmailChatService() -> any EmailChatServiceProtocol {
+    func resolveEmailChatService() -> (any EmailChatServiceProtocol)? {
         return self.resolve((any EmailChatServiceProtocol).self)
     }
 }

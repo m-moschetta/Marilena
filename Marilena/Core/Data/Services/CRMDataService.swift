@@ -15,13 +15,13 @@ public class CRMDataService: ObservableObject {
     @Published public var analytics: CRMAnalytics = CRMAnalytics()
     
     private let persistenceController: PersistenceController
-    private let emailCacheService: EmailCacheService
+    private let emailService: EmailService
     private let calendarManager: CalendarManager
     private var cancellables = Set<AnyCancellable>()
-    
+
     private init() {
         self.persistenceController = PersistenceController.shared
-        self.emailCacheService = EmailCacheService()
+        self.emailService = EmailService()
         self.calendarManager = CalendarManager()
         
         setupAutoSync()
@@ -403,8 +403,8 @@ public class CRMDataService: ObservableObject {
     // MARK: - Auto-Sync System
     
     private func setupAutoSync() {
-        // Osserva cambiamenti nell'EmailCacheService
-        emailCacheService.$cachedEmails
+        // Osserva cambiamenti nelle email
+        emailService.$emails
             .debounce(for: .seconds(2), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 Task {

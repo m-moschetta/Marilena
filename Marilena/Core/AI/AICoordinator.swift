@@ -167,7 +167,7 @@ class AICoordinator: ObservableObject {
         let service: AIServiceProtocol
         switch type {
         case .openAI:
-            service = ModernOpenAIService(apiKey: apiKey)
+            service = OpenAIService.shared
         case .xai:
             service = ModernXAIService(apiKey: apiKey)
         case .anthropic:

@@ -5,23 +5,31 @@ import SwiftUI
 /// EmailService refactored - Orchestra i servizi specializzati
 /// Responsabilità: coordinamento e gestione dello stato dell'app
 @MainActor
-public final class RefactoredEmailService: ObservableObject {
+public final class EmailService: ObservableObject {
 
     // MARK: - Published Properties
-    @Published public private(set) var emails: [EmailMessage] = []
+    @Published public private(set) var emailsByAccount: [String: [EmailMessage]] = [:]
     @Published public private(set) var emailConversations: [EmailConversation] = []
     @Published public var isThreadingEnabled = true
     @Published public private(set) var isLoading = false
     @Published public var error: String?
+
+    // Unified emails from all accounts (sorted by date) - Published for UI binding
+    @Published public private(set) var emails: [EmailMessage] = []
+
+    private func updateUnifiedEmails() {
+        emails = emailsByAccount.values.flatMap { $0 }.sorted { $0.date > $1.date }
+    }
 
     // Offline support
     @Published public private(set) var isOnline = true
     @Published public private(set) var syncStatus: SyncStatus = .idle
     @Published public private(set) var pendingOperationsCount = 0
 
-    // Authentication state (delegated to AuthService)
-    public var isAuthenticated: Bool { authService.isAuthenticated }
-    public var currentAccount: EmailAccount? { authService.currentAccount }
+    // Multi-account support
+    public var accounts: [EmailAccount] { EmailAccountManager.shared.accounts }
+    public var currentAccount: EmailAccount? { EmailAccountManager.shared.currentAccount }
+    public var isAuthenticated: Bool { !accounts.isEmpty }
 
     // MARK: - Services
     private let authService: EmailAuthService
@@ -100,7 +108,7 @@ public final class RefactoredEmailService: ObservableObject {
             .store(in: &cancellables)
 
         // Link service to offline sync
-        // Note: OfflineSyncService expects EmailService, but we're using RefactoredEmailService
+        // Note: OfflineSyncService expects EmailService, but we're using EmailService
         // For now, skip this until OfflineSyncService is refactored to use protocol
         // offlineSyncService.setEmailService(self)
     }
@@ -108,7 +116,9 @@ public final class RefactoredEmailService: ObservableObject {
     private func loadCachedEmails() {
         let cached = cacheManager.getAllEmails()
         if !cached.isEmpty {
-            emails = cached
+            // Organizza per account
+            emailsByAccount = Dictionary(grouping: cached, by: { $0.accountId })
+            updateUnifiedEmails()
             Task {
                 await organizeEmailsIntoConversations()
             }
@@ -145,11 +155,11 @@ public final class RefactoredEmailService: ObservableObject {
 
     // MARK: - Email Loading
 
-    /// Carica email con debouncing e cache intelligente
+    /// Carica email da tutti gli account con parallelizzazione
     public func loadEmails(forceRefresh: Bool = false) async {
         // Prevent concurrent loads
         guard !isCurrentlyLoading else {
-            print("⚠️ RefactoredEmailService: Load already in progress")
+            print("⚠️ EmailService: Load already in progress")
             return
         }
 
@@ -157,13 +167,13 @@ public final class RefactoredEmailService: ObservableObject {
         if !forceRefresh, let lastLoad = lastLoadTime {
             let elapsed = Date().timeIntervalSince(lastLoad)
             if elapsed < minimumLoadInterval {
-                print("⏱️ RefactoredEmailService: Debouncing - wait \(minimumLoadInterval - elapsed)s")
+                print("⏱️ EmailService: Debouncing - wait \(minimumLoadInterval - elapsed)s")
                 return
             }
         }
 
-        guard let account = currentAccount else {
-            print("⚠️ RefactoredEmailService: No account")
+        guard !accounts.isEmpty else {
+            print("⚠️ EmailService: No accounts")
             return
         }
 
@@ -174,48 +184,62 @@ public final class RefactoredEmailService: ObservableObject {
             isLoading = false
         }
 
-        do {
-            // Refresh token if needed
-            let validAccount = try await authService.refreshTokenIfNeeded(for: account)
+        // Load from all accounts in parallel using TaskGroup
+        await withTaskGroup(of: (String, [EmailMessage]).self) { group in
+            for account in accounts {
+                group.addTask {
+                    do {
+                        // Refresh token if needed
+                        let validAccount = try await self.authService.refreshTokenIfNeeded(for: account)
 
-            // Fetch from network
-            let newEmails: [EmailMessage]
-            switch validAccount.provider {
-            case .google:
-                newEmails = try await networkService.fetchEmailsFromGmail(
-                    accessToken: validAccount.accessToken,
-                    maxResults: 50
-                )
-            case .microsoft:
-                newEmails = try await networkService.fetchEmailsFromMicrosoft(
-                    accessToken: validAccount.accessToken,
-                    maxResults: 50
-                )
+                        // Fetch from network
+                        let newEmails: [EmailMessage]
+                        switch validAccount.provider {
+                        case .google:
+                            newEmails = try await self.networkService.fetchEmailsFromGmail(
+                                accessToken: validAccount.accessToken,
+                                accountId: account.id,
+                                maxResults: 100
+                            )
+                        case .microsoft:
+                            newEmails = try await self.networkService.fetchEmailsFromMicrosoft(
+                                accessToken: validAccount.accessToken,
+                                accountId: account.id,
+                                maxResults: 100
+                            )
+                        }
+
+                        // Categorize emails
+                        let categorizedEmails = await self.categorizationService.categorizeEmails(newEmails)
+
+                        print("✅ Loaded \(categorizedEmails.count) emails for account: \(account.email)")
+                        return (account.id, categorizedEmails)
+
+                    } catch {
+                        print("❌ Error loading emails for \(account.email): \(error)")
+                        return (account.id, [])
+                    }
+                }
             }
 
-            // Categorize emails
-            let categorizedEmails = await categorizationService.categorizeEmails(newEmails)
-
-            // Merge with cache (evita duplicati)
-            emails = cacheManager.mergeEmails(categorizedEmails)
-
-            // Organize into conversations if enabled
-            if isThreadingEnabled {
-                await organizeEmailsIntoConversations()
-            }
-
-            lastLoadTime = Date()
-            print("✅ RefactoredEmailService: Loaded \(emails.count) emails")
-
-        } catch {
-            self.error = "Errore caricamento email: \(error.localizedDescription)"
-            print("❌ RefactoredEmailService: \(error)")
-
-            // Fallback to cache on error
-            if emails.isEmpty {
-                emails = cacheManager.getAllEmails()
+            // Collect results from all accounts
+            for await (accountId, emails) in group {
+                // Merge with cache (evita duplicati)
+                let merged = self.cacheManager.mergeEmails(emails)
+                self.emailsByAccount[accountId] = merged.filter { $0.accountId == accountId }
             }
         }
+
+        // Update unified view
+        updateUnifiedEmails()
+
+        // Organize into conversations if enabled
+        if isThreadingEnabled {
+            await organizeEmailsIntoConversations()
+        }
+
+        lastLoadTime = Date()
+        print("✅ EmailService: Loaded \(emails.count) total emails from \(accounts.count) accounts")
     }
 
     /// Force refresh ignorando debouncing
@@ -234,25 +258,34 @@ public final class RefactoredEmailService: ObservableObject {
 
     /// Marca email come letta
     public func markEmailAsRead(_ emailId: String) async {
-        guard let account = currentAccount else { return }
+        // Find email in all accounts
+        guard let email = emails.first(where: { $0.id == emailId }) else { return }
+        guard let account = accounts.first(where: { $0.id == email.accountId }) else { return }
 
         // Update locale immediato (EmailMessage è immutable, creiamo una nuova istanza)
-        if let index = emails.firstIndex(where: { $0.id == emailId }) {
-            let oldEmail = emails[index]
-            let updatedEmail = EmailMessage(
-                id: oldEmail.id,
-                from: oldEmail.from,
-                to: oldEmail.to,
-                subject: oldEmail.subject,
-                body: oldEmail.body,
-                date: oldEmail.date,
-                isRead: true,
-                hasAttachments: oldEmail.hasAttachments,
-                category: oldEmail.category
-            )
-            emails[index] = updatedEmail
-            cacheManager.saveEmail(updatedEmail)
+        let updatedEmail = EmailMessage(
+            id: email.id,
+            accountId: email.accountId,
+            from: email.from,
+            to: email.to,
+            subject: email.subject,
+            body: email.body,
+            date: email.date,
+            isRead: true,
+            hasAttachments: email.hasAttachments,
+            emailType: email.emailType,
+            category: email.category
+        )
+
+        // Update in emailsByAccount
+        if var accountEmails = emailsByAccount[email.accountId],
+           let index = accountEmails.firstIndex(where: { $0.id == emailId }) {
+            accountEmails[index] = updatedEmail
+            emailsByAccount[email.accountId] = accountEmails
+            updateUnifiedEmails()
         }
+
+        cacheManager.saveEmail(updatedEmail)
 
         // Sincronizza con server (offline-safe)
         if isOnline {
@@ -264,7 +297,7 @@ public final class RefactoredEmailService: ObservableObject {
                     try await networkService.markAsReadMicrosoft(emailId: emailId, account: account)
                 }
             } catch {
-                print("❌ RefactoredEmailService: Error marking as read: \(error)")
+                print("❌ EmailService: Error marking as read: \(error)")
                 // TODO: Queue per offline sync (requires OfflineOperation refactoring)
                 // await offlineSyncService.queueOperation(.markAsRead(emailId: emailId))
             }
@@ -276,12 +309,21 @@ public final class RefactoredEmailService: ObservableObject {
 
     /// Elimina email
     public func deleteEmail(_ emailId: String) async throws {
-        guard let account = currentAccount else {
+        // Find email to get account
+        guard let email = emails.first(where: { $0.id == emailId }) else {
+            throw EmailError.emailNotFound
+        }
+        guard let account = accounts.first(where: { $0.id == email.accountId }) else {
             throw EmailError.notAuthenticated
         }
 
-        // Remove locale immediato
-        emails.removeAll { $0.id == emailId }
+        // Remove from emailsByAccount
+        if var accountEmails = emailsByAccount[email.accountId] {
+            accountEmails.removeAll { $0.id == emailId }
+            emailsByAccount[email.accountId] = accountEmails
+            updateUnifiedEmails()
+        }
+
         cacheManager.deleteEmail(id: emailId)
 
         // Sincronizza con server
@@ -294,7 +336,7 @@ public final class RefactoredEmailService: ObservableObject {
                     try await networkService.deleteFromMicrosoft(emailId: emailId, account: account)
                 }
             } catch {
-                print("❌ RefactoredEmailService: Error deleting: \(error)")
+                print("❌ EmailService: Error deleting: \(error)")
                 // TODO: Queue per offline sync
                 // await offlineSyncService.queueOperation(.delete(emailId: emailId))
             }
@@ -306,12 +348,21 @@ public final class RefactoredEmailService: ObservableObject {
 
     /// Archivia email
     public func archiveEmail(_ emailId: String) async {
-        emails.removeAll { $0.id == emailId }
+        // Find email to get account
+        guard let email = emails.first(where: { $0.id == emailId }) else { return }
+
+        // Remove from emailsByAccount
+        if var accountEmails = emailsByAccount[email.accountId] {
+            accountEmails.removeAll { $0.id == emailId }
+            emailsByAccount[email.accountId] = accountEmails
+            updateUnifiedEmails()
+        }
+
         cacheManager.archiveEmail(id: emailId)
 
         if isOnline {
             // TODO: Implement archive API call
-            print("📦 RefactoredEmailService: Archive \(emailId)")
+            print("📦 EmailService: Archive \(emailId)")
         } else {
             // TODO: Queue per offline sync
             // await offlineSyncService.queueOperation(.archive(emailId: emailId))
@@ -360,7 +411,7 @@ public final class RefactoredEmailService: ObservableObject {
         }
 
         emailConversations = threadingManager.organizeIntoConversations(emails)
-        print("🧵 RefactoredEmailService: Organized \(emailConversations.count) conversations")
+        print("🧵 EmailService: Organized \(emailConversations.count) conversations")
     }
 
     /// Marca conversazione come letta
@@ -374,19 +425,31 @@ public final class RefactoredEmailService: ObservableObject {
 
     /// Simula nuova email per testing
     public func simulateNewEmail() async {
+        guard let account = currentAccount else { return }
+
         let testEmail = EmailMessage(
             id: UUID().uuidString,
+            accountId: account.id,
             from: "test@example.com",
-            to: [currentAccount?.email ?? ""],
+            to: [account.email],
             subject: "Test Email \(Date())",
             body: "This is a test email created at \(Date())",
             date: Date(),
             isRead: false,
             hasAttachments: false,
+            emailType: .received,
             category: .personal
         )
 
-        emails.insert(testEmail, at: 0)
+        // Insert into emailsByAccount
+        if var accountEmails = emailsByAccount[account.id] {
+            accountEmails.insert(testEmail, at: 0)
+            emailsByAccount[account.id] = accountEmails
+        } else {
+            emailsByAccount[account.id] = [testEmail]
+        }
+        updateUnifiedEmails()
+
         cacheManager.saveEmail(testEmail)
 
         if isThreadingEnabled {
@@ -397,6 +460,7 @@ public final class RefactoredEmailService: ObservableObject {
     // MARK: - Helpers
 
     private func clearEmails() {
+        emailsByAccount = [:]
         emails = []
         emailConversations = []
     }
@@ -404,6 +468,81 @@ public final class RefactoredEmailService: ObservableObject {
     /// Accesso pubblico per OfflineSyncService
     internal func getNetworkService() -> EmailNetworkService {
         return networkService
+    }
+
+    // MARK: - Forward Email
+
+    /// Prepara subject e body per un forward
+    public func prepareForwardEmail(_ email: EmailMessage) -> (subject: String, body: String) {
+        let forwardSubject = "Fwd: \(email.subject)"
+
+        let forwardBody = """
+        <br><br>
+        ---------- Messaggio inoltrato ----------<br>
+        Da: \(email.from)<br>
+        Data: \(formatDate(email.date))<br>
+        Oggetto: \(email.subject)<br>
+        A: \(email.to.joined(separator: ", "))<br>
+        <br>
+        \(email.body)
+        """
+
+        return (subject: forwardSubject, body: forwardBody)
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "it_IT")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    // MARK: - Categorization
+
+    /// Ricategorizza tutte le email
+    public func forceCategorizeAllEmails() async {
+        guard !emails.isEmpty else { return }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        let categorizedEmails = await categorizationService.categorizeEmails(emails)
+
+        // Merge results back
+        var updated = emails
+        for categorized in categorizedEmails {
+            if let index = updated.firstIndex(where: { $0.id == categorized.id }) {
+                updated[index] = categorized
+            }
+        }
+
+        // Update per-account and unified
+        emailsByAccount = Dictionary(grouping: updated, by: { $0.accountId })
+        updateUnifiedEmails()
+
+        await organizeEmailsIntoConversations()
+    }
+
+    /// Filtra email per categoria
+    public func emailsForCategory(_ category: EmailCategory) -> [EmailMessage] {
+        return emails.filter { $0.category == category }
+    }
+
+    /// Conteggio email per categoria
+    public func getCategoryCounts() -> [EmailCategory: Int] {
+        var counts: [EmailCategory: Int] = [:]
+        for category in EmailCategory.allCases {
+            counts[category] = emails.filter { $0.category == category }.count
+        }
+        return counts
+    }
+
+    // MARK: - Compatibility
+
+    /// Carica email per un account specifico (compatibilità con OfflineSyncService)
+    public func loadEmails(for account: EmailAccount) async {
+        await loadEmails(forceRefresh: false)
     }
 }
 

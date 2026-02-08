@@ -91,8 +91,7 @@ struct ServicePickerView: View {
         case .eventKit:
             return true // EventKit è sempre disponibile
         case .googleCalendar:
-            // Verifica se l'utente è loggato con Google
-            return true // Per ora sempre disponibile per test
+            return false // Non ancora implementato
         case .microsoftGraph:
             return false // Non ancora implementato
         }

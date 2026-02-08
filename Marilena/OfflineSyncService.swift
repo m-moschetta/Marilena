@@ -21,7 +21,7 @@ public class OfflineSyncService: ObservableObject {
     
     private let persistenceController: PersistenceController
     private weak var emailService: EmailService?
-    private let cacheService: EmailCacheService
+    private let cacheManager: EmailCacheManager
     
     // Queue per operazioni offline
     private var pendingOperations: [OfflineOperation] = []
@@ -36,7 +36,7 @@ public class OfflineSyncService: ObservableObject {
     
     private init() {
         self.persistenceController = PersistenceController.shared
-        self.cacheService = EmailCacheService()
+        self.cacheManager = .shared
         
         setupNetworkMonitoring()
         loadPendingOperations()
@@ -231,9 +231,8 @@ public class OfflineSyncService: ObservableObject {
             throw OfflineError.invalidOperationData
         }
         
-        // Implementa la chiamata all'API per marcare come letta
-        // Per ora aggiorna solo la cache locale
-        await cacheService.markEmailAsRead(emailId, accountId: emailService.currentAccount?.email ?? "")
+        // Delegate to EmailService which handles both cache + server sync
+        await emailService.markEmailAsRead(emailId)
     }
     
     private func executeDeleteEmailOperation(_ operation: OfflineOperation) async throws {
@@ -262,8 +261,7 @@ public class OfflineSyncService: ObservableObject {
         
         // Identifica conflitti tra cache locale e server
         let conflicts = await conflictResolver.detectConflicts(
-            localEmails: emailService.emails,
-            cacheService: cacheService
+            localEmails: emailService.emails
         )
         
         for conflict in conflicts {
@@ -407,7 +405,7 @@ public enum OfflineError: Error {
 
 class ConflictResolver {
     
-    func detectConflicts(localEmails: [EmailMessage], cacheService: EmailCacheService) async -> [EmailConflict] {
+    func detectConflicts(localEmails: [EmailMessage]) async -> [EmailConflict] {
         let conflicts: [EmailConflict] = []
         
         // Per ora implementazione base - può essere estesa

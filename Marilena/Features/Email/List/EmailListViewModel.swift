@@ -15,7 +15,7 @@ public final class EmailListViewModel: ObservableObject {
     @Published public var filteredConversations: [EmailConversation] = []
 
     // MARK: - Dependencies
-    private let emailService: RefactoredEmailService
+    private let emailService: EmailService
     private let accessibilityManager = AccessibilityManager.shared
     private let hapticFeedback = UIImpactFeedbackGenerator(style: .medium)
 
@@ -33,7 +33,7 @@ public final class EmailListViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    public init(emailService: RefactoredEmailService) {
+    public init(emailService: EmailService) {
         self.emailService = emailService
         setupBindings()
     }

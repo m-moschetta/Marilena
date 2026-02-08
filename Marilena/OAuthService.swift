@@ -381,7 +381,7 @@ extension OAuthService: ASWebAuthenticationPresentationContextProviding {
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else {
-            fatalError("No window available for OAuth presentation")
+            return UIWindow()
         }
         return window
     }
