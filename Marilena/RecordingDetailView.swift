@@ -368,6 +368,9 @@ struct RecordingDetailView: View {
                             currentTime: audioPlayer.currentTime,
                             onTimestampTap: { time in
                                 audioPlayer.seek(to: time / audioPlayer.duration)
+                            },
+                            onDelete: {
+                                deleteTranscription(transcription)
                             }
                         )
                     }
@@ -599,6 +602,15 @@ struct RecordingDetailView: View {
             print("Errore eliminazione: \(error)")
         }
     }
+
+    private func deleteTranscription(_ transcription: Trascrizione) {
+        context.delete(transcription)
+        do {
+            try context.save()
+        } catch {
+            print("Errore eliminazione trascrizione: \(error)")
+        }
+    }
     
     private func formatDate(_ date: Date?) -> String {
         guard let date = date else { return "" }
@@ -641,6 +653,7 @@ struct TranscriptionCard: View {
     let transcription: Trascrizione
     let currentTime: TimeInterval
     let onTimestampTap: (TimeInterval) -> Void
+    let onDelete: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -683,7 +696,7 @@ struct TranscriptionCard: View {
                     }
                     
                     Button("Elimina", role: .destructive) {
-                        deleteTranscription()
+                        onDelete()
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -735,10 +748,6 @@ struct TranscriptionCard: View {
         }
     }
     
-    private func deleteTranscription() {
-        // Implementa la logica per eliminare la trascrizione
-        // Questo dovrebbe essere gestito dal parent view
-    }
 }
 
 struct TranscriptionTextView: View {
@@ -869,9 +878,7 @@ class DetailAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateTime()
-            }
+            self?.updateTime()
         }
     }
     
@@ -899,6 +906,7 @@ class DetailAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
 struct ExportOptionsView: View {
     let recording: RegistrazioneAudio
     @Binding var selectedFormat: ExportFormat
+    @Environment(\.managedObjectContext) private var context
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -914,7 +922,7 @@ struct ExportOptionsView: View {
                 }
                 
                 Section("Anteprima") {
-                    let transcriptionService = SpeechTranscriptionService(context: recording.managedObjectContext!)
+                    let transcriptionService = SpeechTranscriptionService(context: context)
                     let transcriptions = recording.trascrizioni?.allObjects as? [Trascrizione] ?? []
                     
                     if let transcription = transcriptions.first {
@@ -943,7 +951,7 @@ struct ExportOptionsView: View {
     }
     
     private func exportTranscription() {
-        let transcriptionService = SpeechTranscriptionService(context: recording.managedObjectContext!)
+        let transcriptionService = SpeechTranscriptionService(context: context)
         let transcriptions = recording.trascrizioni?.allObjects as? [Trascrizione] ?? []
         
         guard let transcription = transcriptions.first else { return }
@@ -1124,36 +1132,43 @@ struct TranscriptionModeSelectionView: View {
         UserDefaults.standard.set(selectedMode, forKey: "transcription_mode")
         
         Task {
+            defer {
+                UserDefaults.standard.set(originalMode, forKey: "transcription_mode")
+            }
+
             do {
                 // Crea un nuovo servizio con il context corretto
                 let transcriptionService = SpeechTranscriptionService(context: context)
-                
-                // Verifica che i permessi siano concessi
-                if !transcriptionService.isPermissionGranted {
-                    // Richiedi i permessi
-                    transcriptionService.requestSpeechPermissions()
-                    
-                    // Aspetta un momento per la risposta
-                    try await Task.sleep(nanoseconds: 2_000_000_000) // 2 secondi
-                    
+
+                // Whisper non richiede Speech Framework locale.
+                if selectedMode != "whisper" {
+                    // Verifica che i permessi siano concessi
                     if !transcriptionService.isPermissionGranted {
+                        // Richiedi i permessi
+                        transcriptionService.requestSpeechPermissions()
+
+                        // Aspetta un momento per la risposta
+                        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 secondi
+
+                        if !transcriptionService.isPermissionGranted {
+                            await MainActor.run {
+                                isTranscribing = false
+                                alertMessage = "Permessi di riconoscimento vocale negati. Vai in Impostazioni > Privacy e Sicurezza > Riconoscimento vocale e abilita Marilena."
+                                showingAlert = true
+                            }
+                            return
+                        }
+                    }
+
+                    // Verifica che il riconoscimento vocale sia disponibile
+                    if !transcriptionService.isSpeechRecognitionAvailable() {
                         await MainActor.run {
                             isTranscribing = false
-                            alertMessage = "Permessi di riconoscimento vocale negati. Vai in Impostazioni > Privacy e Sicurezza > Riconoscimento vocale e abilita Marilena."
+                            alertMessage = "Riconoscimento vocale non disponibile su questo dispositivo."
                             showingAlert = true
                         }
                         return
                     }
-                }
-                
-                // Verifica che il riconoscimento vocale sia disponibile
-                if !transcriptionService.isSpeechRecognitionAvailable() {
-                    await MainActor.run {
-                        isTranscribing = false
-                        alertMessage = "Riconoscimento vocale non disponibile su questo dispositivo."
-                        showingAlert = true
-                    }
-                    return
                 }
                 
                 _ = try await transcriptionService.transcribeRecording(recording)
@@ -1190,9 +1205,6 @@ struct TranscriptionModeSelectionView: View {
                     showingAlert = true
                 }
             }
-            
-            // Ripristina la modalità originale
-            UserDefaults.standard.set(originalMode, forKey: "transcription_mode")
         }
     }
     

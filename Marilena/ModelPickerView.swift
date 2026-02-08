@@ -62,7 +62,13 @@ struct ModelPickerView: View {
                             Text(getDisplayName(for: modelInfo))
                                 .font(.body)
 
-                            if !modelInfo.description.isEmpty {
+                            // Sottotitolo: mostra ID del modello se la descrizione è un nome leggibile diverso
+                            if !modelInfo.description.isEmpty && modelInfo.description != modelInfo.name {
+                                Text(modelInfo.name)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            } else if !modelInfo.description.isEmpty {
                                 Text(modelInfo.description)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -202,11 +208,15 @@ struct ModelPickerView: View {
     // MARK: - Private Methods
 
     private func getDisplayName(for modelInfo: AIModelInfo) -> String {
-        // Usa il nome dal modello o formatta il nome se necessario
+        // Se c'è una descrizione (nome leggibile dal provider), usala
+        if !modelInfo.description.isEmpty && modelInfo.description != modelInfo.name {
+            return modelInfo.description
+        }
+        // Altrimenti formatta l'ID del modello
         if modelInfo.name.isEmpty {
             return "Modello senza nome"
         }
-        return modelInfo.name
+        return formatModelName(modelInfo.name)
     }
 
     private func formatModelName(_ modelId: String) -> String {
@@ -220,9 +230,44 @@ struct ModelPickerView: View {
             return formatGroqModelName(modelId)
         case .mistral:
             return formatMistralModelName(modelId)
+        case .openrouter:
+            return formatOpenRouterModelName(modelId)
         default:
             return modelId.replacingOccurrences(of: "-", with: " ").capitalized
         }
+    }
+    
+    private func formatOpenRouterModelName(_ modelId: String) -> String {
+        // OpenRouter usa formato "provider/model-name"
+        let components = modelId.split(separator: "/")
+        if components.count >= 2 {
+            let provider = String(components[0])
+            let modelName = components.dropFirst().joined(separator: "/")
+            
+            // Formatta provider
+            let formattedProvider: String
+            switch provider.lowercased() {
+            case "openai": formattedProvider = "OpenAI"
+            case "anthropic": formattedProvider = "Anthropic"
+            case "google": formattedProvider = "Google"
+            case "meta": formattedProvider = "Meta"
+            case "mistralai": formattedProvider = "Mistral"
+            case "microsoft": formattedProvider = "Microsoft"
+            case "amazon": formattedProvider = "Amazon"
+            case "cohere": formattedProvider = "Cohere"
+            case "ai21": formattedProvider = "AI21"
+            default: formattedProvider = provider.capitalized
+            }
+            
+            // Formatta nome modello
+            let formattedName = modelName
+                .replacingOccurrences(of: "-", with: " ")
+                .replacingOccurrences(of: "_", with: " ")
+                .capitalized
+            
+            return "\(formattedProvider) \(formattedName)"
+        }
+        return modelId.replacingOccurrences(of: "-", with: " ").capitalized
     }
 
     private func formatOpenAIModelName(_ modelId: String) -> String {
@@ -286,6 +331,7 @@ struct ModelPickerView: View {
         case .openai:
             key = "selected_model"
             UserDefaults.standard.set(modelId, forKey: "selectedChatModel")
+        case .openrouter: key = "selectedOpenRouterModel"
         case .anthropic: key = "selectedAnthropicModel"
         case .groq: key = "selectedGroqChatModel"
         case .mistral: key = "selectedMistralModel"

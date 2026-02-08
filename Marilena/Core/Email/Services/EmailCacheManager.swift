@@ -233,8 +233,21 @@ public final class EmailCacheManager {
         // Parse `to` field (stored as comma-separated string)
         let toArray = cached.to?.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) } ?? []
 
+        // Parse category from CoreData
+        let category: EmailCategory? = {
+            guard let categoryString = cached.category else { return nil }
+            return EmailCategory(rawValue: categoryString)
+        }()
+
+        // Parse emailType from CoreData
+        let emailType: EmailType = {
+            guard let typeString = cached.emailType else { return .received }
+            return EmailType(rawValue: typeString) ?? .received
+        }()
+
         return EmailMessage(
             id: cached.id ?? UUID().uuidString,
+            accountId: cached.accountId ?? "",
             from: cached.from ?? "",
             to: toArray,
             subject: cached.subject ?? "",
@@ -242,12 +255,14 @@ public final class EmailCacheManager {
             date: cached.date ?? Date(),
             isRead: cached.isRead,
             hasAttachments: cached.hasAttachments,
-            category: nil // Category not stored in CoreData yet
+            emailType: emailType,
+            category: category
         )
     }
 
     private func updateCachedEmail(_ cached: CachedEmail, with email: EmailMessage) {
         cached.id = email.id
+        cached.accountId = email.accountId
         cached.from = email.from
         cached.to = email.to.joined(separator: ", ") // Store as comma-separated string
         cached.subject = email.subject
@@ -255,7 +270,8 @@ public final class EmailCacheManager {
         cached.date = email.date
         cached.isRead = email.isRead
         cached.hasAttachments = email.hasAttachments
+        cached.emailType = email.emailType.rawValue
+        cached.category = email.category?.rawValue // Save category to CoreData
         cached.lastUpdated = Date()
-        // Note: category field doesn't exist in CachedEmail yet
     }
 }

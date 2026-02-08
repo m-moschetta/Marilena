@@ -601,6 +601,7 @@ struct SuggestedQuestionView: View {
 
 struct TypingIndicatorView: View {
     @State private var animationPhase = 0
+    @State private var timer: Timer?
     
     var body: some View {
         HStack {
@@ -630,9 +631,14 @@ struct TypingIndicatorView: View {
             Spacer(minLength: 50)
         }
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { timer in
+            timer?.invalidate()
+            timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { _ in
                 animationPhase = (animationPhase + 1) % 3
             }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
         }
     }
 }

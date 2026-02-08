@@ -30,9 +30,13 @@ public struct ModularChatView: View {
     @State private var selectedAnthropicModel = "claude-3-5-sonnet-20241022"
     @State private var selectedAppleModel = "foundation-medium"
     @State private var selectedXAIModel = "grok-4-latest"
+    @State private var selectedOpenRouterModel = "openai/gpt-4o-mini"
     // Gateway error alert
     @State private var showGatewayErrorAlert = false
     @State private var gatewayErrorMessage = ""
+    // Planner integration
+    @State private var showTimeBlockingAgenda = false
+    @State private var agendaRefreshTimer: Timer?
     
     private let openAIService = OpenAIService.shared
     private let profiloService = ProfiloUtenteService.shared
@@ -41,6 +45,7 @@ public struct ModularChatView: View {
     private let anthropicService = AnthropicService.shared
     private let appleService = AppleIntelligenceService.shared
     @StateObject private var emailChatService = EmailChatService()
+    @StateObject private var calendarManager = CalendarManager()
     
     // Modelli Perplexity disponibili per ricerca
     private let perplexitySearchModels = [
@@ -152,34 +157,7 @@ public struct ModularChatView: View {
                         ScrollView {
                             LazyVStack(spacing: 16) {
                                 ForEach(messaggi, id: \.objectID) { messaggio in
-                                    ModularMessageRow(
-                                        messaggio: messaggio,
-                                        onSendToAI: { editedText in
-                                            // Invia il messaggio modificato all'AI
-                                            let messageWithPrefix = "Ecco come lo modificherei: \(editedText)"
-                                            testo = messageWithPrefix
-                                            inviaMessaggio()
-                                        },
-                                        onSearchWithPerplexity: { editedText in
-                                            // Usa il testo modificato per la ricerca Perplexity
-                                            testo = editedText
-                                            searchWithPerplexity()
-                                        },
-                                        onSendEmail: chat.tipo == "email" ? { emailId, content in
-                                            // Invia la risposta email
-                                            Task {
-                                                do {
-                                                    try await emailChatService.sendEmailResponse(
-                                                        from: chat,
-                                                        response: content,
-                                                        originalEmailId: emailId
-                                                    )
-                                                } catch {
-                                                    print("❌ Errore invio email: \(error)")
-                                                }
-                                            }
-                                        } : nil
-                                    )
+                                    messageRow(for: messaggio)
                                 }
                             }
 
@@ -195,63 +173,63 @@ public struct ModularChatView: View {
                         }
                         .padding()
                         .scrollDismissesKeyboard(.interactively)
-                    .onChange(of: messaggi.count) { oldValue, newValue in
-                        scrollToBottom(proxy: proxy)
+                        .onChange(of: messaggi.count) { oldValue, newValue in
+                            scrollToBottom(proxy: proxy)
+                        }
                     }
                 }
 
-                // Input area moderna e dinamica con dimensioni standard (COPIA ESATTA)
+                // Input area con layout originale
                 VStack(spacing: 0) {
-            Divider()
-            
-            HStack(alignment: .bottom, spacing: 8) {
-                        // Campo di testo con espansione dinamica graduale
-                ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: 22)
-                        .fill(Color(.systemGray6))
-                        .frame(height: calculateTextEditorHeight())
+                    Divider()
                     
+                    HStack(alignment: .bottom, spacing: 12) {
+                        // Campo di testo con espansione graduale
+                        ZStack(alignment: .topLeading) {
+                            RoundedRectangle(cornerRadius: 22)
+                                .fill(Color(.systemGray6))
+                                .frame(height: calculateTextEditorHeight())
+                            
                             if testo.isEmpty {
-                        Text("Scrivi un messaggio...")
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
-                    
+                                Text("Scrivi un messaggio...")
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                            }
+                            
                             TextEditor(text: $testo)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 16)
-                        .background(Color.clear)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color.clear)
                                 .disabled(isLoading)
-                        .scrollContentBackground(.hidden)
-                        .frame(height: calculateTextEditorHeight())
-                        .onSubmit {
-                                    // Return invia il messaggio
+                                .scrollContentBackground(.hidden)
+                                .frame(height: calculateTextEditorHeight())
+                                .onSubmit {
                                     if !testo.isEmpty {
                                         inviaMessaggio()
                                     }
+                                }
                         }
-                }
                         .animation(.easeOut(duration: 0.2), value: testo.count)
                         .animation(.easeOut(duration: 0.2), value: testo.components(separatedBy: "\n").count)
                         .animation(.easeOut(duration: 0.2), value: calculateTextEditorHeight())
                         
-                        // Pulsanti rimpiccioliti e vicini in orizzontale
-                        HStack(spacing: 6) {
+                        // Pulsanti verticali stile UI precedente
+                        VStack(spacing: 4) {
                             Button(action: searchWithPerplexity) {
                                 ZStack {
                                     Circle()
                                         .fill(isSearchingPerplexity ? Color.orange : Color(.systemGray5))
-                                        .frame(width: 36, height: 36) // Rimpicciolito da 44 a 36
+                                        .frame(width: 44, height: 44)
                                     
                                     if isSearchingPerplexity {
                                         ProgressView()
-                                            .scaleEffect(0.5)
+                                            .scaleEffect(0.6)
                                             .tint(.white)
                                     } else {
                                         Image(systemName: "globe.americas.fill")
-                                            .font(.system(size: 16, weight: .medium)) // Icona più piccola
+                                            .font(.system(size: 18, weight: .medium))
                                             .foregroundColor(.orange)
                                     }
                                 }
@@ -276,31 +254,30 @@ public struct ModularChatView: View {
                                 }
                             }
                             
-                            // Pulsante invia rimpicciolito
+                            // Pulsante invia con dimensioni originali
                             Button(action: inviaMessaggio) {
-                    ZStack {
-                        Circle()
+                                ZStack {
+                                    Circle()
                                         .fill(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading ? 
-                                  Color(.systemGray4) : Color.blue)
-                                        .frame(width: 36, height: 36) // Rimpicciolito da 44 a 36
-                        
+                                              Color(.systemGray4) : Color.blue)
+                                        .frame(width: 44, height: 44)
+                                    
                                     if isLoading {
-                            ProgressView()
-                                .scaleEffect(0.6)
-                                .tint(.white)
-                        } else {
-                            Image(systemName: "arrow.up")
-                                .font(.system(size: 16, weight: .semibold)) // Icona più piccola
-                                .foregroundColor(.white)
-                        }
-                    }
-                }
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .tint(.white)
+                                    } else {
+                                        Image(systemName: "arrow.up")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                            }
                             .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                             .scaleEffect(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.9 : 1.0)
                             .contextMenu {
                                 ForEach(currentProviderModels, id: \.self) { model in
                                     Button(action: {
-                                        // Aggiorna il modello corretto basato sul provider
                                         switch selectedProvider {
                                         case "groq":
                                             selectedGroqModel = model
@@ -314,6 +291,9 @@ public struct ModularChatView: View {
                                         case "xai":
                                             selectedXAIModel = model
                                             UserDefaults.standard.set(model, forKey: "selectedXAIChatModel")
+                                        case "openrouter":
+                                            selectedOpenRouterModel = model
+                                            UserDefaults.standard.set(model, forKey: "selectedOpenRouterModel")
                                         default: // "openai"
                                             selectedModel = model
                                             UserDefaults.standard.set(model, forKey: "selected_model")
@@ -332,15 +312,43 @@ public struct ModularChatView: View {
                             }
                             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-            }
+                    }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 8) // Ridotto padding verticale da 12 a 8
+                    .padding(.vertical, 12)
                     .background(Color(.systemBackground))
                 }
             }
         }
-        .navigationTitle(chat.titolo ?? "Chat")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(chat.titolo ?? "Chat")
+                    .font(.headline)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showTimeBlockingAgenda = true
+                } label: {
+                    Image(systemName: "calendar.badge.clock")
+                }
+            }
+        }
+        .sheet(isPresented: $showTimeBlockingAgenda) {
+            NavigationStack {
+                TimeBlockingAgendaView(
+                    calendarManager: calendarManager,
+                    reminderService: ReminderService.shared
+                )
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Chiudi") {
+                            showTimeBlockingAgenda = false
+                        }
+                    }
+                }
+            }
+        }
         .alert("Errore Gateway", isPresented: $showGatewayErrorAlert) {
             Button("OK") { showGatewayErrorAlert = false }
         } message: {
@@ -348,17 +356,27 @@ public struct ModularChatView: View {
         }
         .onAppear {
             loadChatSettings()
+            // Carica eventi iniziali per il contesto
+            Task {
+                let now = Date()
+                let endDate = Calendar.current.date(byAdding: .hour, value: 48, to: now) ?? now
+                await calendarManager.loadEvents(from: now, to: endDate)
+                await ReminderService.shared.loadBacklogItems()
+            }
+            // Avvia auto-refresh agenda ogni 5 minuti
+            startAgendaAutoRefresh()
+        }
+        .onDisappear {
+            stopAgendaAutoRefresh()
         }
         .onAppear {
             PerformanceSignpost.event("ChatViewAppear")
         }
     }
-    
+
     // MARK: - Welcome View (COPIA ESATTA)
     
-
-// MARK: - Helpers & Subviews for ModularChatView
-}
+    // MARK: - Helpers & Subviews for ModularChatView
     private var welcomeView: some View {
         VStack(spacing: 24) {
             // Icona moderna con gradiente
@@ -677,22 +695,37 @@ public struct ModularChatView: View {
             }
 
             Task {
+                let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+                let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+                
+                // Prova tool calling via orchestrator (xAI è compatibile OpenAI)
+                let handler = GeneralChatToolHandler(calendarManager: calendarManager, context: viewContext)
+                handler.onUIAction = { action in
+                    let message = MessaggioMarilena(context: viewContext)
+                    message.id = UUID()
+                    message.contenuto = "\(action.title)\n\(action.message)"
+                    message.isUser = false
+                    message.dataCreazione = Date()
+                    message.chat = chat
+                    try? viewContext.save()
+                }
+                
+                let orchestrator = OpenAIToolCallingOrchestrator(
+                    apiKeyProvider: { trimmedKey },
+                    model: selectedXAIModel,
+                    temperature: temperature,
+                    maxTokens: maxTokens == 0 ? nil : maxTokens,
+                    toolHandler: handler,
+                    baseURL: URL(string: "https://api.x.ai/v1/chat/completions")!,
+                    providerName: "xAI"
+                )
+                
                 do {
-                    let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
-                    let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
-                    let request = AIRequest(
-                        messages: conversationHistory.map { AIMessage(role: $0.role, content: $0.content) },
-                        model: selectedXAIModel,
-                        maxTokens: maxTokens,
-                        temperature: temperature
-                    )
-                    let service = ModernXAIService(apiKey: trimmedKey)
-                    let risposta = try await service.sendMessage(request)
-
+                    let risposta = try await orchestrator.run(messages: conversationHistory)
                     await MainActor.run {
                         let messaggioAI = MessaggioMarilena(context: viewContext)
                         messaggioAI.id = UUID()
-                        messaggioAI.contenuto = risposta.content
+                        messaggioAI.contenuto = risposta
                         messaggioAI.isUser = false
                         messaggioAI.dataCreazione = Date()
                         messaggioAI.chat = chat
@@ -701,109 +734,343 @@ public struct ModularChatView: View {
                         isLoading = false
                     }
                 } catch {
-                    await MainActor.run {
-                        print("Errore xAI: \(error)")
-                        let messaggioErrore = MessaggioMarilena(context: viewContext)
-                        messaggioErrore.id = UUID()
-                        messaggioErrore.contenuto = "Mi dispiace, non riesco a raggiungere xAI Grok in questo momento."
-                        messaggioErrore.isUser = false
-                        messaggioErrore.dataCreazione = Date()
-                        messaggioErrore.chat = chat
-
-                        try? viewContext.save()
-                        isLoading = false
-                    }
-                }
-            }
-
-        default: // "openai"
-            // Se manca la chiave OpenAI, usa streaming via Cloudflare Gateway
-            let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
-            let hasOpenAIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            if forceGateway || !hasOpenAIKey {
-                let assistantId = UUID()
-                let assistantMessage = MessaggioMarilena(context: viewContext)
-                assistantMessage.id = assistantId
-                assistantMessage.contenuto = ""
-                assistantMessage.isUser = false
-                assistantMessage.dataCreazione = Date()
-                assistantMessage.chat = chat
-                try? viewContext.save()
-
-                CloudflareGatewayClient.shared.streamChat(
-                    messages: conversationHistory,
-                    model: selectedModel,
-                    onChunk: { delta in
-                        if let obj = fetchMessage(by: assistantId) {
-                            obj.contenuto = (obj.contenuto ?? "") + delta
-                            try? viewContext.save()
-                        }
-                    },
-                    onComplete: {
-                        isLoading = false
-                    },
-                    onError: { error in
-                        print("Errore streaming gateway: \(error)")
-                        // Fallback non-streaming via gateway
-                        Task {
-                            do {
-                                let full = try await CloudflareGatewayClient.shared.sendChat(
-                                    messages: conversationHistory,
-                                    model: selectedModel
-                                )
-                                if let obj = fetchMessage(by: assistantId) {
-                                    obj.contenuto = full
-                                    try? viewContext.save()
-                                }
-                                isLoading = false
-                            } catch {
-                                gatewayErrorMessage = error.localizedDescription
-                                showGatewayErrorAlert = true
-                                let messaggioErrore = MessaggioMarilena(context: viewContext)
-                                messaggioErrore.id = UUID()
-                                messaggioErrore.contenuto = "Mi dispiace, c'è stato un problema. Riprova."
-                                messaggioErrore.isUser = false
-                                messaggioErrore.dataCreazione = Date()
-                                messaggioErrore.chat = chat
-                                try? viewContext.save()
-                                isLoading = false
-                            }
-                        }
-                    }
-                )
-            } else {
-                openAIService.sendMessage(
-                    messages: conversationHistory,
-                    model: selectedModel
-                ) { result in
-                    DispatchQueue.main.async {
-                        isLoading = false
+                    // fallback al servizio senza tool
+                    do {
+                        let request = AIRequest(
+                            messages: conversationHistory.map { AIMessage(role: $0.role, content: $0.content) },
+                            model: selectedXAIModel,
+                            maxTokens: maxTokens,
+                            temperature: temperature
+                        )
+                        let service = ModernXAIService(apiKey: trimmedKey)
+                        let risposta = try await service.sendMessage(request)
                         
-                        switch result {
-                        case .success(let risposta):
+                        await MainActor.run {
                             let messaggioAI = MessaggioMarilena(context: viewContext)
                             messaggioAI.id = UUID()
-                            messaggioAI.contenuto = risposta
+                            messaggioAI.contenuto = risposta.content
                             messaggioAI.isUser = false
                             messaggioAI.dataCreazione = Date()
                             messaggioAI.chat = chat
-                            
+
                             try? viewContext.save()
-                            
-                        case .failure(let error):
-                            print("Errore OpenAI: \(error)")
+                            isLoading = false
+                        }
+                    } catch {
+                        await MainActor.run {
+                            print("Errore xAI: \(error)")
                             let messaggioErrore = MessaggioMarilena(context: viewContext)
                             messaggioErrore.id = UUID()
-                            messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con OpenAI. Riprova tra poco."
+                            messaggioErrore.contenuto = "Mi dispiace, non riesco a raggiungere xAI Grok in questo momento."
                             messaggioErrore.isUser = false
                             messaggioErrore.dataCreazione = Date()
                             messaggioErrore.chat = chat
-                            
+
                             try? viewContext.save()
+                            isLoading = false
                         }
                     }
                 }
             }
+
+        case "openrouter":
+            let trimmedKey = (KeychainManager.shared.getAPIKey(for: "openrouter") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedKey.isEmpty else {
+                let messaggioErrore = MessaggioMarilena(context: viewContext)
+                messaggioErrore.id = UUID()
+                messaggioErrore.contenuto = "Configura una API key OpenRouter nelle impostazioni."
+                messaggioErrore.isUser = false
+                messaggioErrore.dataCreazione = Date()
+                messaggioErrore.chat = chat
+                try? viewContext.save()
+                isLoading = false
+                return
+            }
+
+            let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+            sendOpenRouterWithoutTools(
+                conversationHistory: conversationHistory,
+                model: selectedOpenRouterModel,
+                temperature: temperature,
+                maxTokens: maxTokens
+            )
+
+        default: // "openai"
+            let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+            let hasOpenAIKey = (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            let temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
+            let maxTokens = Int(UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000)
+            if !forceGateway && hasOpenAIKey {
+                Task {
+                    await handleOpenAIToolFlow(
+                        conversationHistory: conversationHistory,
+                        temperature: temperature,
+                        maxTokens: maxTokens
+                    )
+                }
+            } else {
+                sendOpenAIWithoutTools(
+                    conversationHistory: conversationHistory,
+                    temperature: temperature,
+                    maxTokens: maxTokens,
+                    forceGateway: forceGateway
+                )
+            }
+        }
+    }
+
+    @MainActor
+    private func handleOpenAIToolFlow(
+        conversationHistory: [OpenAIMessage],
+        temperature: Double,
+        maxTokens: Int
+    ) async {
+        // Crea un NewCalendarService per gestire le sovrapposizioni
+        let newCalendarService = NewCalendarService(calendarManager: calendarManager)
+
+        let handler = GeneralChatToolHandler(
+            calendarManager: calendarManager,
+            newCalendarService: newCalendarService,
+            context: viewContext
+        )
+        handler.onUIAction = { action in
+            let message = MessaggioMarilena(context: viewContext)
+            message.id = UUID()
+            message.contenuto = "\(action.title)\n\(action.message)"
+            message.isUser = false
+            message.dataCreazione = Date()
+            message.chat = chat
+            try? viewContext.save()
+        }
+        let orchestrator = OpenAIToolCallingOrchestrator(
+            apiKeyProvider: { KeychainManager.shared.load(key: "openai_api_key") },
+            model: selectedModel,
+            temperature: temperature,
+            maxTokens: maxTokens == 0 ? nil : maxTokens,
+            toolHandler: handler
+        )
+        
+        do {
+            let risposta = try await orchestrator.run(messages: conversationHistory)
+            let messaggioAI = MessaggioMarilena(context: viewContext)
+            messaggioAI.id = UUID()
+            messaggioAI.contenuto = risposta
+            messaggioAI.isUser = false
+            messaggioAI.dataCreazione = Date()
+            messaggioAI.chat = chat
+            
+            try? viewContext.save()
+            isLoading = false
+        } catch {
+            // Fallback al percorso classico senza tool
+            print("Tool calling fallito: \(error.localizedDescription). Fallback al percorso legacy.")
+            sendOpenAIWithoutTools(
+                conversationHistory: conversationHistory,
+                temperature: temperature,
+                maxTokens: maxTokens,
+                forceGateway: UserDefaults.standard.bool(forKey: "force_gateway")
+            )
+        }
+    }
+
+    private func sendOpenAIWithoutTools(
+        conversationHistory: [OpenAIMessage],
+        temperature: Double,
+        maxTokens: Int,
+        forceGateway: Bool
+    ) {
+        // Se manca la chiave OpenAI o è forzato il gateway, usa il proxy
+        if forceGateway || (KeychainManager.shared.load(key: "openai_api_key") ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let assistantId = UUID()
+            let assistantMessage = MessaggioMarilena(context: viewContext)
+            assistantMessage.id = assistantId
+            assistantMessage.contenuto = ""
+            assistantMessage.isUser = false
+            assistantMessage.dataCreazione = Date()
+            assistantMessage.chat = chat
+            try? viewContext.save()
+
+            CloudflareGatewayClient.shared.streamChat(
+                messages: conversationHistory,
+                model: selectedModel,
+                maxTokens: maxTokens == 0 ? nil : maxTokens,
+                temperature: temperature,
+                onChunk: { delta in
+                    if let obj = fetchMessage(by: assistantId) {
+                        obj.contenuto = (obj.contenuto ?? "") + delta
+                        try? viewContext.save()
+                    }
+                },
+                onComplete: {
+                    isLoading = false
+                },
+                onError: { error in
+                    print("Errore streaming gateway: \(error)")
+                    Task {
+                        do {
+                            let full = try await CloudflareGatewayClient.shared.sendChat(
+                                messages: conversationHistory,
+                                model: selectedModel,
+                                maxTokens: maxTokens == 0 ? nil : maxTokens,
+                                temperature: temperature
+                            )
+                            if let obj = fetchMessage(by: assistantId) {
+                                obj.contenuto = full
+                                try? viewContext.save()
+                            }
+                            isLoading = false
+                        } catch {
+                            gatewayErrorMessage = error.localizedDescription
+                            showGatewayErrorAlert = true
+                            let messaggioErrore = MessaggioMarilena(context: viewContext)
+                            messaggioErrore.id = UUID()
+                            messaggioErrore.contenuto = "Mi dispiace, c'è stato un problema. Riprova."
+                            messaggioErrore.isUser = false
+                            messaggioErrore.dataCreazione = Date()
+                            messaggioErrore.chat = chat
+                            try? viewContext.save()
+                            isLoading = false
+                        }
+                    }
+                }
+            )
+            return
+        }
+
+        openAIService.sendMessage(
+            messages: conversationHistory,
+            model: selectedModel
+        ) { result in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                switch result {
+                case .success(let risposta):
+                    let messaggioAI = MessaggioMarilena(context: viewContext)
+                    messaggioAI.id = UUID()
+                    messaggioAI.contenuto = risposta
+                    messaggioAI.isUser = false
+                    messaggioAI.dataCreazione = Date()
+                    messaggioAI.chat = chat
+                    
+                    try? viewContext.save()
+                    
+                case .failure(let error):
+                    print("Errore OpenAI: \(error)")
+                    let messaggioErrore = MessaggioMarilena(context: viewContext)
+                    messaggioErrore.id = UUID()
+                    messaggioErrore.contenuto = "Mi dispiace, ho avuto un problema con OpenAI. Riprova tra poco."
+                    messaggioErrore.isUser = false
+                    messaggioErrore.dataCreazione = Date()
+                    messaggioErrore.chat = chat
+                    
+                    try? viewContext.save()
+                }
+            }
+        }
+    }
+
+    private func sendOpenRouterWithoutTools(
+        conversationHistory: [OpenAIMessage],
+        model: String,
+        temperature: Double,
+        maxTokens: Int
+    ) {
+        guard let apiKey = KeychainManager.shared.getAPIKey(for: "openrouter"),
+              !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            let messaggioErrore = MessaggioMarilena(context: viewContext)
+            messaggioErrore.id = UUID()
+            messaggioErrore.contenuto = "API key OpenRouter non configurata."
+            messaggioErrore.isUser = false
+            messaggioErrore.dataCreazione = Date()
+            messaggioErrore.chat = chat
+            try? viewContext.save()
+            isLoading = false
+            return
+        }
+
+        struct OpenRouterRequest: Codable {
+            let model: String
+            let messages: [OpenAIMessage]
+            let max_tokens: Int
+            let temperature: Double
+        }
+
+        struct OpenRouterResponse: Codable {
+            struct Choice: Codable {
+                struct Message: Codable {
+                    let content: String
+                }
+                let message: Message
+            }
+            let choices: [Choice]
+        }
+
+        Task {
+            do {
+                let url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.timeoutInterval = 45
+                request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("https://marilena.app", forHTTPHeaderField: "HTTP-Referer")
+                request.setValue("Marilena", forHTTPHeaderField: "X-Title")
+
+                let body = OpenRouterRequest(
+                    model: model,
+                    messages: conversationHistory,
+                    max_tokens: maxTokens,
+                    temperature: temperature
+                )
+                request.httpBody = try JSONEncoder().encode(body)
+
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                    throw NSError(domain: "OpenRouterHTTP", code: (response as? HTTPURLResponse)?.statusCode ?? -1)
+                }
+
+                let decoded = try JSONDecoder().decode(OpenRouterResponse.self, from: data)
+                let risposta = decoded.choices.first?.message.content ?? "Nessuna risposta"
+
+                await MainActor.run {
+                    let messaggioAI = MessaggioMarilena(context: viewContext)
+                    messaggioAI.id = UUID()
+                    messaggioAI.contenuto = risposta
+                    messaggioAI.isUser = false
+                    messaggioAI.dataCreazione = Date()
+                    messaggioAI.chat = chat
+                    try? viewContext.save()
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    let messaggioErrore = MessaggioMarilena(context: viewContext)
+                    messaggioErrore.id = UUID()
+                    messaggioErrore.contenuto = "Mi dispiace, non riesco a raggiungere OpenRouter in questo momento."
+                    messaggioErrore.isUser = false
+                    messaggioErrore.dataCreazione = Date()
+                    messaggioErrore.chat = chat
+                    try? viewContext.save()
+                    isLoading = false
+                }
+            }
+        }
+    }
+    
+    @MainActor
+    private func addTextAsCalendarEvent(from text: String) async {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        
+        do {
+            _ = try await calendarManager.createEventFromText(text)
+            let successFeedback = UINotificationFeedbackGenerator()
+            successFeedback.notificationOccurred(.success)
+        } catch {
+            let errorFeedback = UINotificationFeedbackGenerator()
+            errorFeedback.notificationOccurred(.error)
         }
     }
 
@@ -882,6 +1149,40 @@ public struct ModularChatView: View {
         
         // Limita l'altezza massima
         return min(maxHeight, max(baseHeight, calculatedHeight))
+    }
+    
+    // Row builder estratto per semplificare il type-checking
+    @ViewBuilder
+    private func messageRow(for messaggio: MessaggioMarilena) -> some View {
+        let emailHandler: ((String, String) -> Void)? = chat.tipo == "email" ? { emailId, content in
+            Task {
+                do {
+                    try await emailChatService.sendEmailResponse(
+                        from: chat,
+                        response: content,
+                        originalEmailId: emailId
+                    )
+                } catch {
+                    print("❌ Errore invio email: \(error)")
+                }
+            }
+        } : nil
+        
+        ChatMessageRow(
+            messaggio: messaggio,
+            onSendToAI: { editedText in
+                testo = "Ecco come lo modificherei: \(editedText)"
+                inviaMessaggio()
+            },
+            onSearchWithPerplexity: { editedText in
+                testo = editedText
+                searchWithPerplexity()
+            },
+            onSendEmail: emailHandler,
+            onAddToCalendar: { text in
+                Task { await addTextAsCalendarEvent(from: text) }
+            }
+        )
     }
     
     // MARK: - Perplexity Search (COPIA ESATTA)
@@ -985,6 +1286,25 @@ public struct ModularChatView: View {
     
     // MARK: - Provider Settings Functions
     
+    // MARK: - Agenda Auto-Refresh
+    
+    private func startAgendaAutoRefresh() {
+        // Refresh ogni 5 minuti
+        agendaRefreshTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak calendarManager] _ in
+            Task { @MainActor in
+                let now = Date()
+                let endDate = Calendar.current.date(byAdding: .hour, value: 48, to: now) ?? now
+                await calendarManager?.loadEvents(from: now, to: endDate)
+                await ReminderService.shared.loadBacklogItems()
+            }
+        }
+    }
+    
+    private func stopAgendaAutoRefresh() {
+        agendaRefreshTimer?.invalidate()
+        agendaRefreshTimer = nil
+    }
+    
     func loadChatSettings() {
         if let chatModel = UserDefaults.standard.string(forKey: "selectedChatModel") {
             selectedModel = chatModel
@@ -996,6 +1316,7 @@ public struct ModularChatView: View {
         let groqUD = UserDefaults.standard.string(forKey: "selectedGroqChatModel") ?? "llama-3.1-8b-instant"
         let anthropicUD = UserDefaults.standard.string(forKey: "selectedAnthropicModel") ?? "claude-3-5-sonnet-20241022"
         selectedXAIModel = UserDefaults.standard.string(forKey: "selectedXAIChatModel") ?? "grok-4-latest"
+        selectedOpenRouterModel = UserDefaults.standard.string(forKey: "selectedOpenRouterModel") ?? "openai/gpt-4o-mini"
         selectedAppleModel = UserDefaults.standard.string(forKey: "selectedAppleModel") ?? "foundation-medium"
         selectedGroqModel = normalizeModel(groqUD)
         selectedAnthropicModel = normalizeModel(anthropicUD)
@@ -1016,6 +1337,9 @@ public struct ModularChatView: View {
         case "xai":
             let dynamic = ModelCatalog.shared.models(for: .xai)
             return dynamic.isEmpty ? availableXAIModels : dynamic.map { $0.name }
+        case "openrouter":
+            let dynamic = ModelCatalog.shared.models(for: .openrouter)
+            return dynamic.isEmpty ? availableOpenAIModels : dynamic.map { $0.name }
         default: // "openai"
             let dynamic = ModelCatalog.shared.models(for: .openai)
             return dynamic.isEmpty ? availableOpenAIModels : dynamic.map { $0.name }
@@ -1031,7 +1355,8 @@ public struct ModularChatView: View {
             ModelCatalog.shared.models(for: .apple),
             ModelCatalog.shared.models(for: .groq),
             ModelCatalog.shared.models(for: .anthropic),
-            ModelCatalog.shared.models(for: .xai)
+            ModelCatalog.shared.models(for: .xai),
+            ModelCatalog.shared.models(for: .openrouter)
         ]
         for list in lists {
             if let match = list.first(where: { $0.description.caseInsensitiveCompare(trimmed) == .orderedSame }) {
@@ -1060,6 +1385,8 @@ public struct ModularChatView: View {
             return selectedAnthropicModel
         case "xai":
             return selectedXAIModel
+        case "openrouter":
+            return selectedOpenRouterModel
         default: // "openai"
             return selectedModel
         }
@@ -1193,6 +1520,8 @@ public struct ModularChatView: View {
             return getAppleModelDisplayName(model)
         case "xai":
             return getXAIModelDisplayName(model)
+        case "openrouter":
+            return model
         default:
             return model
         }
@@ -1206,6 +1535,21 @@ struct ModularMessageRow: View {
     let onSendToAI: (String) -> Void
     let onSearchWithPerplexity: (String) -> Void
     let onSendEmail: ((String, String) -> Void)? // emailId, content
+    let onAddToCalendar: ((String) -> Void)?
+    
+    init(
+        messaggio: MessaggioMarilena,
+        onSendToAI: @escaping (String) -> Void,
+        onSearchWithPerplexity: @escaping (String) -> Void,
+        onSendEmail: ((String, String) -> Void)?,
+        onAddToCalendar: ((String) -> Void)? = nil
+    ) {
+        self.messaggio = messaggio
+        self.onSendToAI = onSendToAI
+        self.onSearchWithPerplexity = onSearchWithPerplexity
+        self.onSendEmail = onSendEmail
+        self.onAddToCalendar = onAddToCalendar
+    }
     @State private var isEditing = false
     @State private var editedText = ""
     @FocusState private var isTextFieldFocused: Bool
@@ -1362,6 +1706,10 @@ struct ModularMessageRow: View {
                         },
                         onSearchWithPerplexity: { text in
                             onSearchWithPerplexity(text)
+                            showingCanvas = false
+                        },
+                        onAddToCalendar: { text in
+                            onAddToCalendar?(text)
                             showingCanvas = false
                         },
                         onSave: {
@@ -1642,6 +1990,10 @@ struct ModularMessageRow: View {
                             onSearchWithPerplexity(text)
                             showingCanvas = false
                         },
+                        onAddToCalendar: { text in
+                            onAddToCalendar?(text)
+                            showingCanvas = false
+                        },
                         onSave: {
                             saveEditedMessage()
                             showingCanvas = false
@@ -1692,9 +2044,30 @@ struct MessageEditCanvas: View {
     @Binding var editedText: String
     let onSendToAI: (String) -> Void
     let onSearchWithPerplexity: (String) -> Void
+    let onAddToCalendar: ((String) -> Void)?
     let onSave: () -> Void
     let onCancel: () -> Void
     let onSendEmail: ((String) -> Void)? // Nuovo parametro opzionale per inviare email
+    
+    init(
+        originalText: String,
+        editedText: Binding<String>,
+        onSendToAI: @escaping (String) -> Void,
+        onSearchWithPerplexity: @escaping (String) -> Void,
+        onAddToCalendar: ((String) -> Void)? = nil,
+        onSave: @escaping () -> Void,
+        onCancel: @escaping () -> Void,
+        onSendEmail: ((String) -> Void)? = nil
+    ) {
+        self.originalText = originalText
+        self._editedText = editedText
+        self.onSendToAI = onSendToAI
+        self.onSearchWithPerplexity = onSearchWithPerplexity
+        self.onAddToCalendar = onAddToCalendar
+        self.onSave = onSave
+        self.onCancel = onCancel
+        self.onSendEmail = onSendEmail
+    }
     
     @FocusState private var isTextFieldFocused: Bool
     @State private var isRichTextFirstResponder = false
@@ -1943,6 +2316,20 @@ struct MessageEditCanvas: View {
                     onSearchWithPerplexity(editedText)
                 }) {
                     Label("Cerca", systemImage: "magnifyingglass")
+                        .labelStyle(.iconOnly)
+                        .font(.system(size: 20))
+                        .foregroundColor(.primary)
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Aggiungi a calendario (creazione rapida via AI parsing)
+                Button(action: {
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                    
+                    onAddToCalendar?(editedText)
+                }) {
+                    Label("Calendario", systemImage: "calendar.badge.plus")
                         .labelStyle(.iconOnly)
                         .font(.system(size: 20))
                         .foregroundColor(.primary)

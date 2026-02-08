@@ -246,7 +246,6 @@ public struct EnhancedEmailChatView: View {
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .liquidGlass(.subtle)
     }
     
     // MARK: - Search Results View
@@ -363,6 +362,10 @@ public struct EnhancedEmailChatView: View {
         !testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
     }
     
+    private var chatAccountId: String {
+        (chat.value(forKey: "emailAccountId") as? String) ?? chat.emailSender ?? chat.id?.uuidString ?? "chat-account"
+    }
+    
     // MARK: - Actions
     
     private func setupEnhancedChat() {
@@ -373,6 +376,7 @@ public struct EnhancedEmailChatView: View {
                let subject = chat.emailSubject {
                 let emailMessage = EmailMessage(
                     id: emailId,
+                    accountId: chatAccountId,
                     from: sender,
                     to: [],
                     subject: subject,
@@ -612,6 +616,7 @@ public struct EnhancedEmailChatView: View {
         
         return EmailMessage(
             id: emailId,
+            accountId: chatAccountId,
             from: sender,
             to: [],
             subject: subject,

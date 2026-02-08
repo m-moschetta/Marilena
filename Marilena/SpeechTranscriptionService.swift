@@ -448,98 +448,87 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
         // Determina la modalità di trascrizione dalle impostazioni
         let selectedMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
         print("🎤 SpeechTranscriptionService: Modalità trascrizione selezionata: \(selectedMode)")
-        
+
+        do {
             let result: TranscriptionResult
-            
-        // IMPORTANTE: Logica corretta per la selezione del framework
-        switch selectedMode {
-        case "whisper":
-            print("🎤 SpeechTranscriptionService: Tentativo con Whisper API...")
-            result = try await transcribeWithWhisperAPI(audioURL: audioURL)
-            
-        case "speech_analyzer":
-            #if canImport(SpeechAnalyzer)
-            if #available(iOS 26.0, *), availableFramework == .speechAnalyzer {
-                print("🎤 SpeechTranscriptionService: Tentativo con Speech Analyzer...")
-                result = try await transcribeWithSpeechAnalyzer(audioURL: audioURL, language: language)
-            } else {
+
+            // IMPORTANTE: Logica corretta per la selezione del framework
+            switch selectedMode {
+            case "whisper":
+                print("🎤 SpeechTranscriptionService: Tentativo con Whisper API...")
+                result = try await transcribeWithWhisperAPI(audioURL: audioURL)
+
+            case "speech_analyzer":
+                #if canImport(SpeechAnalyzer)
+                if #available(iOS 26.0, *), availableFramework == .speechAnalyzer {
+                    print("🎤 SpeechTranscriptionService: Tentativo con Speech Analyzer...")
+                    result = try await transcribeWithSpeechAnalyzer(audioURL: audioURL, language: language)
+                } else {
+                    print("⚠️ SpeechTranscriptionService: Speech Analyzer non disponibile, fallback a Speech Framework")
+                    result = try await transcribeWithSpeechFramework(audioURL: audioURL, language: language)
+                }
+                #else
                 print("⚠️ SpeechTranscriptionService: Speech Analyzer non disponibile, fallback a Speech Framework")
                 result = try await transcribeWithSpeechFramework(audioURL: audioURL, language: language)
+                #endif
+
+            case "speech_framework", "local":
+                print("🎤 SpeechTranscriptionService: Tentativo con Speech Framework...")
+                try await ensureSpeechFrameworkReady(for: language)
+                result = try await transcribeWithSpeechFramework(audioURL: audioURL, language: language)
+
+            default: // "auto"
+                print("🎤 SpeechTranscriptionService: Modalità automatica, tentativo con Speech Framework...")
+                try await ensureSpeechFrameworkReady(for: language)
+                result = try await transcribeWithSpeechFramework(audioURL: audioURL, language: language)
             }
-            #else
-            print("⚠️ SpeechTranscriptionService: Speech Analyzer non disponibile, fallback a Speech Framework")
-            result = try await transcribeWithSpeechFramework(audioURL: audioURL, language: language)
-            #endif
-            
-        case "speech_framework", "local":
-            print("🎤 SpeechTranscriptionService: Tentativo con Speech Framework...")
-            // Verifica permessi per Speech Framework
-            if !isPermissionGranted {
-                print("❌ SpeechTranscriptionService: Permessi Speech Recognition negati, richiedo...")
-                await requestPermissionsAsync()
-                
-                if !isPermissionGranted {
-                    print("❌ SpeechTranscriptionService: Permessi Speech Recognition ancora negati")
-                    throw NSError(domain: "SpeechTranscriptionService", code: 3,
-                                userInfo: [NSLocalizedDescriptionKey: "Permessi Speech Recognition negati"])
-                }
-            }
-            
-            // Verifica che il recognizer sia configurato per la lingua selezionata
-            if speechRecognizer == nil || speechRecognizer?.locale.identifier != language {
-                print("🎤 SpeechTranscriptionService: Speech recognizer non configurato per \(language), setup...")
-                setupSpeechFramework(for: language)
-                
-                if speechRecognizer == nil {
-                    throw NSError(domain: "SpeechTranscriptionService", code: 12,
-                                userInfo: [NSLocalizedDescriptionKey: "Speech recognizer non disponibile"])
-                }
-            }
-            
-            result = try await transcribeWithSpeechFramework(audioURL: audioURL, language: language)
-            
-        default: // "auto"
-            print("🎤 SpeechTranscriptionService: Modalità automatica, tentativo con Speech Framework...")
-            // Verifica permessi per Speech Framework
-            if !isPermissionGranted {
-                print("❌ SpeechTranscriptionService: Permessi Speech Recognition negati, richiedo...")
-                await requestPermissionsAsync()
-                
-                if !isPermissionGranted {
-                    print("❌ SpeechTranscriptionService: Permessi Speech Recognition ancora negati")
-                    throw NSError(domain: "SpeechTranscriptionService", code: 3,
-                                userInfo: [NSLocalizedDescriptionKey: "Permessi Speech Recognition negati"])
-                }
-            }
-            
-            // Verifica che il recognizer sia configurato per la lingua selezionata
-            if speechRecognizer == nil || speechRecognizer?.locale.identifier != language {
-                print("🎤 SpeechTranscriptionService: Speech recognizer non configurato per \(language), setup...")
-                setupSpeechFramework(for: language)
-                
-                if speechRecognizer == nil {
-                    throw NSError(domain: "SpeechTranscriptionService", code: 12,
-                                userInfo: [NSLocalizedDescriptionKey: "Speech recognizer non disponibile"])
-                }
-            }
-            
-            result = try await transcribeWithSpeechFramework(audioURL: audioURL, language: language)
-        }
-        
-        // Aggiorna l'entità trascrizione con il risultato
+
+            // Aggiorna l'entità trascrizione con il risultato
             updateTranscriptionEntity(with: result)
-            
-        // Aggiorna stato finale
-        await MainActor.run {
-            transcriptionState = .completed
-            currentProgress = 1.0
-            finalizedText = result.text
-            volatileText = ""
-            detectedLanguage = result.detectedLanguage
-        }
-        
-        print("✅ SpeechTranscriptionService: Trascrizione completata con successo")
+
+            // Aggiorna stato finale
+            await MainActor.run {
+                transcriptionState = .completed
+                currentProgress = 1.0
+                finalizedText = result.text
+                volatileText = ""
+                detectedLanguage = result.detectedLanguage
+            }
+
+            print("✅ SpeechTranscriptionService: Trascrizione completata con successo")
             return result
+        } catch {
+            markCurrentTranscriptionAsFailed(error: error)
+            await MainActor.run {
+                transcriptionState = .error(error)
+            }
+            throw error
+        }
+    }
+
+    private func ensureSpeechFrameworkReady(for language: String) async throws {
+        // Verifica permessi per Speech Framework
+        if !isPermissionGranted {
+            print("❌ SpeechTranscriptionService: Permessi Speech Recognition negati, richiedo...")
+            await requestPermissionsAsync()
+
+            if !isPermissionGranted {
+                print("❌ SpeechTranscriptionService: Permessi Speech Recognition ancora negati")
+                throw NSError(domain: "SpeechTranscriptionService", code: 3,
+                            userInfo: [NSLocalizedDescriptionKey: "Permessi Speech Recognition negati"])
+            }
+        }
+
+        // Verifica che il recognizer sia configurato per la lingua selezionata
+        if speechRecognizer == nil || speechRecognizer?.locale.identifier != language {
+            print("🎤 SpeechTranscriptionService: Speech recognizer non configurato per \(language), setup...")
+            setupSpeechFramework(for: language)
+
+            if speechRecognizer == nil {
+                throw NSError(domain: "SpeechTranscriptionService", code: 12,
+                            userInfo: [NSLocalizedDescriptionKey: "Speech recognizer non disponibile"])
+            }
+        }
     }
     
     private func requestPermissionsAsync() async {
@@ -994,12 +983,7 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
         transcription.registrazione = recording
         transcription.dataCreazione = Date()
         transcription.statoElaborazione = "in_elaborazione"
-        transcription.frameworkUtilizzato = switch availableFramework {
-        case .speechAnalyzer: "SpeechAnalyzer"
-        case .speechFramework: "SpeechFramework" 
-        case .whisperAPI: "WhisperAPI"
-        case .unavailable: "Unavailable"
-        }
+        transcription.frameworkUtilizzato = "Pending"
         transcription.versione = "1.0"
         
         currentTranscription = transcription
@@ -1019,6 +1003,7 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
         transcription.linguaRilevata = result.detectedLanguage
         transcription.paroleTotali = Int32(result.wordCount)
         transcription.statoElaborazione = "completata"
+        transcription.frameworkUtilizzato = frameworkName(for: result.framework)
         
         // Salva metadati temporali come Data
         if let data = try? NSKeyedArchiver.archivedData(withRootObject: result.timestamps, requiringSecureCoding: false) {
@@ -1029,6 +1014,31 @@ class SpeechTranscriptionService: NSObject, ObservableObject {
             try context.save()
         } catch {
             print("Errore aggiornamento trascrizione: \(error)")
+        }
+    }
+
+    private func markCurrentTranscriptionAsFailed(error: Error) {
+        guard let transcription = currentTranscription else { return }
+        transcription.statoElaborazione = "errore"
+        transcription.frameworkUtilizzato = frameworkName(for: availableFramework)
+        transcription.testoCompleto = transcription.testoCompleto ?? error.localizedDescription
+        do {
+            try context.save()
+        } catch {
+            print("Errore aggiornamento stato errore trascrizione: \(error)")
+        }
+    }
+
+    private func frameworkName(for framework: TranscriptionFramework) -> String {
+        switch framework {
+        case .speechAnalyzer:
+            return "SpeechAnalyzer"
+        case .speechFramework:
+            return "SpeechFramework"
+        case .whisperAPI:
+            return "WhisperAPI"
+        case .unavailable:
+            return "Unavailable"
         }
     }
     

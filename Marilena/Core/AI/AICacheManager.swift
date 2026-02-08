@@ -14,6 +14,9 @@ class AICacheManager: ObservableObject {
     
     @Published var cacheStats = AICacheStats(memoryItems: 0, diskSize: 0, hitRate: 0.0)
     
+    // Timer per cleanup periodico
+    private var cleanupTimer: Timer?
+    
     private init() {
         // Configura cache directory
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -112,9 +115,14 @@ class AICacheManager: ObservableObject {
     
     private func setupCacheCleanup() {
         // Cleanup ogni 24 ore
-        Timer.scheduledTimer(withTimeInterval: 24 * 60 * 60, repeats: true) { _ in
-            self.performCacheCleanup()
+        cleanupTimer?.invalidate()
+        cleanupTimer = Timer.scheduledTimer(withTimeInterval: 24 * 60 * 60, repeats: true) { [weak self] _ in
+            self?.performCacheCleanup()
         }
+    }
+    
+    deinit {
+        cleanupTimer?.invalidate()
     }
     
     private func performCacheCleanup() {

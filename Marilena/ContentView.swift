@@ -1,121 +1,120 @@
+//
+//  ContentView.swift
+//  Marilena
+//
+//  Vista principale con layout adattivo iPad/iPhone
+//
+
 import SwiftUI
-// PERF: Verificare ricomposizioni frequenti; considerare `EquatableView` o estrarre sotto-viste con `@StateObject` dove opportuno.
-// PERF: Evitare calcoli costosi dentro `body`; memoizzare valori derivati da `geometry` se riusabile.
 import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var selectedTab = 1 // 0=Chat, 1=Email, 2=Registratore, 3=Calendario, 4=Profilo
+    @StateObject private var coordinator = NavigationCoordinator()
+    @EnvironmentObject private var calendarManager: CalendarManager
+    
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     
     var body: some View {
-        GeometryReader { geometry in
-            let isIPad = geometry.size.width > 600 // Ridotto da 768 a 600 per essere più permissivo
-            Group {
-                if isIPad {
-                    iPadLayout(selectedTab: $selectedTab)
-                } else {
-                    iPhoneLayout(selectedTab: $selectedTab)
-                }
-            }
-            .onAppear {
-                print("📱 ContentView: width = \(geometry.size.width), isIPad = \(isIPad)")
+        Group {
+            if horizontalSizeClass == .compact {
+                iPhoneLayout()
+            } else {
+                iPadLayout()
             }
         }
+        .environmentObject(coordinator)
         .accentColor(.blue)
         .onAppear {
-            print("📱 iPadLayout: caricato")
             PerformanceSignpost.event("HomeAppear")
+        }
+    }
+}
+
+// MARK: - iPhone Layout
+struct iPhoneLayout: View {
+    @EnvironmentObject private var coordinator: NavigationCoordinator
+    @EnvironmentObject private var calendarManager: CalendarManager
+    @Environment(\ .managedObjectContext) private var viewContext
+    
+    var body: some View {
+        TabView(selection: Binding(
+            get: { coordinator.selectedTab },
+            set: { coordinator.selectedTab = $0 }
+        )) {
+            // Tab 1: Chat AI
+            NavigationStack {
+                ChatsListView()
+            }
+            .tabItem { Label(AppTab.chat.title, systemImage: AppTab.chat.icon) }
+            .tag(AppTab.chat)
+            
+            // Tab 2: Email
+            NavigationStack {
+                EmailListView()
+            }
+            .tabItem { Label(AppTab.email.title, systemImage: AppTab.email.icon) }
+            .tag(AppTab.email)
+            
+            // Tab 3: Registratore
+            NavigationStack {
+                RecorderMainView()
+            }
+            .tabItem { Label(AppTab.recorder.title, systemImage: AppTab.recorder.icon) }
+            .tag(AppTab.recorder)
+            
+            // Tab 4: Calendario
+            NavigationStack {
+                NewCalendarView(calendarManager: calendarManager)
+            }
+            .tabItem { Label(AppTab.calendar.title, systemImage: AppTab.calendar.icon) }
+            .tag(AppTab.calendar)
+            
+            // Tab 5: Profilo
+            NavigationStack {
+                ProfiloWrapperView()
+            }
+            .tabItem { Label(AppTab.profile.title, systemImage: AppTab.profile.icon) }
+            .tag(AppTab.profile)
         }
     }
 }
 
 // MARK: - iPad Layout
 struct iPadLayout: View {
-    @Binding var selectedTab: Int
-    @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var coordinator: NavigationCoordinator
     @EnvironmentObject private var calendarManager: CalendarManager
-    @StateObject private var recordingService: RecordingService
-
-    init(selectedTab: Binding<Int>) {
-        self._selectedTab = selectedTab
-        self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
-    }
+    @EnvironmentObject private var recordingService: RecordingService
+    @Environment(\ .managedObjectContext) private var viewContext
     
     var body: some View {
         HStack(spacing: 0) {
-            // Parte sinistra: Contenuto principale
-            VStack(spacing: 0) {
-                // Header con navigazione
-                headerView
-                
-                // Contenuto principale
-                mainContentView
-                    .onAppear {
-                        // Collega CalendarManager al RecordingService
-                        recordingService.setCalendarManager(calendarManager)
-                    }
-            }
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemGroupedBackground))
-            
-            // Parte destra: Registrazione sempre visibile
-            VStack(spacing: 0) {
-                // Header della registrazione
-                recordingHeaderView
-                
-                // Interfaccia di registrazione
-                AudioRecorderView(recordingService: recordingService)
-                    .padding()
-            }
-            .frame(width: 320)
-            .background(Color(.systemBackground))
-            .overlay(
-                Rectangle()
-                    .frame(width: 1)
-                    .foregroundColor(Color(.separator)),
-                alignment: .leading
-            )
+            mainContent
+            sidebar
         }
     }
     
-    private var headerView: some View {
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            header
+            content
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGroupedBackground))
+    }
+    
+    private var header: some View {
         HStack {
-            // Tab buttons
             HStack(spacing: 0) {
-                TabButton(
-                    title: "Chat AI",
-                    icon: "message.fill",
-                    isSelected: selectedTab == 0,
-                    action: { selectedTab = 0 }
-                )
-                
-                TabButton(
-                    title: "Email",
-                    icon: "envelope.fill",
-                    isSelected: selectedTab == 1,
-                    action: { selectedTab = 1 }
-                )
-                
-                TabButton(
-                    title: "Registratore",
-                    icon: "mic.fill",
-                    isSelected: selectedTab == 2,
-                    action: { selectedTab = 2 }
-                )
-                
-                TabButton(
-                    title: "Calendario",
-                    icon: "calendar",
-                    isSelected: selectedTab == 3,
-                    action: { selectedTab = 3 }
-                )
-                
-                TabButton(
-                    title: "Profilo",
-                    icon: "person.fill",
-                    isSelected: selectedTab == 4,
-                    action: { selectedTab = 4 }
-                )
+                ForEach(AppTab.allCases, id: \.self) { tab in
+                    TabButton(
+                        title: tab.title,
+                        icon: tab.icon,
+                        isSelected: coordinator.selectedTab == tab
+                    ) {
+                        coordinator.selectedTab = tab
+                    }
+                }
             }
             .background(Color(.systemBackground))
             .cornerRadius(12)
@@ -123,7 +122,7 @@ struct iPadLayout: View {
             
             Spacer()
         }
-        .padding(.vertical, 12) // Aumentato da 8 a 12 per uniformare altezza
+        .padding(.vertical, 12)
         .background(Color(.systemBackground))
         .overlay(
             Rectangle()
@@ -133,118 +132,62 @@ struct iPadLayout: View {
         )
     }
     
-    private var recordingHeaderView: some View {
-        HStack {
-            Text("Registrazione")
-                .font(.headline)
-                .fontWeight(.semibold)
-            
-            Spacer()
-            
-            // Stato registrazione
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(recordingService.recordingState == .recording ? Color.red : Color.green)
-                    .frame(width: 8, height: 8)
-                
-                Text(recordingService.recordingState == .recording ? "Registrando" : "Pronto")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 12) // Uniformato con headerView
-        .background(Color(.systemBackground))
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(.separator)),
-            alignment: .bottom
-        )
-    }
-    
-    private var mainContentView: some View {
+    private var content: some View {
         Group {
-            switch selectedTab {
-            case 0:
+            switch coordinator.selectedTab {
+            case .chat:
                 ChatsListView()
-            case 1:
+            case .email:
                 EmailListView()
-            case 2:
-                // Su iPad, mostra solo la lista senza il pulsante di registrazione
-                RecordingsListView(context: viewContext, recordingService: recordingService, hideRecordButton: true)
-            case 3:
-                CalendarView()
-            case 4:
+            case .recorder:
+                RecordingsListView(
+                    context: viewContext,
+                    recordingService: recordingService,
+                    hideRecordButton: true
+                )
+            case .calendar:
+                NewCalendarView(calendarManager: calendarManager)
+            case .profile:
                 ProfiloWrapperView()
-                    .padding(.top, 16) // Aggiunto spazio sopra il profilo
-            default:
-                RecorderMainView()
+                    .padding(.top, 16)
             }
         }
     }
-}
-
-// MARK: - iPhone Layout
-struct iPhoneLayout: View {
-    @Binding var selectedTab: Int
     
-    var body: some View {
-        TabView(selection: $selectedTab) {
-            // Tab 1: Chat AI
-            NavigationStack {
-                ChatsListView()
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Registrazione")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                StatusIndicator(service: recordingService)
             }
-            .tabItem {
-                Image(systemName: "message.fill")
-                Text("Chat AI")
-            }
-            .tag(0)
+            .padding(.horizontal)
+            .padding(.vertical, 12)
+            .background(Color(.systemBackground))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color(.separator)),
+                alignment: .bottom
+            )
             
-            // Tab 2: Email
-            NavigationStack {
-                EmailListView()
-            }
-            .tabItem {
-                Image(systemName: "envelope.fill")
-                Text("Email")
-            }
-            .tag(1)
-            
-            // Tab 3: Registratore
-            NavigationStack {
-                RecorderMainView()
-            }
-            .tabItem {
-                Image(systemName: "mic.fill")
-                Text("Registratore")
-            }
-            .tag(2)
-            
-            // Tab 4: Calendario
-            NavigationStack {
-                CalendarView()
-            }
-            .tabItem {
-                Image(systemName: "calendar")
-                Text("Calendario")
-            }
-            .tag(3)
-            
-            // Tab 5: Profilo
-            NavigationStack {
-                ProfiloWrapperView()
-            }
-            .tabItem {
-                Image(systemName: "person.fill")
-                Text("Profilo")
-            }
-            .tag(4)
+            AudioRecorderView(recordingService: recordingService)
+                .padding()
         }
+        .frame(width: 320)
+        .background(Color(.systemBackground))
+        .overlay(
+            Rectangle()
+                .frame(width: 1)
+                .foregroundColor(Color(.separator)),
+            alignment: .leading
+        )
     }
 }
 
-// MARK: - Tab Button
+// MARK: - Supporting Views
 struct TabButton: View {
     let title: String
     let icon: String
@@ -256,7 +199,6 @@ struct TabButton: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 20))
-                
                 Text(title)
                     .font(.caption)
             }
@@ -268,11 +210,25 @@ struct TabButton: View {
     }
 }
 
-// MARK: - Profilo Wrapper View
+struct StatusIndicator: View {
+    @ObservedObject var service: RecordingService
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(service.recordingState == .recording ? Color.red : Color.green)
+                .frame(width: 8, height: 8)
+            Text(service.recordingState == .recording ? "Registrando" : "Pronto")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Profilo Wrapper
 struct ProfiloWrapperView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\ .managedObjectContext) private var viewContext
     @State private var profilo: ProfiloUtente?
-    @State private var isLoading = true
     
     var body: some View {
         Group {
@@ -280,26 +236,21 @@ struct ProfiloWrapperView: View {
                 ProfiloView(profilo: profilo)
                     .transition(.opacity)
             } else {
-                ProgressView("Caricamento profilo...")
+                DSLoadingView(message: "Caricamento profilo...")
                     .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: profilo != nil)
         .onAppear {
-            if profilo == nil {
-                caricaProfilo()
-            }
+            loadProfile()
         }
     }
     
-    private func caricaProfilo() {
+    private func loadProfile() {
         DispatchQueue.main.async {
             profilo = ProfiloUtenteService.shared.ottieniProfiloUtente(in: viewContext)
-            
-            // Se non esiste un profilo, ne crea uno di default
             if profilo == nil {
                 profilo = ProfiloUtenteService.shared.creaProfiloDefault(in: viewContext)
-                _ = ProfiloUtenteService.shared.salvaProfilo(profilo!, in: viewContext)
             }
         }
     }
@@ -307,5 +258,5 @@ struct ProfiloWrapperView: View {
 
 #Preview {
     ContentView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
-} 
+        .environment(\ .managedObjectContext, PersistenceController.preview.container.viewContext)
+}

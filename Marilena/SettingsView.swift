@@ -28,6 +28,10 @@ struct SettingsView: View {
     @State private var xaiApiKey = ""
     @State private var selectedXAIModel = "grok-4-latest"
 
+    // OpenRouter settings
+    @State private var openRouterApiKey = ""
+    @State private var selectedOpenRouterModel = "openai/gpt-4o-mini"
+
     // Apple Intelligence settings
     @State private var selectedAppleModel = "foundation-medium"
 
@@ -107,6 +111,7 @@ struct SettingsView: View {
         ("openclaw", "OpenClaw", "Agente AI personale self-hosted con browser, automazioni e skills"),
         ("apple", "Apple Intelligence", "Modelli on-device privati su dispositivi compatibili"),
         ("openai", "OpenAI", "Modelli GPT più avanzati e versatili"),
+        ("openrouter", "OpenRouter", "Accesso multi-provider con un'unica API key"),
         ("anthropic", "Anthropic Claude", "Modelli Claude per ragionamento profondo"),
         ("groq", "Groq", "Velocità ultra-rapida con Qwen 3 e DeepSeek R1"),
         ("xai", "xAI Grok", "Modelli Grok-2 con ragionamento e tool-use in tempo reale"),
@@ -255,6 +260,22 @@ struct SettingsView: View {
                         
                         // Picker dinamico basato sul catalogo
                         ModelPickerView(provider: .openai, selectedModel: $selectedModel)
+                    }
+                } else if selectedProvider == "openrouter" {
+                    Section("OpenRouter Configuration") {
+                        SecureField("OpenRouter API Key", text: $openRouterApiKey)
+                            .textContentType(.password)
+
+                        ModelPickerView(provider: .openrouter, selectedModel: $selectedOpenRouterModel)
+
+                        Button("Test Connessione OpenRouter") {
+                            testOpenRouterConnection()
+                        }
+                        .foregroundColor(.blue)
+
+                        Text("🧩 OpenRouter: usa modelli OpenAI, Anthropic, Google e altri con una sola chiave.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 } else if selectedProvider == "anthropic" {
                     Section("Anthropic Claude Configuration") {
@@ -787,6 +808,7 @@ struct SettingsView: View {
         _ = KeychainManager.shared.saveAPIKey(anthropicApiKey, for: "anthropic")
         _ = KeychainManager.shared.saveAPIKey(deepSeekApiKey, for: "deepseek")
         _ = KeychainManager.shared.saveAPIKey(xaiApiKey, for: "xai")
+        _ = KeychainManager.shared.saveAPIKey(openRouterApiKey, for: "openrouter")
 
         // Salva endpoint OpenClaw
         UserDefaults.standard.set(openclawEndpoint, forKey: "openclaw_endpoint")
@@ -794,14 +816,16 @@ struct SettingsView: View {
         // Salva provider selezionato e modelli
         UserDefaults.standard.set(selectedProvider, forKey: "selectedProvider")
         UserDefaults.standard.set(forceGateway, forKey: "force_gateway")
-        UserDefaults.standard.set(selectedModel, forKey: "selected_model")
-        UserDefaults.standard.set(selectedModel, forKey: "selectedChatModel")
+        let resolvedChatModel = selectedProvider == "openrouter" ? selectedOpenRouterModel : selectedModel
+        UserDefaults.standard.set(resolvedChatModel, forKey: "selected_model")
+        UserDefaults.standard.set(resolvedChatModel, forKey: "selectedChatModel")
         UserDefaults.standard.set(selectedPerplexityModel, forKey: "selected_perplexity_model")
         UserDefaults.standard.set(selectedGroqModel, forKey: "selectedGroqChatModel")
         UserDefaults.standard.set(selectedAnthropicModel, forKey: "selectedAnthropicModel")
         UserDefaults.standard.set(selectedDeepSeekModel, forKey: "selectedDeepSeekModel")
         UserDefaults.standard.set(selectedXAIModel, forKey: "selectedXAIChatModel")
         UserDefaults.standard.set(selectedAppleModel, forKey: "selectedAppleModel")
+        UserDefaults.standard.set(selectedOpenRouterModel, forKey: "selectedOpenRouterModel")
         UserDefaults.standard.set(temperature, forKey: "temperature")
         UserDefaults.standard.set(maxTokens, forKey: "max_tokens")
         UserDefaults.standard.set(selectedTranscriptionMode, forKey: "transcription_mode")
@@ -832,6 +856,7 @@ struct SettingsView: View {
         anthropicApiKey = KeychainManager.shared.getAPIKey(for: "anthropic") ?? ""
         deepSeekApiKey = KeychainManager.shared.getAPIKey(for: "deepseek") ?? ""
         xaiApiKey = KeychainManager.shared.getAPIKey(for: "xai") ?? ""
+        openRouterApiKey = KeychainManager.shared.getAPIKey(for: "openrouter") ?? ""
         openclawEndpoint = UserDefaults.standard.string(forKey: "openclaw_endpoint") ?? ""
 
         selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "openai"
@@ -847,6 +872,7 @@ struct SettingsView: View {
         selectedDeepSeekModel = UserDefaults.standard.string(forKey: "selectedDeepSeekModel") ?? "deepseek-chat"
         selectedAppleModel = UserDefaults.standard.string(forKey: "selectedAppleModel") ?? "foundation-medium"
         selectedXAIModel = UserDefaults.standard.string(forKey: "selectedXAIChatModel") ?? "grok-4-latest"
+        selectedOpenRouterModel = UserDefaults.standard.string(forKey: "selectedOpenRouterModel") ?? "openai/gpt-4o-mini"
         temperature = UserDefaults.standard.double(forKey: "temperature") != 0 ? UserDefaults.standard.double(forKey: "temperature") : 0.7
         maxTokens = UserDefaults.standard.double(forKey: "max_tokens") != 0 ? UserDefaults.standard.double(forKey: "max_tokens") : 1000
         selectedTranscriptionMode = UserDefaults.standard.string(forKey: "transcription_mode") ?? "auto"
@@ -854,9 +880,13 @@ struct SettingsView: View {
         let streamingFlag = UserDefaults.standard.bool(forKey: "enable_responses_streaming")
         enableResponsesStreaming = useResponsesAPI ? streamingFlag : false
 
-        // Carica il modello selezionato per la categorizzazione email
-        if let modelId = UserDefaults.standard.string(forKey: "emailCategorizationModel") {
-            selectedEmailCategorizationModel = AIModelConfiguration.allModels.first(where: { $0.id == modelId })
+        // Carica il modello selezionato per la categorizzazione email.
+        // Se l'ID salvato non è più disponibile, fallback a Apple Foundation Medium.
+        if let modelId = UserDefaults.standard.string(forKey: "emailCategorizationModel"),
+           let savedModel = AIModelConfiguration.allModels.first(where: { $0.id == modelId }) {
+            selectedEmailCategorizationModel = savedModel
+        } else {
+            selectedEmailCategorizationModel = AIModelConfiguration.allModels.first(where: { $0.id == "foundation-medium" })
         }
     }
     
@@ -937,6 +967,54 @@ struct SettingsView: View {
             } catch {
                 await MainActor.run {
                     alertMessage = "❌ Test Whisper API fallito:\n\nErrore di connessione:\n\(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+        }
+    }
+
+    private func testOpenRouterConnection() {
+        guard !openRouterApiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            alertMessage = "❌ API Key OpenRouter mancante"
+            showAlert = true
+            return
+        }
+
+        guard let url = URL(string: "https://openrouter.ai/api/v1/models") else {
+            alertMessage = "❌ URL OpenRouter non valida"
+            showAlert = true
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(openRouterApiKey)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 12
+
+        Task {
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    await MainActor.run {
+                        alertMessage = "❌ Risposta OpenRouter non valida"
+                        showAlert = true
+                    }
+                    return
+                }
+
+                await MainActor.run {
+                    if (200...299).contains(http.statusCode) {
+                        alertMessage = "✅ OpenRouter raggiungibile e API key valida"
+                    } else if http.statusCode == 401 {
+                        alertMessage = "❌ API key OpenRouter non valida (401)"
+                    } else {
+                        alertMessage = "⚠️ OpenRouter ha risposto con status \(http.statusCode)"
+                    }
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    alertMessage = "❌ Errore OpenRouter: \(error.localizedDescription)"
                     showAlert = true
                 }
             }

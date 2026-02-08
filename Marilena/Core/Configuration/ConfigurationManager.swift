@@ -214,6 +214,8 @@ public class ConfigurationManager: ObservableObject {
             return "foundation-medium" // Apple Intelligence default
         case .openai:
             return aiConfiguration.openAIModel
+        case .openrouter:
+            return "openai/gpt-4o-mini"
         case .anthropic:
             return aiConfiguration.anthropicModel
         case .google:

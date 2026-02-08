@@ -66,16 +66,10 @@ struct ModernComposeView: View {
                         emailFormSection
                         
                         // MARK: - AI Assistant
-                        if showingAIAssistant {
-                            ModernAIComposeAssistant(
-                                emailBody: $emailBody,
-                                subject: $subject,
-                                aiService: aiService,
-                                recipientEmail: to,
-                                isReply: replyTo != nil,
-                                originalEmail: replyTo
-                            )
-                        }
+                        // TODO: Rimplementare AI Assistant
+                        // if showingAIAssistant {
+                        //     ModernAIComposeAssistant(...)
+                        // }
                         
                         // MARK: - Smart Suggestions
                         if isSmartComposeEnabled {
@@ -576,9 +570,9 @@ struct ComposeEmailAttachment: Identifiable {
 
 // MARK: - EmailMessage Extension for Attachments
 extension EmailMessage {
-    init(id: String, from: String, to: [String], cc: [String]? = nil, bcc: [String]? = nil, 
+    init(id: String, accountId: String = "default", from: String, to: [String], cc: [String]? = nil, bcc: [String]? = nil,
          subject: String, body: String, date: Date, isRead: Bool, attachments: [Data] = []) {
-        self.init(id: id, from: from, to: to, subject: subject, body: body, date: date, isRead: isRead, hasAttachments: !attachments.isEmpty)
+        self.init(id: id, accountId: accountId, from: from, to: to, subject: subject, body: body, date: date, isRead: isRead, hasAttachments: !attachments.isEmpty)
     }
 }
 

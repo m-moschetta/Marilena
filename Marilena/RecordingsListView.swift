@@ -227,7 +227,7 @@ struct RecordingsListView: View {
         case .withoutTranscription:
             filtered = filtered.filter { getTranscriptions(for: $0).isEmpty }
         case .processing:
-            filtered = filtered.filter { $0.statoElaborazione == "in_elaborazione" }
+            filtered = filtered.filter { ["in_elaborazione", "in_corso"].contains($0.statoElaborazione ?? "") }
         case .completed:
             filtered = filtered.filter { $0.statoElaborazione == "completata" }
         }
@@ -257,7 +257,7 @@ struct RecordingsListView: View {
         case .withoutTranscription:
             return recordings.filter { getTranscriptions(for: $0).isEmpty }.count
         case .processing:
-            return recordings.filter { $0.statoElaborazione == "in_elaborazione" }.count
+            return recordings.filter { ["in_elaborazione", "in_corso"].contains($0.statoElaborazione ?? "") }.count
         case .completed:
             return recordings.filter { $0.statoElaborazione == "completata" }.count
         }

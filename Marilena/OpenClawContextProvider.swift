@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import CoreLocation
+import Combine
 
 // MARK: - OpenClaw Context Provider
 // Raccoglie e formatta dati contestuali da calendario, trascrizioni, reminder, posizione e profilo utente
@@ -311,7 +312,7 @@ class OpenClawContextProvider: ObservableObject {
                 startDate: event.startDate,
                 endDate: event.endDate,
                 location: event.location,
-                attendees: event.attendees.map { $0.name },
+                attendees: event.attendees.compactMap { $0.name },
                 isAllDay: event.isAllDay
             )
         }
@@ -326,7 +327,7 @@ class OpenClawContextProvider: ObservableObject {
                     startDate: event.startDate,
                     endDate: event.endDate,
                     location: event.location,
-                    attendees: event.attendees.map { $0.name },
+                    attendees: event.attendees.compactMap { $0.name },
                     isAllDay: event.isAllDay
                 )
             }
@@ -338,7 +339,7 @@ class OpenClawContextProvider: ObservableObject {
                 startDate: event.startDate,
                 endDate: event.endDate,
                 location: event.location,
-                attendees: event.attendees.map { $0.name },
+                attendees: event.attendees.compactMap { $0.name },
                 isAllDay: event.isAllDay
             )
         }

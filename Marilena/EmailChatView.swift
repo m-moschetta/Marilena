@@ -21,6 +21,10 @@ public struct EmailChatView: View {
     @State private var showingSendSheet = false
     @State private var responseToSend = ""
     
+    private var chatAccountId: String {
+        (chat.value(forKey: "emailAccountId") as? String) ?? chat.emailSender ?? chat.id?.uuidString ?? "chat-account"
+    }
+    
     // MARK: - Initialization
     
     public init(chat: ChatMarilena) {
@@ -186,7 +190,6 @@ public struct EmailChatView: View {
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .liquidGlass(.subtle)
         .padding(.horizontal)
     }
     
@@ -229,7 +232,6 @@ public struct EmailChatView: View {
         }
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .liquidGlass(.subtle)
         .padding(.horizontal)
     }
     
@@ -326,6 +328,7 @@ public struct EmailChatView: View {
         // Crea un'EmailMessage dal chat per l'analisi AI
         return EmailMessage(
             id: chat.id?.uuidString ?? "",
+            accountId: chatAccountId,
             from: chat.emailSender ?? "",
             to: [],
             subject: chat.emailSubject ?? "",

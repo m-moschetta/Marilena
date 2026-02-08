@@ -36,12 +36,13 @@ public class AIProviderManager {
     // MARK: - Provider Types
     
     enum ChatProvider: Hashable {
-        case apple, openai, anthropic, groq, xai, openclaw
+        case apple, openai, openrouter, anthropic, groq, xai, openclaw
 
         init?(rawValue: String) {
             switch rawValue.lowercased() {
             case "apple", "apple-intelligence": self = .apple
             case "openai": self = .openai
+            case "openrouter": self = .openrouter
             case "anthropic": self = .anthropic
             case "groq": self = .groq
             case "xai", "grok": self = .xai
@@ -68,6 +69,7 @@ public class AIProviderManager {
     func getOrderedChatProviders() -> [(provider: ChatProvider, model: String)] {
         let hasApple = AppleIntelligenceService.shared.isAvailable
         let hasOpenAI = hasValidAPIKey(for: "openai")
+        let hasOpenRouter = hasValidAPIKey(for: "openrouter")
         let hasAnthropic = hasValidAPIKey(for: "anthropic")
         let hasGroq = hasValidAPIKey(for: "groq")
         let hasXAI = hasValidAPIKey(for: "xai")
@@ -75,7 +77,7 @@ public class AIProviderManager {
 
         let storedProviderId = UserDefaults.standard.string(forKey: "selectedProvider")
 
-        var orderedProviders: [ChatProvider] = [.openclaw, .apple, .openai, .anthropic, .groq, .xai]
+        var orderedProviders: [ChatProvider] = [.openclaw, .apple, .openai, .openrouter, .anthropic, .groq, .xai]
         if let stored = storedProviderId.flatMap({ ChatProvider(rawValue: $0) }),
            let index = orderedProviders.firstIndex(of: stored) {
             orderedProviders.remove(at: index)
@@ -94,6 +96,9 @@ public class AIProviderManager {
             case .openai:
                 guard hasOpenAI, let model = preferredModel(for: .openai) else { continue }
                 resolved.append((.openai, model))
+            case .openrouter:
+                guard hasOpenRouter, let model = preferredModel(for: .openrouter) else { continue }
+                resolved.append((.openrouter, model))
             case .anthropic:
                 guard hasAnthropic, let model = preferredModel(for: .anthropic) else { continue }
                 resolved.append((.anthropic, model))
@@ -141,7 +146,7 @@ public class AIProviderManager {
             )
         case .apple:
             client = nil // FoundationModels non espone ancora streaming token-by-token
-        case .anthropic, .groq, .xai:
+        case .openrouter, .anthropic, .groq, .xai:
             client = nil // Verrà implementato nelle fasi successive della roadmap
         case .openclaw:
             client = nil // OpenClaw gestisce lo streaming internamente via WebSocket
@@ -172,6 +177,12 @@ public class AIProviderManager {
             if let ud = UserDefaults.standard.string(forKey: "selectedChatModel"), !ud.isEmpty { return ud }
             if let live = ModelCatalog.shared.models(for: .openai).first?.name { return live }
             return "gpt-4o"
+        case .openrouter:
+            if let ud = UserDefaults.standard.string(forKey: "selectedOpenRouterModel"), !ud.isEmpty {
+                return normalize(model: ud, provider: .openrouter)
+            }
+            if let live = ModelCatalog.shared.models(for: .openrouter).first?.name { return live }
+            return "openai/gpt-4o-mini"
         case .anthropic:
             if let ud = UserDefaults.standard.string(forKey: "selectedAnthropicModel"), !ud.isEmpty { return normalize(model: ud, provider: .anthropic) }
             if let live = ModelCatalog.shared.models(for: .anthropic).first?.name { return live }
@@ -218,6 +229,7 @@ public class AIProviderManager {
         case .groq: return "llama-3.1-8b-instant"
         case .xai: return "grok-4-latest"
         case .openai: return "gpt-4o"
+        case .openrouter: return "openai/gpt-4o-mini"
         default: return trimmed
         }
     }

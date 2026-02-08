@@ -3,6 +3,7 @@ import Foundation
 public enum AIModelProvider: String, Codable, CaseIterable {
     case apple = "apple"
     case openai = "openai"
+    case openrouter = "openrouter"
     case anthropic = "anthropic"
     case google = "google"
     case meta = "meta"
@@ -16,6 +17,7 @@ public enum AIModelProvider: String, Codable, CaseIterable {
         switch self {
         case .apple: return "Apple Intelligence"
         case .openai: return "OpenAI"
+        case .openrouter: return "OpenRouter"
         case .anthropic: return "Anthropic"
         case .google: return "Google"
         case .meta: return "Meta"
@@ -31,6 +33,7 @@ public enum AIModelProvider: String, Codable, CaseIterable {
         switch self {
         case .apple: return ""
         case .openai: return "https://api.openai.com/v1"
+        case .openrouter: return "https://openrouter.ai/api/v1"
         case .anthropic: return "https://api.anthropic.com/v1"
         case .google: return "https://generativelanguage.googleapis.com/v1"
         case .meta: return "https://api.llama-api.com/v1"

@@ -166,10 +166,61 @@ public struct AIModelCatalog {
         )
     ]
 
+    // MARK: - OpenRouter Models
+
+    static let openRouterModels: [AIModelConfiguration] = [
+        .init(
+            id: "openai/gpt-4o-mini",
+            name: "OpenRouter GPT-4o Mini",
+            provider: .openrouter,
+            version: "latest",
+            releaseDate: DateHelper.date(year: 2024, month: 7, day: 18),
+            description: "OpenRouter route verso GPT-4o Mini, economico e veloce",
+            contextWindow: 128_000,
+            maxOutputTokens: 8_192,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .creative, .analysis, .coding],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0.15, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 0.60, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(overallScore: 86),
+            availability: AIAvailability(
+                regions: ["Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            tags: ["openrouter", "economy", "chat"]
+        ),
+        .init(
+            id: "anthropic/claude-3.5-sonnet",
+            name: "OpenRouter Claude 3.5 Sonnet",
+            provider: .openrouter,
+            version: "latest",
+            releaseDate: DateHelper.date(year: 2024, month: 10, day: 22),
+            description: "OpenRouter route verso Claude 3.5 Sonnet",
+            contextWindow: 200_000,
+            maxOutputTokens: 8_192,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .creative, .analysis, .coding],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 3.00, description: "per 1M tokens"),
+                outputTokens: PricingTier(price: 15.00, description: "per 1M tokens")
+            ),
+            benchmarks: AIBenchmarks(overallScore: 92),
+            availability: AIAvailability(
+                regions: ["Global"],
+                accessTiers: [.api, .pro],
+                status: .available
+            ),
+            tags: ["openrouter", "anthropic", "reasoning"]
+        )
+    ]
+
     // MARK: - All Models
 
     public static let allModels: [AIModelConfiguration] =
-        appleModels + openAIModels + anthropicModels
+        appleModels + openAIModels + anthropicModels + openRouterModels
 
     // MARK: - Utility Methods
 

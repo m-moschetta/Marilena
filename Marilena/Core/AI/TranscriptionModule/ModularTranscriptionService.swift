@@ -142,9 +142,11 @@ public class ModularTranscriptionService: NSObject, ObservableObject {
             finalizedText = ""
         }
         
-        // Verifica permessi
-        guard isPermissionGranted else {
-            throw ModularTranscriptionError.permissionDenied
+        // Whisper API non dipende dai permessi Speech locali.
+        if configuration.mode != .whisper {
+            guard isPermissionGranted else {
+                throw ModularTranscriptionError.permissionDenied
+            }
         }
         
         // Verifica file audio
@@ -431,9 +433,97 @@ public class ModularTranscriptionService: NSObject, ObservableObject {
         url: URL,
         configuration: ModularTranscriptionConfiguration
     ) async throws -> ModularTranscriptionResult {
-        
-        // Implementazione Whisper API
-        // Per ora fallback a Speech Framework
-        return try await transcribeWithSpeechFramework(url: url, configuration: configuration)
+        guard let apiKey = KeychainManager.shared.load(key: "openai_api_key"), !apiKey.isEmpty else {
+            throw ModularTranscriptionError.transcriptionFailed("API Key OpenAI non configurata")
+        }
+
+        let fileSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 ?? 0
+        let maxSize: Int64 = 25 * 1024 * 1024
+        guard fileSize <= maxSize else {
+            throw ModularTranscriptionError.transcriptionFailed("File audio troppo grande per Whisper API (max 25MB)")
+        }
+
+        let audioData = try Data(contentsOf: url)
+
+        let endpoint = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = configuration.maxProcessingTime
+
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
+        body.append(audioData)
+        body.append("\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n".data(using: .utf8)!)
+        body.append("whisper-1\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
+        body.append("\(String(configuration.language.prefix(2)))\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"response_format\"\r\n\r\n".data(using: .utf8)!)
+        body.append("json\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw ModularTranscriptionError.networkError(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ModularTranscriptionError.transcriptionFailed("Risposta HTTP non valida")
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            let message = String(data: data, encoding: .utf8) ?? "Errore sconosciuto"
+            throw ModularTranscriptionError.transcriptionFailed("Whisper API (\(httpResponse.statusCode)): \(message)")
+        }
+
+        struct WhisperResponse: Decodable {
+            let text: String
+        }
+
+        let decoded: WhisperResponse
+        do {
+            decoded = try JSONDecoder().decode(WhisperResponse.self, from: data)
+        } catch {
+            throw ModularTranscriptionError.transcriptionFailed("Risposta Whisper non valida: \(error.localizedDescription)")
+        }
+
+        let normalizedText = decoded.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedText.isEmpty else {
+            throw ModularTranscriptionError.transcriptionFailed("Whisper API ha restituito testo vuoto")
+        }
+
+        return ModularTranscriptionResult(
+            text: normalizedText,
+            confidence: 0.95,
+            timestamps: [:],
+            detectedLanguage: detectLanguage(text: normalizedText),
+            wordCount: normalizedText.split(whereSeparator: \.isWhitespace).count,
+            framework: .whisperAPI,
+            processingTime: 0,
+            segments: []
+        )
     }
-} 
+
+    private func detectLanguage(text: String) -> String {
+        guard !text.isEmpty else { return "it" }
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(text)
+        return recognizer.dominantLanguage?.rawValue ?? "it"
+    }
+}

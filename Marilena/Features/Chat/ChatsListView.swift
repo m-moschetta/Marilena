@@ -152,10 +152,10 @@ struct ChatsListView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(ChatFilter.allCases, id: \.self) { filter in
-                        ChatFilterChip(
+                        DSFilterChip(
                             title: filter.title,
-                            isSelected: selectedFilter == filter,
-                            count: getFilterCount(filter)
+                            count: getFilterCount(filter),
+                            isSelected: selectedFilter == filter
                         ) {
                             selectedFilter = filter
                         }
@@ -363,30 +363,13 @@ struct ChatsListView: View {
     // MARK: - UI Components
     
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "message.circle")
-                .font(.system(size: 60))
-                .foregroundStyle(.secondary)
-            
-            Text("Nessuna Chat")
-                .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text("Crea la tua prima chat per iniziare a conversare con l'AI")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            Button(action: createNewChat) {
-                Label("Nuova Chat", systemImage: "plus.circle.fill")
-                    .font(.headline)
-                    .padding()
-                    .background(.blue, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.white)
-            }
-        }
-        .padding()
+        DSEmptyStateView(
+            icon: "message.circle",
+            title: "Nessuna Chat",
+            subtitle: "Crea la tua prima chat per iniziare a conversare con l'AI",
+            actionTitle: "Nuova Chat",
+            action: createNewChat
+        )
     }
 }
 
@@ -654,36 +637,7 @@ struct NewChatView: View {
 
 // MARK: - Filter Chip
 
-struct ChatFilterChip: View {
-    let title: String
-    let isSelected: Bool
-    let count: Int
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.3) : Color.primary.opacity(0.2))
-                        .clipShape(Capsule())
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.accentColor : Color(.systemGray5))
-            .foregroundColor(isSelected ? .white : .primary)
-            .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-    }
-}
+// Usa DSFilterChip da DesignSystem.swift
 
 #Preview {
     ChatsListView()

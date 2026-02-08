@@ -1,17 +1,17 @@
 Command line invocation:
-    /Applications/Xcode-beta.app/Contents/Developer/usr/bin/xcodebuild -workspace Marilena.xcworkspace -scheme Marilena-iOS -destination "platform=iOS Simulator,name=iPhone 16" build
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project Marilena.xcodeproj -scheme Marilena-iOS -destination "platform=iOS Simulator,name=iPhone 16" build
 
 Resolve Package Graph
 
 
 Resolved source packages:
-  GTMAppAuth: https://github.com/google/GTMAppAuth.git @ 5.0.0
-  Promises: https://github.com/google/promises.git @ 2.4.0
-  AppCheck: https://github.com/google/app-check.git @ 11.2.0
-  GTMSessionFetcher: https://github.com/google/gtm-session-fetcher.git @ 3.5.0
-  AppAuth: https://github.com/openid/AppAuth-iOS.git @ 2.0.0
   GoogleUtilities: https://github.com/google/GoogleUtilities.git @ 8.1.0
   GoogleSignIn: https://github.com/google/GoogleSignIn-iOS.git @ 9.0.0
+  GTMSessionFetcher: https://github.com/google/gtm-session-fetcher.git @ 3.5.0
+  AppCheck: https://github.com/google/app-check.git @ 11.2.0
+  AppAuth: https://github.com/openid/AppAuth-iOS.git @ 2.0.0
+  Promises: https://github.com/google/promises.git @ 2.4.0
+  GTMAppAuth: https://github.com/google/GTMAppAuth.git @ 5.0.0
 
 ComputePackagePrebuildTargetDependencyGraph
 
@@ -139,76 +139,928 @@ GatherProvisioningInputs
 
 CreateBuildDescription
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x objective-c -c /dev/null
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x objective-c -c /dev/null
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x c -c /dev/null
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x c -c /dev/null
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/usr/bin/momc --dry-run --action generate --swift-version 5.0 --sdkroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk --iphonesimulator-deployment-target 26.0 --module Marilena /Users/mariomoschetta/Downloads/Marilena/Marilena/Marilena.xcdatamodeld /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/momc --dry-run --action generate --swift-version 5.0 --sdkroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk --iphonesimulator-deployment-target 26.0 --module Marilena /Users/mariomoschetta/Downloads/Marilena/Marilena/Marilena.xcdatamodeld /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/mariomoschetta/Downloads/Marilena/Marilena/Assets.xcassets
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/mariomoschetta/Downloads/Marilena/Marilena/Assets.xcassets
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x c -c /dev/null
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -arch arm64 -isysroot /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x c -c /dev/null
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
 
-ExecuteExternalTool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
 
-Build description signature: c22142931335f0eff0dd8882bac0ba63
-Build description path: /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/XCBuildData/c22142931335f0eff0dd8882bac0ba63.xcbuilddata
-ClangStatCache /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A5324a-fc862078e33f881139a9d2f83bd1a9d0.sdkstatcache
+Build description signature: f31d59e6332c11e4237b501499650455
+Build description path: /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/XCBuildData/f31d59e6332c11e4237b501499650455.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A337-26257891a6c027eb51374368541b8346.sdkstatcache
+    cd /Users/mariomoschetta/Downloads/Marilena/Marilena.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A337-26257891a6c027eb51374368541b8346.sdkstatcache
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/Promises_FBLPromises.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Promises.build/Debug-iphonesimulator/Promises_FBLPromises.build/empty-Promises_FBLPromises.plist (in target 'Promises_FBLPromises' from project 'Promises')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/promises
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Promises.build/Debug-iphonesimulator/Promises_FBLPromises.build/empty-Promises_FBLPromises.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/Promises_FBLPromises.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.build/empty-GoogleUtilities_GoogleUtilities-Environment.plist (in target 'GoogleUtilities_GoogleUtilities-Environment' from project 'GoogleUtilities')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.build/empty-GoogleUtilities_GoogleUtilities-Environment.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.build/empty-GoogleUtilities_GoogleUtilities-UserDefaults.plist (in target 'GoogleUtilities_GoogleUtilities-UserDefaults' from project 'GoogleUtilities')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.build/empty-GoogleUtilities_GoogleUtilities-UserDefaults.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.build/empty-GoogleSignIn_GoogleSignIn.plist (in target 'GoogleSignIn_GoogleSignIn' from project 'GoogleSignIn')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleSignIn-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.build/empty-GoogleSignIn_GoogleSignIn.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GTMSessionFetcher.build/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.build/empty-GTMSessionFetcher_GTMSessionFetcherCore.plist (in target 'GTMSessionFetcher_GTMSessionFetcherCore' from project 'GTMSessionFetcher')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/gtm-session-fetcher
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GTMSessionFetcher.build/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.build/empty-GTMSessionFetcher_GTMSessionFetcherCore.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.build/empty-GTMAppAuth_GTMAppAuth.plist (in target 'GTMAppAuth_GTMAppAuth' from project 'GTMAppAuth')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GTMAppAuth
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.build/empty-GTMAppAuth_GTMAppAuth.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/AppAuth_AppAuthCore.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuthCore.build/empty-AppAuth_AppAuthCore.plist (in target 'AppAuth_AppAuthCore' from project 'AppAuth')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/AppAuth-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuthCore.build/empty-AppAuth_AppAuthCore.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/AppAuth_AppAuthCore.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/AppAuth_AppAuth.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuth.build/empty-AppAuth_AppAuth.plist (in target 'AppAuth_AppAuth' from project 'AppAuth')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/AppAuth-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuth.build/empty-AppAuth_AppAuth.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/AppAuth_AppAuth.bundle/Info.plist
+
+CompileAssetCatalogVariant thinned /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/Marilena.app /Users/mariomoschetta/Downloads/Marilena/Marilena/Assets.xcassets (in target 'Marilena' from project 'Marilena')
     cd /Users/mariomoschetta/Downloads/Marilena
-    /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A5324a-fc862078e33f881139a9d2f83bd1a9d0.sdkstatcache
+    /Applications/Xcode.app/Contents/Developer/usr/bin/actool /Users/mariomoschetta/Downloads/Marilena/Marilena/Assets.xcassets --compile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_dependencies_thinned --output-partial-info-plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --accent-color AccentColor --compress-pngs --enable-on-demand-resources YES --filter-for-thinning-device-configuration iPhone17,3 --filter-for-device-os-version 26.0 --development-region en --target-device iphone --target-device ipad --minimum-deployment-target 26.0 --platform iphonesimulator
+objc[89325]: Class _NoAnimationDelegate is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23A343/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/Frameworks/SwiftUICore.framework/SwiftUICore (0x1417b4130) and /Library/Developer/CoreSimulator/Volumes/iOS_23A343/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.0.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore (0x13e91d198). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+/* com.apple.actool.compilation-results */
+/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_generated_info.plist_thinned
+/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_output/thinned/AppIcon60x60@2x.png
+/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_output/thinned/AppIcon76x76@2x~ipad.png
+/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_output/thinned/Assets.car
 
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.build/empty-GTMAppAuth_GTMAppAuth.plist (in target 'GTMAppAuth_GTMAppAuth' from project 'GTMAppAuth')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GTMAppAuth
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.build/empty-GTMAppAuth_GTMAppAuth.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMAppAuth_GTMAppAuth.bundle/Info.plist
 
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMSessionFetcher.build/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.build/empty-GTMSessionFetcher_GTMSessionFetcherCore.plist (in target 'GTMSessionFetcher_GTMSessionFetcherCore' from project 'GTMSessionFetcher')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/gtm-session-fetcher
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GTMSessionFetcher.build/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.build/empty-GTMSessionFetcher_GTMSessionFetcherCore.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GTMSessionFetcher_GTMSessionFetcherCore.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuthCore.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuthCore.build/empty-AppAuth_AppAuthCore.plist (in target 'AppAuth_AppAuthCore' from project 'AppAuth')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/AppAuth-iOS
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuthCore.build/empty-AppAuth_AppAuthCore.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuthCore.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.build/empty-GoogleSignIn_GoogleSignInSwift.plist (in target 'GoogleSignIn_GoogleSignInSwift' from project 'GoogleSignIn')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleSignIn-iOS
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.build/empty-GoogleSignIn_GoogleSignInSwift.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.build/empty-GoogleSignIn_GoogleSignIn.plist (in target 'GoogleSignIn_GoogleSignIn' from project 'GoogleSignIn')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleSignIn-iOS
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.build/empty-GoogleSignIn_GoogleSignIn.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignIn.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuth.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuth.build/empty-AppAuth_AppAuth.plist (in target 'AppAuth_AppAuth' from project 'AppAuth')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/AppAuth-iOS
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/AppAuth.build/Debug-iphonesimulator/AppAuth_AppAuth.build/empty-AppAuth_AppAuth.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/AppAuth_AppAuth.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Promises_FBLPromises.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Promises.build/Debug-iphonesimulator/Promises_FBLPromises.build/empty-Promises_FBLPromises.plist (in target 'Promises_FBLPromises' from project 'Promises')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/promises
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Promises.build/Debug-iphonesimulator/Promises_FBLPromises.build/empty-Promises_FBLPromises.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Promises_FBLPromises.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.build/empty-GoogleUtilities_GoogleUtilities-Environment.plist (in target 'GoogleUtilities_GoogleUtilities-Environment' from project 'GoogleUtilities')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleUtilities
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.build/empty-GoogleUtilities_GoogleUtilities-Environment.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Environment.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.build/empty-GoogleUtilities_GoogleUtilities-UserDefaults.plist (in target 'GoogleUtilities_GoogleUtilities-UserDefaults' from project 'GoogleUtilities')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleUtilities
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.build/empty-GoogleUtilities_GoogleUtilities-UserDefaults.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-UserDefaults.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.build/empty-GoogleUtilities_GoogleUtilities-Logger.plist (in target 'GoogleUtilities_GoogleUtilities-Logger' from project 'GoogleUtilities')
-    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/SourcePackages/checkouts/GoogleUtilities
-    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.build/empty-GoogleUtilities_GoogleUtilities-Logger.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.bundle/Info.plist
-
-note: Disabling hardened runtime with ad-hoc codesigning. (in target 'Marilena' from project 'Marilena')
-ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Info.plist /Users/mariomoschetta/Downloads/Marilena/Marilena/Info.plist (in target 'Marilena' from project 'Marilena')
+SwiftDriver Marilena normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Marilena' from project 'Marilena')
     cd /Users/mariomoschetta/Downloads/Marilena
-    builtin-infoPlistUtility /Users/mariomoschetta/Downloads/Marilena/Marilena/Info.plist -producttype com.apple.product-type.application -genpkginfo /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_generated_info.plist -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/AppAuth_AppAuth.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/AppAuth_AppAuthCore.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GTMAppAuth_GTMAppAuth.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GTMSessionFetcher_GTMSessionFetcherCore.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleSignIn_GoogleSignIn.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleSignIn_GoogleSignInSwift.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleUtilities_GoogleUtilities-Environment.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleUtilities_GoogleUtilities-Logger.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/GoogleUtilities_GoogleUtilities-UserDefaults.bundle -scanforprivacyfile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Promises_FBLPromises.bundle -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Info.plist
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Marilena -Onone -enforce-exclusivity\=checked @/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Marilena.SwiftFileList -DDEBUG -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/AppAuth.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/AppAuthCore.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleUtilities-Logger.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleUtilities-Environment.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/third-party-IsAppEncrypted.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleUtilities-UserDefaults.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/AppCheckCore.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GTMSessionFetcherCore.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleSignIn.modulemap -default-isolation\=MainActor -enable-bare-slash-regex -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -target arm64-apple-ios26.0-simulator -g -module-cache-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -profile-coverage-mapping -profile-generate -enable-testing -index-store-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Index.noindex/DataStore -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -swift-version 5 -I /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator -emit-localized-strings -emit-localized-strings-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64 -c -j10 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A337-26257891a6c027eb51374368541b8346.sdkstatcache -output-file-map /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Marilena-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -sdk-module-cache-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Marilena.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Marilena_const_extract_protocols.json -Xcc -iquote -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-generated-files.hmap -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-own-target-headers.hmap -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena-97d9d17465d2c92c804a06e885683b02-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-project-headers.hmap -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/AppAuth-iOS/Sources/AppAuth -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/AppAuth-iOS/Sources/AppAuthCore -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/promises/Sources/FBLPromises/include -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/GoogleUtilities/Logger/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/GoogleUtilities/Environment/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/third_party/IsAppEncrypted/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/GoogleUtilities/UserDefaults/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/gtm-session-fetcher/Sources/Core/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleSignIn-iOS/GoogleSignIn/Sources/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources-normal/arm64 -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/arm64 -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Marilena-Swift.h -working-directory /Users/mariomoschetta/Downloads/Marilena -experimental-emit-module-separately -disable-cmo
 
-CopySwiftLibs /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app (in target 'Marilena' from project 'Marilena')
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.build/empty-GoogleUtilities_GoogleUtilities-Logger.plist (in target 'GoogleUtilities_GoogleUtilities-Logger' from project 'GoogleUtilities')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleUtilities.build/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.build/empty-GoogleUtilities_GoogleUtilities-Logger.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleUtilities_GoogleUtilities-Logger.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.bundle/Info.plist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.build/empty-GoogleSignIn_GoogleSignInSwift.plist (in target 'GoogleSignIn_GoogleSignInSwift' from project 'GoogleSignIn')
+    cd /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleSignIn-iOS
+    builtin-infoPlistUtility /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GoogleSignIn.build/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.build/empty-GoogleSignIn_GoogleSignInSwift.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/GoogleSignIn_GoogleSignInSwift.bundle/Info.plist
+
+SwiftCompile normal arm64 Compiling\ EmailRepository.swift,\ MemoryCacheService.swift,\ OpenAIToolCallingOrchestrator.swift,\ TranscriptionContextService.swift,\ Haptics.swift,\ LongPressLocationOverlay.swift,\ TwoFingerPanOverlay.swift,\ CacheEntry+CoreDataClass.swift,\ EmailHTMLRenderer.swift,\ NetworkService.swift,\ ThinkingManager.swift,\ AIEventCreationView.swift,\ CalendarView.swift,\ CreateEventView.swift,\ DayTimelineView.swift,\ EventDetailSheet.swift,\ EventEditView.swift,\ EventListRow.swift,\ NaturalLanguageEventView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/EmailRepository.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/MemoryCacheService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Tooling/OpenAIToolCallingOrchestrator.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Tooling/TranscriptionContextService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/UX/Haptics.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/UX/LongPressLocationOverlay.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/UX/TwoFingerPanOverlay.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/CacheEntry+CoreDataClass.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/EmailHTMLRenderer.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/NetworkService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/ThinkingManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/AIEventCreationView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/CalendarView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/CreateEventView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/DayTimelineView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/EventDetailSheet.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/EventEditView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/EventListRow.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/NaturalLanguageEventView.swift (in target 'Marilena' from project 'Marilena')
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/EmailRepository.swift (in target 'Marilena' from project 'Marilena')
     cd /Users/mariomoschetta/Downloads/Marilena
-    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Marilena.debug.dylib --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Frameworks --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/PlugIns --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/SystemExtensions --scan-folder /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Extensions --platform iphonesimulator --toolchain /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Products/Debug-iphonesimulator/Marilena.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-gmrsufdusugrudcwsykfyngpwezm/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+    
 
-** BUILD SUCCEEDED **
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/MemoryCacheService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
 
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Tooling/OpenAIToolCallingOrchestrator.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Tooling/TranscriptionContextService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/UX/Haptics.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/UX/LongPressLocationOverlay.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/UX/TwoFingerPanOverlay.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/CacheEntry+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/EmailHTMLRenderer.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/NetworkService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/ThinkingManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/AIEventCreationView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/CalendarView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/CreateEventView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/DayTimelineView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/EventDetailSheet.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/EventEditView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/EventListRow.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/NaturalLanguageEventView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ NewWeekView.swift,\ DailyPlannerChatView.swift,\ PlannerPromptBuilder.swift,\ TimeBlockingAgendaView.swift,\ ModificaProfiloView.swift,\ ProfiloView.swift,\ MarilenaMacTarget.swift,\ AccessibilityManager.swift,\ AIProviderManager.swift,\ AITooling.swift,\ AnthropicService.swift,\ AppleIntelligenceService.swift,\ AppleMailCloneView.swift,\ AppleMailDetailView.swift,\ AppleMailStyleComponents.swift,\ AudioRecorderView.swift,\ CloudflareGatewayClient.swift,\ ContactAutoCompleteService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewWeekView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Planner/DailyPlannerChatView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Planner/PlannerPromptBuilder.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Planner/TimeBlockingAgendaView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Profilo/ModificaProfiloView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Profilo/ProfiloView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/macOS/MarilenaMacTarget.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AccessibilityManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AIProviderManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AITooling.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AnthropicService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleIntelligenceService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleMailCloneView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleMailDetailView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleMailStyleComponents.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/AudioRecorderView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/CloudflareGatewayClient.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ContactAutoCompleteService.swift (in target 'Marilena' from project 'Marilena')
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewWeekView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Planner/DailyPlannerChatView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Planner/PlannerPromptBuilder.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Planner/TimeBlockingAgendaView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Profilo/ModificaProfiloView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Profilo/ProfiloView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/macOS/MarilenaMacTarget.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AccessibilityManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AIProviderManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AITooling.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AnthropicService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleIntelligenceService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleMailCloneView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleMailDetailView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AppleMailStyleComponents.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/AudioRecorderView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/CloudflareGatewayClient.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ContactAutoCompleteService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ ReminderModels.swift,\ ReminderService.swift,\ ServicePickerView.swift,\ WeekTimelineView.swift,\ ChatMessageRow.swift,\ ChatsListView.swift,\ ChatView.swift,\ GeneralChatToolHandler.swift,\ ModularChatView.swift,\ EmailListViewModel.swift,\ NewCalendarEvent.swift,\ NewCalendarService.swift,\ CalendarGestureUtils.swift,\ EventDetailView.swift,\ NewAgendaView.swift,\ NewCalendarView.swift,\ NewDayView.swift,\ NewEventCreationView.swift,\ NewMonthView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/ReminderModels.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/ReminderService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/ServicePickerView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/WeekTimelineView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ChatMessageRow.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ChatsListView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ChatView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/GeneralChatToolHandler.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ModularChatView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Email/List/EmailListViewModel.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Models/NewCalendarEvent.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Services/NewCalendarService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Utils/CalendarGestureUtils.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/EventDetailView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewAgendaView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewCalendarView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewDayView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewEventCreationView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewMonthView.swift (in target 'Marilena' from project 'Marilena')
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/ReminderModels.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/ReminderService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/ServicePickerView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Calendar/WeekTimelineView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ChatMessageRow.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ChatsListView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ChatView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/GeneralChatToolHandler.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Chat/ModularChatView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/Email/List/EmailListViewModel.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Models/NewCalendarEvent.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Services/NewCalendarService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Utils/CalendarGestureUtils.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/EventDetailView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewAgendaView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewCalendarView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewDayView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewEventCreationView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Features/NewCalendar/Views/NewMonthView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ FoundationModelsDocumentationIndex.swift,\ FoundationModelsEventParser.swift,\ AIStreamingTypes.swift,\ OpenAIResponsesClient.swift,\ ModularTranscriptionService.swift,\ ModularTranscriptionView.swift,\ TranscriptionMessage.swift,\ AICacheManager.swift,\ AICoordinator.swift,\ AIMemoryManager.swift,\ AIPerformanceMonitor.swift,\ AIServiceProtocol.swift,\ AITaskManager.swift,\ ModernOpenAIService.swift,\ ModernXAIService.swift,\ ModuleAdapter.swift,\ OpenAIModels.swift,\ ServiceFactory.swift,\ CalendarCompletionMetadata.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/FoundationModels/FoundationModelsDocumentationIndex.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/FoundationModels/FoundationModelsEventParser.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/Streaming/AIStreamingTypes.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/Streaming/OpenAIResponsesClient.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/TranscriptionModule/ModularTranscriptionService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/TranscriptionModule/ModularTranscriptionView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/TranscriptionModule/TranscriptionMessage.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AICacheManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AICoordinator.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AIMemoryManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AIPerformanceMonitor.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AIServiceProtocol.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AITaskManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ModernOpenAIService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ModernXAIService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ModuleAdapter.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/OpenAIModels.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ServiceFactory.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Calendar/CalendarCompletionMetadata.swift (in target 'Marilena' from project 'Marilena')
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/FoundationModels/FoundationModelsDocumentationIndex.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/FoundationModels/FoundationModelsEventParser.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/Streaming/AIStreamingTypes.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/Streaming/OpenAIResponsesClient.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/TranscriptionModule/ModularTranscriptionService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/TranscriptionModule/ModularTranscriptionView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/TranscriptionModule/TranscriptionMessage.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AICacheManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AICoordinator.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AIMemoryManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AIPerformanceMonitor.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AIServiceProtocol.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/AITaskManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ModernOpenAIService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ModernXAIService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ModuleAdapter.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/OpenAIModels.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/AI/ServiceFactory.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Calendar/CalendarCompletionMetadata.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ EnhancedEmailChatService.swift,\ EnhancedEmailChatView.swift,\ ExampleIntegration.swift,\ GroqService.swift,\ IMAPClient.swift,\ KeychainManager.swift,\ LiquidGlassCompatibility.swift,\ MarilenaApp.swift,\ ModelCatalog.swift,\ ModelPickerForCategorizationView.swift,\ ModelPickerView.swift,\ ModernComposeView.swift,\ ModernEmailAIExtensions.swift,\ ModernEmailAIFeatures.swift,\ ModernEmailViewer.swift,\ ModernEmailViewerAIDemo.swift,\ ModernEmailViewerTest.swift,\ NativeAppleMailView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EnhancedEmailChatService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EnhancedEmailChatView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ExampleIntegration.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/GroqService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/IMAPClient.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/KeychainManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/LiquidGlassCompatibility.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/MarilenaApp.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModelCatalog.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModelPickerForCategorizationView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModelPickerView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernComposeView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailAIExtensions.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailAIFeatures.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailViewer.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailViewerAIDemo.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailViewerTest.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/NativeAppleMailView.swift (in target 'Marilena' from project 'Marilena')
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EnhancedEmailChatService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EnhancedEmailChatView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ExampleIntegration.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/GroqService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/IMAPClient.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/KeychainManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/LiquidGlassCompatibility.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/MarilenaApp.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModelCatalog.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModelPickerForCategorizationView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModelPickerView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernComposeView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailAIExtensions.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailAIFeatures.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailViewer.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailViewerAIDemo.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ModernEmailViewerTest.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/NativeAppleMailView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ ContentView.swift,\ ContestoAIService.swift,\ CoreDataExtensions.swift,\ DeepSeekService.swift,\ EmailAIService.swift,\ EmailCacheService.swift,\ EmailCategorizationConfig.swift,\ EmailCategorizationMonitor.swift,\ EmailCategorizationService.swift,\ EmailCategorizationStatsView.swift,\ EmailChatService.swift,\ EmailChatView.swift,\ EmailConfig.swift,\ EmailDetailView.swift,\ EmailListView.swift,\ EmailResponseSuggestionsView.swift,\ EmailService.swift,\ EmailSettingsView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ContentView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/ContestoAIService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/CoreDataExtensions.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/DeepSeekService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailAIService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCacheService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationConfig.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationMonitor.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationStatsView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailChatService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailChatView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailConfig.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailDetailView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailListView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailResponseSuggestionsView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailSettingsView.swift (in target 'Marilena' from project 'Marilena')
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ContentView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/ContestoAIService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/CoreDataExtensions.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/DeepSeekService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailAIService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCacheService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationConfig.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationMonitor.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailCategorizationStatsView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailChatService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailChatView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailConfig.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailDetailView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailListView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailResponseSuggestionsView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/EmailSettingsView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ TranscriptionChatView.swift,\ TranscriptionModeSelectionView.swift,\ ChatMarilena+CoreDataClass.swift,\ ChatMarilena+CoreDataProperties.swift,\ CronologiaContesto+CoreDataClass.swift,\ CronologiaContesto+CoreDataProperties.swift,\ Item+CoreDataClass.swift,\ Item+CoreDataProperties.swift,\ MessaggioMarilena+CoreDataClass.swift,\ MessaggioMarilena+CoreDataProperties.swift,\ ProfiloUtente+CoreDataClass.swift,\ ProfiloUtente+CoreDataProperties.swift,\ RegistrazioneAudio+CoreDataClass.swift,\ RegistrazioneAudio+CoreDataProperties.swift,\ CachedEmail+CoreDataClass.swift,\ CachedEmail+CoreDataProperties.swift,\ DraftEmail+CoreDataClass.swift,\ DraftEmail+CoreDataProperties.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/TranscriptionChatView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/TranscriptionModeSelectionView.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ChatMarilena+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ChatMarilena+CoreDataProperties.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CronologiaContesto+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CronologiaContesto+CoreDataProperties.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/Item+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/Item+CoreDataProperties.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/MessaggioMarilena+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/MessaggioMarilena+CoreDataProperties.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ProfiloUtente+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ProfiloUtente+CoreDataProperties.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/RegistrazioneAudio+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/RegistrazioneAudio+CoreDataProperties.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CachedEmail+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CachedEmail+CoreDataProperties.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/DraftEmail+CoreDataClass.swift /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/DraftEmail+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/TranscriptionChatView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/TranscriptionModeSelectionView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ChatMarilena+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ChatMarilena+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CronologiaContesto+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CronologiaContesto+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/Item+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/Item+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/MessaggioMarilena+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/MessaggioMarilena+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ProfiloUtente+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/ProfiloUtente+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/RegistrazioneAudio+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/RegistrazioneAudio+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CachedEmail+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/CachedEmail+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/DraftEmail+CoreDataClass.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/CoreDataGenerated/Marilena/DraftEmail+CoreDataProperties.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ NotificationService.swift,\ OAuthConfigView.swift,\ OAuthService.swift,\ OfflineSyncService.swift,\ OpenAIService.swift,\ PerplexityService.swift,\ Persistence.swift,\ PromptManager.swift,\ RecorderMainView.swift,\ RecordingDetailView.swift,\ RecordingIntents.swift,\ RecordingService.swift,\ RecordingsListView.swift,\ RichTextEditor.swift,\ SettingsView.swift,\ SharedTypes.swift,\ SpeechTranscriptionService.swift,\ TranscriptionAnalysisView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/NotificationService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/OAuthConfigView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/OAuthService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/OfflineSyncService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/OpenAIService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/PerplexityService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Persistence.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/PromptManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/RecorderMainView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingDetailView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingIntents.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingsListView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/RichTextEditor.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/SettingsView.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/SharedTypes.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/SpeechTranscriptionService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/TranscriptionAnalysisView.swift (in target 'Marilena' from project 'Marilena')
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/NotificationService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/OAuthConfigView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/OAuthService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/OfflineSyncService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/OpenAIService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/PerplexityService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Persistence.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/PromptManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/RecorderMainView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingDetailView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingIntents.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/RecordingsListView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/RichTextEditor.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/SettingsView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/SharedTypes.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/SpeechTranscriptionService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/TranscriptionAnalysisView.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ Marilena (in target 'Marilena' from project 'Marilena')
+
+EmitSwiftModule normal arm64 (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 Compiling\ CRMDataService.swift,\ ProfiloUtenteService.swift,\ EmailChatServiceProtocol.swift,\ ServiceContainer.swift,\ ServiceProtocols.swift,\ ChatMessage.swift,\ Profilo.swift,\ EmailAccountMigration.swift,\ EmailAccountManager.swift,\ EmailAuthService.swift,\ EmailCacheManager.swift,\ EmailNetworkService.swift,\ EmailThreadingManager.swift,\ RefactoredEmailService.swift,\ Color+Hex.swift,\ AppPerformanceMetrics.swift,\ DeferredInitializationService.swift,\ PerformanceSignpost.swift,\ ChatRepository.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/ProfiloUtenteService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/EmailChatServiceProtocol.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceContainer.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceProtocols.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/ChatMessage.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/Profilo.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Migrations/EmailAccountMigration.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Models/EmailAccountManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailNetworkService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailThreadingManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/RefactoredEmailService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Extensions/Color+Hex.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/AppPerformanceMetrics.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/DeferredInitializationService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/PerformanceSignpost.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/ChatRepository.swift (in target 'Marilena' from project 'Marilena')
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -c -filelist /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/sources-1 -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/ProfiloUtenteService.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/EmailChatServiceProtocol.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceContainer.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceProtocols.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/ChatMessage.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/Profilo.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Migrations/EmailAccountMigration.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Models/EmailAccountManager.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailNetworkService.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailThreadingManager.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/RefactoredEmailService.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Extensions/Color+Hex.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/AppPerformanceMetrics.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/DeferredInitializationService.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/PerformanceSignpost.swift -primary-file /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/ChatRepository.swift -supplementary-output-file-map /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/supplementaryOutputs-3 -emit-localized-strings -emit-localized-strings-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64 -target arm64-apple-ios26.0-simulator -module-can-import-version DeveloperToolsSupport 23.0.4 23.0.4 -module-can-import-version EventKitUI 1529.0.1 1.0.0 -module-can-import-version FoundationModels 1.0.49 0 -module-can-import-version MessageUI 3864.100.1.2 3864.100.1 -module-can-import-version PhotosUI 802.43.254 802.43.254 -module-can-import-version SwiftUI 7.0.84.1 7.0.84 -module-can-import-version UIKit 9088.1.113 9088.1.113 -disable-cross-import-overlay-search -swift-module-cross-import AppIntents /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/AppIntents.framework/Modules/AppIntents.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import AppIntents /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/AppIntents.framework/Modules/AppIntents.swiftcrossimport/UIKit.swiftoverlay -swift-module-cross-import AppIntents /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/AppIntents.framework/Modules/AppIntents.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import AppIntents /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/AppIntents.framework/Modules/AppIntents.swiftcrossimport/UIKit.swiftoverlay -swift-module-cross-import AuthenticationServices /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Cryptexes/OS/System/Library/Frameworks/AuthenticationServices.framework/Modules/AuthenticationServices.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import AuthenticationServices /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/AuthenticationServices.framework/Modules/AuthenticationServices.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import CoreData /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/CoreData.framework/Modules/CoreData.swiftcrossimport/CloudKit.swiftoverlay -swift-module-cross-import CoreData /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/CoreData.framework/Modules/CoreData.swiftcrossimport/CloudKit.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/WidgetKit.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import PhotosUI /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/PhotosUI.framework/Modules/PhotosUI.swiftcrossimport/WidgetKit.swiftoverlay -swift-module-cross-import RelevanceKit /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/RelevanceKit.framework/Modules/RelevanceKit.swiftcrossimport/MapKit.swiftoverlay -swift-module-cross-import RelevanceKit /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/RelevanceKit.framework/Modules/RelevanceKit.swiftcrossimport/MapKit.swiftoverlay -swift-module-cross-import WebKit /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Modules/WebKit.swiftcrossimport/SwiftUI.swiftoverlay -swift-module-cross-import WebKit /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk/System/Library/Frameworks/WebKit.framework/Modules/WebKit.swiftcrossimport/SwiftUI.swiftoverlay -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libAppIntentsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#AppIntentsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libFoundationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#FoundationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libFoundationModelsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#FoundationModelsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libObservationMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#ObservationMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libPreviewsMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#PreviewsMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftMacros -load-resolved-plugin /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server\#SwiftUIMacros -disable-implicit-swift-modules -Xcc -fno-implicit-modules -Xcc -fno-implicit-module-maps -explicit-swift-module-map-file /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Marilena-dependencies-1.json -Xllvm -aarch64-use-tbi -enable-objc-interop -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -I /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator -no-color-diagnostics -Xcc -fno-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -module-cache-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -profile-generate -profile-coverage-mapping -swift-version 5 -enforce-exclusivity\=checked -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Marilena_const_extract_protocols.json -enable-upcoming-feature DisableOutwardActorInference -enable-upcoming-feature InferSendableFromCaptures -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-upcoming-feature MemberImportVisibility -enable-upcoming-feature InferIsolatedConformances -enable-upcoming-feature NonisolatedNonsendingByDefault -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -default-isolation\=MainActor -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/mariomoschetta/Downloads/Marilena -enable-anonymous-context-mangled-names -file-compilation-dir /Users/mariomoschetta/Downloads/Marilena -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/AppAuth.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/AppAuthCore.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleUtilities-Logger.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleUtilities-Environment.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/third-party-IsAppEncrypted.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleUtilities-UserDefaults.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/AppCheckCore.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GTMSessionFetcherCore.modulemap -Xcc -fmodule-map-file\=/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator/GoogleSignIn.modulemap -Xcc -D_LIBCPP_HARDENING_MODE\=_LIBCPP_HARDENING_MODE_DEBUG -Xcc -ivfsstatcache -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A337-26257891a6c027eb51374368541b8346.sdkstatcache -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-generated-files.hmap -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-own-target-headers.hmap -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena-97d9d17465d2c92c804a06e885683b02-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Marilena-project-headers.hmap -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/AppAuth-iOS/Sources/AppAuth -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/AppAuth-iOS/Sources/AppAuthCore -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/promises/Sources/FBLPromises/include -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/GoogleUtilities/Logger/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/GoogleUtilities/Environment/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/third_party/IsAppEncrypted/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleUtilities/GoogleUtilities/UserDefaults/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/app-check/AppCheckCore/Sources/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/gtm-session-fetcher/Sources/Core/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/SourcePackages/checkouts/GoogleSignIn-iOS/GoogleSignIn/Sources/Public -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources-normal/arm64 -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources/arm64 -Xcc -I/Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/DerivedSources -Xcc -DDEBUG\=1 -no-auto-bridging-header-chaining -module-name Marilena -frontend-parseable-output -disable-clang-spi -target-sdk-version 26.0 -target-sdk-name iphonesimulator26.0 -clang-target arm64-apple-ios26.0-simulator -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/CRMDataService.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ProfiloUtenteService.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailChatServiceProtocol.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ServiceContainer.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ServiceProtocols.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ChatMessage.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Profilo.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailAccountMigration.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailAccountManager.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailAuthService.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailCacheManager.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailNetworkService.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailThreadingManager.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/RefactoredEmailService.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Color+Hex.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/AppPerformanceMetrics.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/DeferredInitializationService.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/PerformanceSignpost.o -o /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ChatRepository.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/CRMDataService.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ProfiloUtenteService.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailChatServiceProtocol.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ServiceContainer.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ServiceProtocols.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ChatMessage.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Profilo.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailAccountMigration.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailAccountManager.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailAuthService.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailCacheManager.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailNetworkService.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/EmailThreadingManager.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/RefactoredEmailService.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/Color+Hex.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/AppPerformanceMetrics.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/DeferredInitializationService.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/PerformanceSignpost.o -index-unit-output-path /Marilena.build/Debug-iphonesimulator/Marilena.build/Objects-normal/arm64/ChatRepository.o -index-store-path /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Index.noindex/DataStore -index-system-modules
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:54:11: warning: 'catch' block is unreachable because no errors are thrown in 'do' block
+        } catch {
+          ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:101:43: warning: call to main actor-isolated instance method 'extractEmailAddress(from:)' in a synchronous nonisolated context
+                    let cleanEmail = self.extractEmailAddress(from: fromEmail)
+                                          ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:204:18: note: calls to instance method 'extractEmailAddress(from:)' from outside of its actor context are implicitly asynchronous
+    private func extractEmailAddress(from fullEmail: String) -> String {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:113:49: warning: call to main actor-isolated instance method 'categorizeEmail(subject:)' in a synchronous nonisolated context
+                            let category = self.categorizeEmail(subject: subject)
+                                                ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:243:18: note: calls to instance method 'categorizeEmail(subject:)' from outside of its actor context are implicitly asynchronous
+    private func categorizeEmail(subject: String) -> String {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:123:48: warning: call to main actor-isolated instance method 'extractNameFromEmail' in a synchronous nonisolated context
+                        let displayName = self.extractNameFromEmail(fromEmail)
+                                               ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:212:18: note: calls to instance method 'extractNameFromEmail' from outside of its actor context are implicitly asynchronous
+    private func extractNameFromEmail(_ fullEmail: String) -> String {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:125:45: warning: call to main actor-isolated instance method 'categorizeEmail(subject:)' in a synchronous nonisolated context
+                        let category = self.categorizeEmail(subject: subject)
+                                            ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:243:18: note: calls to instance method 'categorizeEmail(subject:)' from outside of its actor context are implicitly asynchronous
+    private func categorizeEmail(subject: String) -> String {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:132:43: warning: call to main actor-isolated instance method 'extractCompanyFromEmail' in a synchronous nonisolated context
+                            company: self.extractCompanyFromEmail(cleanEmail),
+                                          ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:230:18: note: calls to instance method 'extractCompanyFromEmail' from outside of its actor context are implicitly asynchronous
+    private func extractCompanyFromEmail(_ email: String) -> String? {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:136:56: warning: call to main actor-isolated instance method 'calculateRelationshipStrength(interactionCount:)' in a synchronous nonisolated context
+                            relationshipStrength: self.calculateRelationshipStrength(interactionCount: 1),
+                                                       ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:261:18: note: calls to instance method 'calculateRelationshipStrength(interactionCount:)' from outside of its actor context are implicitly asynchronous
+    private func calculateRelationshipStrength(interactionCount: Int) -> CRMRelationshipStrength {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:143:30: warning: call to main actor-isolated instance method 'loadSavedContactDataSync(for:)' in a synchronous nonisolated context
+                        self.loadSavedContactDataSync(for: &newContact)
+                             ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:352:18: note: calls to instance method 'loadSavedContactDataSync(for:)' from outside of its actor context are implicitly asynchronous
+    private func loadSavedContactDataSync(for contact: inout CRMContactReal) {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:316:22: warning: call to main actor-isolated instance method 'saveContactToUserDefaults(contactId:notes:tags:)' in a synchronous nonisolated context
+                self.saveContactToUserDefaults(contactId: contactId, notes: notes, tags: tags)
+                     ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:345:18: note: calls to instance method 'saveContactToUserDefaults(contactId:notes:tags:)' from outside of its actor context are implicitly asynchronous
+    private func saveContactToUserDefaults(contactId: String, notes: String, tags: [String]) {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:498:13: warning: initialization of immutable value 'sixMonthsAgo' was never used; consider replacing with assignment to '_' or removing it
+        let sixMonthsAgo = now.addingTimeInterval(-180 * 24 * 3600)
+        ~~~~^~~~~~~~~~~~
+        _
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift:590:13: warning: initialization of immutable value 'sevenDaysAgo' was never used; consider replacing with assignment to '_' or removing it
+        let sevenDaysAgo = Date().addingTimeInterval(-7 * 24 * 3600)
+        ~~~~^~~~~~~~~~~~
+        _
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/ProfiloUtenteService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/EmailChatServiceProtocol.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceContainer.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceProtocols.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/ChatMessage.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/Profilo.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Migrations/EmailAccountMigration.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2008:15: error: type 'EmailAccount' does not conform to protocol 'Decodable'
+public struct EmailAccount: Codable, Identifiable, Hashable {
+              ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2010:16: note: cannot automatically synthesize 'Decodable' because 'EmailProvider' does not conform to 'Decodable'
+    public let provider: EmailProvider
+               ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2008:15: error: type 'EmailAccount' does not conform to protocol 'Decodable'
+public struct EmailAccount: Codable, Identifiable, Hashable {
+              ^
+Swift.Decodable.init:2:1: note: protocol requires initializer 'init(from:)' with type 'Decodable'
+init(from decoder: any Decoder) throws}
+^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2010:16: note: cannot automatically synthesize 'Decodable' because 'EmailProvider' does not conform to 'Decodable'
+    public let provider: EmailProvider
+               ^
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Models/EmailAccountManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift:47:39: error: extra arguments at positions #3, #4, #5 in call
+            let account = EmailAccount(
+                                      ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2042:12: note: 'init(id:provider:email:displayName:photoURL:addedAt:)' declared here
+    public init(
+           ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift:66:35: error: extra arguments at positions #3, #4, #5 in call
+        let account = EmailAccount(
+                                  ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2042:12: note: 'init(id:provider:email:displayName:photoURL:addedAt:)' declared here
+    public init(
+           ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift:82:35: error: extra arguments at positions #3, #4, #5 in call
+        let account = EmailAccount(
+                                  ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2042:12: note: 'init(id:provider:email:displayName:photoURL:addedAt:)' declared here
+    public init(
+           ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift:101:42: error: extra arguments at positions #3, #4, #5 in call
+        let updatedAccount = EmailAccount(
+                                         ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2042:12: note: 'init(id:provider:email:displayName:photoURL:addedAt:)' declared here
+    public init(
+           ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift:147:54: error: extra arguments at positions #3, #4, #5 in call
+                    let updatedAccount = EmailAccount(
+                                                     ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2042:12: note: 'init(id:provider:email:displayName:photoURL:addedAt:)' declared here
+    public init(
+           ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift:199:35: error: extra arguments at positions #3, #4, #5 in call
+        let account = EmailAccount(
+                                  ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/EmailService.swift:2042:12: note: 'init(id:provider:email:displayName:photoURL:addedAt:)' declared here
+    public init(
+           ^
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:104:41: warning: main actor-isolated property 'context' can not be referenced from a Sendable closure
+                let existing = try self.context.fetch(fetchRequest)
+                                        ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:18:17: note: property declared here
+    private var context: NSManagedObjectContext {
+                ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:108:91: warning: main actor-isolated property 'context' can not be referenced from a nonisolated autoclosure
+                    let cachedEmail = existingDict[email.id] ?? CachedEmail(context: self.context)
+                                                                                          ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:18:17: note: property declared here
+    private var context: NSManagedObjectContext {
+                ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:109:26: warning: call to main actor-isolated instance method 'updateCachedEmail(_:with:)' in a synchronous nonisolated context
+                    self.updateCachedEmail(cachedEmail, with: email)
+                         ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:263:18: note: calls to instance method 'updateCachedEmail(_:with:)' from outside of its actor context are implicitly asynchronous
+    private func updateCachedEmail(_ cached: CachedEmail, with email: EmailMessage) {
+                 ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:117:25: warning: main actor-isolated property 'context' can not be referenced from a Sendable closure
+                if self.context.hasChanges {
+                        ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:18:17: note: property declared here
+    private var context: NSManagedObjectContext {
+                ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:118:30: warning: main actor-isolated property 'context' can not be referenced from a Sendable closure
+                    try self.context.save()
+                             ^
+/Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift:18:17: note: property declared here
+    private var context: NSManagedObjectContext {
+                ^
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailNetworkService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailThreadingManager.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/RefactoredEmailService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Extensions/Color+Hex.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/AppPerformanceMetrics.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/DeferredInitializationService.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/PerformanceSignpost.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/ChatRepository.swift (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    
+
+LinkAssetCatalog /Users/mariomoschetta/Downloads/Marilena/Marilena/Assets.xcassets (in target 'Marilena' from project 'Marilena')
+    cd /Users/mariomoschetta/Downloads/Marilena
+    builtin-linkAssetCatalog --thinned /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_output/thinned --thinned-dependencies /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_dependencies_thinned --thinned-info-plist-content /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_generated_info.plist_thinned --unthinned /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_output/unthinned --unthinned-dependencies /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_dependencies_unthinned --unthinned-info-plist-content /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_generated_info.plist_unthinned --output /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/Marilena.app --plist-output /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Intermediates.noindex/Marilena.build/Debug-iphonesimulator/Marilena.build/assetcatalog_generated_info.plist
+note: Emplaced /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/Marilena.app/AppIcon76x76@2x~ipad.png (in target 'Marilena' from project 'Marilena')
+note: Emplaced /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/Marilena.app/Assets.car (in target 'Marilena' from project 'Marilena')
+note: Emplaced /Users/mariomoschetta/Library/Developer/Xcode/DerivedData/Marilena-alvnabrxdrgdethkodkucegntnmr/Build/Products/Debug-iphonesimulator/Marilena.app/AppIcon60x60@2x.png (in target 'Marilena' from project 'Marilena')
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	SwiftCompile normal arm64 Compiling\ CRMDataService.swift,\ ProfiloUtenteService.swift,\ EmailChatServiceProtocol.swift,\ ServiceContainer.swift,\ ServiceProtocols.swift,\ ChatMessage.swift,\ Profilo.swift,\ EmailAccountMigration.swift,\ EmailAccountManager.swift,\ EmailAuthService.swift,\ EmailCacheManager.swift,\ EmailNetworkService.swift,\ EmailThreadingManager.swift,\ RefactoredEmailService.swift,\ Color+Hex.swift,\ AppPerformanceMetrics.swift,\ DeferredInitializationService.swift,\ PerformanceSignpost.swift,\ ChatRepository.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/CRMDataService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Data/Services/ProfiloUtenteService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/EmailChatServiceProtocol.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceContainer.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/DependencyInjection/ServiceProtocols.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/ChatMessage.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Domain/Entities/Profilo.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Migrations/EmailAccountMigration.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Models/EmailAccountManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailCacheManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailNetworkService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailThreadingManager.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/RefactoredEmailService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Extensions/Color+Hex.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/AppPerformanceMetrics.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/DeferredInitializationService.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Performance/PerformanceSignpost.swift /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Repository/ChatRepository.swift (in target 'Marilena' from project 'Marilena')
+	SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Migrations/EmailAccountMigration.swift (in target 'Marilena' from project 'Marilena')
+	SwiftCompile normal arm64 /Users/mariomoschetta/Downloads/Marilena/Marilena/Core/Email/Services/EmailAuthService.swift (in target 'Marilena' from project 'Marilena')
+	Building project Marilena with scheme Marilena-iOS
+(4 failures)

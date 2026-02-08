@@ -2,6 +2,7 @@ import Foundation
 
 // MARK: - Service Container Protocol
 
+@MainActor
 protocol ServiceContainerProtocol {
     func register<T>(_ type: T.Type, factory: @escaping () -> T)
     func register<T>(_ type: T.Type, singleton: T)
@@ -26,6 +27,9 @@ public class ServiceContainer: ServiceContainerProtocol {
     private var singletons: [String: Any] = [:]
     private var factories: [String: () -> Any] = [:]
     
+    // Thread-safety lock per accesso concorrente ai dizionari
+    private let lock = NSLock()
+    
     // MARK: - Initialization
     
     private init() {
@@ -39,6 +43,8 @@ public class ServiceContainer: ServiceContainerProtocol {
     /// Registra un servizio con factory method (crea nuova istanza ad ogni resolve)
     public func register<T>(_ type: T.Type, factory: @escaping () -> T) {
         let key = String(describing: type)
+        lock.lock()
+        defer { lock.unlock() }
         factories[key] = factory
         print("📦 ServiceContainer: Registered factory for \(key)")
     }
@@ -46,6 +52,8 @@ public class ServiceContainer: ServiceContainerProtocol {
     /// Registra un servizio come singleton (istanza condivisa)
     public func register<T>(_ type: T.Type, singleton: T) {
         let key = String(describing: type)
+        lock.lock()
+        defer { lock.unlock() }
         singletons[key] = singleton
         print("📦 ServiceContainer: Registered singleton for \(key)")
     }
@@ -53,6 +61,8 @@ public class ServiceContainer: ServiceContainerProtocol {
     /// Registra un servizio generico
     public func register<T>(_ type: T.Type, service: T) {
         let key = String(describing: type)
+        lock.lock()
+        defer { lock.unlock() }
         services[key] = service
         print("📦 ServiceContainer: Registered service for \(key)")
     }
@@ -62,6 +72,9 @@ public class ServiceContainer: ServiceContainerProtocol {
     /// Risolve una dipendenza dal container
     public func resolve<T>(_ type: T.Type) -> T? {
         let key = String(describing: type)
+        
+        lock.lock()
+        defer { lock.unlock() }
 
         // 1. Check singletons first
         if let singleton = singletons[key] as? T {
@@ -86,6 +99,8 @@ public class ServiceContainer: ServiceContainerProtocol {
     /// Verifica se un servizio è registrato
     public func isRegistered<T>(_ type: T.Type) -> Bool {
         let key = String(describing: type)
+        lock.lock()
+        defer { lock.unlock() }
         return singletons[key] != nil || factories[key] != nil || services[key] != nil
     }
     
@@ -93,6 +108,8 @@ public class ServiceContainer: ServiceContainerProtocol {
     
     /// Elenca tutti i servizi registrati per debugging
     public func listRegisteredServices() -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
         var allServices: Set<String> = Set()
         allServices.formUnion(singletons.keys)
         allServices.formUnion(factories.keys)
@@ -103,6 +120,8 @@ public class ServiceContainer: ServiceContainerProtocol {
     /// Reset del container (utile per testing)
     public func reset() {
         print("🔄 ServiceContainer: Resetting container")
+        lock.lock()
+        defer { lock.unlock() }
         services.removeAll()
         singletons.removeAll()
         factories.removeAll()

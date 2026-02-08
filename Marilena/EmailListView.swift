@@ -1,75 +1,37 @@
 import SwiftUI
-// PERF: List rendering: ottimizzare diffing identificando righe con `id` stabile; considerare `EquatableView` per celle statiche.
-// PERF: Integrare cache con TTL/size cap dal servizio per ridurre fetch frequenti.
 import Combine
 import CoreData
 
 // MARK: - iOS 26 Enhanced Email List View
-// Vista principale modernizzata per iOS 26 con Liquid Glass e SwipeActions native
+/// Vista principale email consolidata con Design System unificato
+/// - Componenti condivisi da EmailComponents.swift
+/// - UnifiedEmailViewer come unico viewer
+/// - Navigazione nativa iOS perfetta
 
 public struct EmailListView: View {
     @StateObject private var emailService = EmailService()
     @StateObject private var aiService = EmailAIService()
     @StateObject private var accessibilityManager = AccessibilityManager.shared
     
-    @State private var selectedEmail: EmailMessage?
-    @State private var showingEmailDetail = false
-    @State private var showingLogin = false
     @State private var searchText = ""
-    @State private var showingFilters = false
-    @State private var selectedCategory: EmailCategory? = nil // Filtro AI attivo
-    @State private var showUncategorized: Bool = false        // Filtro per non categorizzate
-
-    @State private var useAppleMailStyle = true
-    @State private var useModernViewer = true  // Default: nuovo viewer moderno
+    @State private var selectedCategory: EmailCategory? = nil
+    @State private var showUncategorized: Bool = false
+    @State private var showingComposeSheet = false
     @State private var showingEmailSettings = false
     
-    // iOS 26 States
-    @State private var showingComposeSheet = false
-    @State private var hapticFeedback = UIImpactFeedbackGenerator(style: .medium)
+    // Cache per stati email (archiviato/eliminato) per evitare query in loop
+    @State private var archivedEmailIds: Set<String> = []
+    @State private var deletedEmailIds: Set<String> = []
     
-    // MARK: - Helper Functions
-    private func destinationView(for email: EmailMessage) -> some View {
-        Group {
-            if useModernViewer {
-                ModernEmailViewer(
-                    email: email,
-                    emailService: emailService,
-                    aiService: aiService
-                )
-            } else if useAppleMailStyle {
-                NativeAppleMailView(
-                    email: email,
-                    emailService: emailService,
-                    aiService: aiService
-                )
-            } else {
-                EmailDetailView(
-                    email: email,
-                    aiService: aiService
-                )
-            }
-        }
-    }
+    // Haptic
+    private let hapticFeedback = UIImpactFeedbackGenerator(style: .medium)
     
-    /// Crea la vista di destinazione per una conversazione
-    private func destinationViewForConversation(_ conversation: EmailConversation) -> some View {
-        // Temporaneamente usa la prima email della conversazione per compatibilità
-        Group {
-            if let firstEmail = conversation.messages.first {
-                destinationView(for: firstEmail)
-            } else {
-                Text("Conversazione vuota")
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
+    // MARK: - Computed Properties
     
-    // NUOVO: Conversazioni filtrate per il threading
     private var filteredConversations: [EmailConversation] {
         var conversations = emailService.emailConversations
         
-        // Filtra per categoria AI
+        // Filtra per categoria
         if let selectedCategory = selectedCategory {
             conversations = conversations.filter { conversation in
                 conversation.messages.contains { $0.category == selectedCategory }
@@ -80,14 +42,13 @@ public struct EmailListView: View {
             }
         }
         
-        // Filtra per ricerca testuale
+        // Filtra per ricerca
         if !searchText.isEmpty {
+            let searchLower = searchText.lowercased()
             conversations = conversations.filter { conversation in
-                conversation.subject.localizedCaseInsensitiveContains(searchText) ||
-                conversation.participantsDisplay.localizedCaseInsensitiveContains(searchText) ||
-                conversation.messages.contains { message in
-                    message.body.localizedCaseInsensitiveContains(searchText)
-                }
+                conversation.subject.lowercased().contains(searchLower) ||
+                conversation.participantsDisplay.lowercased().contains(searchLower) ||
+                conversation.messages.contains { $0.body.lowercased().contains(searchLower) }
             }
         }
         
@@ -97,42 +58,45 @@ public struct EmailListView: View {
     private var filteredEmails: [EmailMessage] {
         var emails = emailService.emails
         
-        // Escludi email archiviate e eliminate
+        // Escludi archiviate ed eliminate usando la cache (O(1) lookup)
         emails = emails.filter { email in
-            // Controlla nella cache CoreData se l'email è archiviata o eliminata
-            let context = PersistenceController.shared.container.viewContext
-            let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "id == %@", email.id)
-            
-            do {
-                let cachedEmails = try context.fetch(fetchRequest)
-                if let cachedEmail = cachedEmails.first {
-                    return !(cachedEmail.isArchived || cachedEmail.isMarkedAsDeleted)
-                }
-            } catch {
-                print("❌ EmailListView: Errore controllo stato email: \(error)")
-            }
-            
-            return true // Se non trovata nella cache, mostra l'email
+            !archivedEmailIds.contains(email.id) && !deletedEmailIds.contains(email.id)
         }
         
-        // Filtra per categoria AI o non categorizzate
+        // Filtra per categoria
         if let selectedCategory = selectedCategory {
             emails = emails.filter { $0.category == selectedCategory }
         } else if showUncategorized {
             emails = emails.filter { $0.category == nil }
         }
         
-        // Filtra per ricerca testuale
+        // Filtra per ricerca
         if !searchText.isEmpty {
+            let searchLower = searchText.lowercased()
             emails = emails.filter { email in
-                email.subject.localizedCaseInsensitiveContains(searchText) ||
-                email.from.localizedCaseInsensitiveContains(searchText) ||
-                email.body.localizedCaseInsensitiveContains(searchText)
+                email.subject.lowercased().contains(searchLower) ||
+                email.from.lowercased().contains(searchLower) ||
+                email.body.lowercased().contains(searchLower)
             }
         }
         
         return emails.sorted { $0.date > $1.date }
+    }
+    
+    // MARK: - Cache Management
+    
+    private func refreshEmailStatusCache() {
+        let context = PersistenceController.shared.container.viewContext
+        let fetchRequest: NSFetchRequest<CachedEmail> = CachedEmail.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "isArchived == YES OR isMarkedAsDeleted == YES")
+        
+        do {
+            let cachedEmails = try context.fetch(fetchRequest)
+            archivedEmailIds = Set(cachedEmails.filter { $0.isArchived }.compactMap { $0.id })
+            deletedEmailIds = Set(cachedEmails.filter { $0.isMarkedAsDeleted }.compactMap { $0.id })
+        } catch {
+            print("❌ Errore caricamento cache stati email: \(error)")
+        }
     }
     
     // MARK: - Body
@@ -141,528 +105,316 @@ public struct EmailListView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 if emailService.isAuthenticated {
-                    modernEmailListContent
+                    emailListContent
                 } else {
                     loginContent
                 }
             }
             .navigationTitle(emailService.currentAccount?.email ?? "Email")
             .navigationBarTitleDisplayMode(.large)
-            .headerAccessibility(
-                label: "Email principale di \(emailService.currentAccount?.email ?? "nessun account")",
-                hint: "Schermata principale delle email"
-            )
             .searchable(text: $searchText, prompt: "Cerca email...")
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Menu {
-                        Button("Account: \(emailService.currentAccount?.email ?? "Non connesso")") { }
-                            .standardAccessibility(
-                                label: "Account corrente: \(emailService.currentAccount?.email ?? "Non connesso")",
-                                hint: "Informazioni account email"
-                            )
-                        
-                        Button("Disconnetti") {
-                            emailService.disconnect()
-                            accessibilityManager.announce("Account disconnesso")
-                        }
-                        .buttonAccessibility(
-                            label: "Disconnetti account",
-                            hint: "Esci dall'account email corrente"
-                        )
-                        
-                        Divider()
-                        
-                        // NUOVO: Toggle Threading
-                        Button {
-                            Task {
-                                emailService.isThreadingEnabled.toggle()
-                                await emailService.organizeEmailsIntoConversations()
-                                hapticFeedback.impactOccurred()
-                                
-                                let status = emailService.isThreadingEnabled ? "abilitato" : "disabilitato"
-                                accessibilityManager.announce("Raggruppamento conversazioni \(status)")
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: emailService.isThreadingEnabled ? "checkmark.square" : "square")
-                                Text("🧵 Conversazioni")
-                            }
-                        }
-                        .buttonAccessibility(
-                            label: emailService.isThreadingEnabled ? "Disabilita conversazioni" : "Abilita conversazioni",
-                            hint: "Attiva o disattiva il raggruppamento delle email in conversazioni"
-                        )
-                        
-                        Divider()
-                        
-                        Button("🧪 Test: Simula Nuova Email") {
-                            Task {
-                                await emailService.simulateNewEmail()
-                                accessibilityManager.announce("Nuova email simulata aggiunta")
-                            }
-                        }
-                        .foregroundStyle(.orange)
-                        .buttonAccessibility(
-                            label: "Simula nuova email",
-                            hint: "Funzione di test per aggiungere email fittizia"
-                        )
-                    } label: {
-                        Image(systemName: "gear.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                            .symbolRenderingMode(.hierarchical)
-                    }
-                    .buttonAccessibility(
-                        label: "Menu impostazioni",
-                        hint: "Apri menu per gestire account e impostazioni"
-                    )
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        // NUOVO: Indicatori stato offline/sync
-                        HStack(spacing: 6) {
-                            // Indicatore operazioni pending
-                            if emailService.pendingOperationsCount > 0 {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "clock.fill")
-                                        .font(.caption2)
-                                    Text("\(emailService.pendingOperationsCount)")
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                }
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.orange, in: Capsule())
-                                .standardAccessibility(
-                                    label: "\(emailService.pendingOperationsCount) operazioni in attesa",
-                                    hint: "Email in coda per invio quando torni online"
-                                )
-                            }
-                            
-                            // Indicatore stato connessione
-                            Circle()
-                                .fill(emailService.isOnline ? .green : .red)
-                                .frame(width: 8, height: 8)
-                                .overlay(
-                                    Circle()
-                                        .stroke(.white, lineWidth: 1)
-                                )
-                                .standardAccessibility(
-                                    label: emailService.isOnline ? "Online" : "Offline",
-                                    hint: emailService.isOnline ? "Connesso a internet" : "Nessuna connessione internet"
-                                )
-                            
-                            // Indicatore sync status
-                            if case .syncing = emailService.syncStatus {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                    .frame(width: 12, height: 12)
-                                    .standardAccessibility(
-                                        label: "Sincronizzazione in corso",
-                                        hint: "Le email si stanno aggiornando"
-                                    )
-                            }
-                        }
-                        
-                        // Pulsante compose
-                        Button(action: {
-                            showingComposeSheet = true
-                            hapticFeedback.impactOccurred()
-                            accessibilityManager.announce("Apertura composizione nuova email")
-                        }) {
-                            Image(systemName: "square.and.pencil.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(.blue)
-                                .symbolRenderingMode(.hierarchical)
-                                .symbolEffect(.bounce, value: false)
-                        }
-                        .buttonAccessibility(
-                            label: "Componi email",
-                            hint: "Crea una nuova email"
-                        )
-                    }
-                }
+                leadingToolbarItems
+                trailingToolbarItems
             }
+            .withEmailNavigation(emailService: emailService, aiService: aiService)
         }
         .refreshable {
-            // Pull-to-refresh: forza ricaricamento email ignorando cache
-            if let account = emailService.currentAccount {
-                await emailService.forceRefreshEmails(for: account)
-                hapticFeedback.impactOccurred()
-                accessibilityManager.announce("Email aggiornate")
-            }
+            await refreshEmails()
         }
         .sheet(isPresented: $showingComposeSheet) {
-            ComposeEmailView()
+            ModernComposeView()
         }
         .sheet(isPresented: $showingEmailSettings) {
             EmailSettingsView()
                 .environmentObject(emailService)
         }
         .alert("Errore", isPresented: .constant(emailService.error != nil)) {
-            Button("OK") {
-                emailService.error = nil
-            }
+            Button("OK") { emailService.error = nil }
         } message: {
             Text(emailService.error ?? "")
         }
         .onAppear {
-            loadViewerSettings()
-            // Ripristina l'autenticazione all'avvio
+            refreshEmailStatusCache()
             Task {
                 await emailService.restoreAuthentication()
             }
-            PerformanceSignpost.event("EmailListAppear")
         }
-        .onReceive(NotificationCenter.default.publisher(for: .modernViewerSettingChanged)) { _ in
-            loadViewerSettings()
+        .onChange(of: emailService.emails) { _, _ in
+            refreshEmailStatusCache()
         }
     }
     
-    // MARK: - Modern Email List Content (iOS 26)
+    // MARK: - Toolbar Items
     
-    private var modernEmailListContent: some View {
+    @ToolbarContentBuilder
+    private var leadingToolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Menu {
+                // Account Info
+                Button("Account: \(emailService.currentAccount?.email ?? "Non connesso")") { }
+                    .disabled(true)
+                
+                Divider()
+                
+                // Toggle Threading
+                Button {
+                    Task {
+                        emailService.isThreadingEnabled.toggle()
+                        await emailService.organizeEmailsIntoConversations()
+                        hapticFeedback.impactOccurred()
+                        accessibilityManager.announce(emailService.isThreadingEnabled ? "Conversazioni abilitate" : "Conversazioni disabilitate")
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: emailService.isThreadingEnabled ? "checkmark.square" : "square")
+                        Text("🧵 Raggruppa conversazioni")
+                    }
+                }
+                
+                Divider()
+                
+                // Settings
+                Button {
+                    showingEmailSettings = true
+                } label: {
+                    Label("Impostazioni", systemImage: "gear")
+                }
+                
+                // Disconnect
+                Button(role: .destructive) {
+                    emailService.disconnect()
+                    accessibilityManager.announce("Account disconnesso")
+                } label: {
+                    Label("Disconnetti", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+                
+                #if DEBUG
+                Divider()
+                
+                Button("🧪 Simula Nuova Email") {
+                    Task {
+                        await emailService.simulateNewEmail()
+                        accessibilityManager.announce("Nuova email simulata")
+                    }
+                }
+                .foregroundColor(.orange)
+                #endif
+            } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.title2)
+                    .foregroundStyle(.blue)
+            }
+        }
+    }
+    
+    @ToolbarContentBuilder
+    private var trailingToolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            HStack(spacing: 12) {
+                // Sync Status Indicators
+                HStack(spacing: 6) {
+                    if emailService.pendingOperationsCount > 0 {
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock.fill")
+                                .font(.caption2)
+                            Text("\(emailService.pendingOperationsCount)")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.orange, in: Capsule())
+                    }
+                    
+                    Circle()
+                        .fill(emailService.isOnline ? .green : .red)
+                        .frame(width: 8, height: 8)
+                    
+                    if case .syncing = emailService.syncStatus {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+                
+                // Compose Button
+                Button {
+                    showingComposeSheet = true
+                    hapticFeedback.impactOccurred()
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Email List Content
+    
+    private var emailListContent: some View {
         List {
-            // Filtri AI per categoria
+            // Category Filters
             Section {
-                // Spazio vuoto per i filtri
+                EmptyView()
             } header: {
-                aiCategoryFiltersView
+                categoryFiltersView
             }
             
+            // Email List
             if emailService.isThreadingEnabled {
-                // NUOVO: Vista conversazioni
-                ForEach(filteredConversations) { conversation in
-                    NavigationLink(destination: destinationViewForConversation(conversation)) {
-                        ConversationRowView(conversation: conversation)
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    // Swipe actions per conversazioni
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        Button {
-                            Task {
-                                await emailService.markConversationAsRead(conversation)
-                                hapticFeedback.impactOccurred()
-                            }
-                        } label: {
-                            Label(
-                                conversation.hasUnread ? "Segna come letta" : "Segna come non letta",
-                                systemImage: conversation.hasUnread ? "envelope.open" : "envelope.badge"
-                            )
-                        }
-                        .tint(.blue)
-                    }
-                }
+                conversationRows
             } else {
-                // Vista email singole (esistente)
-                ForEach(filteredEmails) { email in
-                    NavigationLink(destination: destinationView(for: email)) {
-                        ModernEmailRowView(email: email)
-                    }
-                    .standardAccessibility(
-                        label: "Email da \(senderDisplayName(email.from)). Oggetto: \(email.subject). \(email.isRead ? "Letta" : "Non letta"). Data: \(formatRelativeDate(email.date))",
-                        hint: "Tocca per aprire l'email. Scorri per altre azioni"
-                    )
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                // iOS 26 SwipeActions
-                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                    // Mark as Read/Unread
-                    Button {
-                        Task {
-                            await toggleReadStatus(for: email)
-                            let status = email.isRead ? "non letta" : "letta"
-                            accessibilityManager.announce("Email marcata come \(status)")
-                        }
-                    } label: {
-                        Label(
-                            email.isRead ? "Non letta" : "Letta", 
-                            systemImage: email.isRead ? "envelope.badge" : "envelope.open"
-                        )
-                    }
-                    .tint(.blue)
-                    .buttonAccessibility(
-                        label: email.isRead ? "Segna come non letta" : "Segna come letta",
-                        hint: "Cambia lo stato di lettura dell'email"
-                    )
-                    
-                    // Pin Email
-                    Button {
-                        pinEmail(email)
-                        accessibilityManager.announce("Email aggiunta ai preferiti")
-                    } label: {
-                        Label("Pin", systemImage: "pin.fill")
-                    }
-                    .tint(.orange)
-                    .buttonAccessibility(
-                        label: "Aggiungi ai preferiti",
-                        hint: "Contrassegna l'email come importante"
-                    )
-                    
-                    // Archive
-                    Button {
-                        Task {
-                            await archiveEmail(email)
-                            accessibilityManager.announce("Email archiviata")
-                        }
-                    } label: {
-                        Label("Archivia", systemImage: "archivebox.fill")
-                    }
-                    .tint(.green)
-                    .buttonAccessibility(
-                        label: "Archivia email",
-                        hint: "Sposta l'email nell'archivio"
-                    )
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    // Delete
-                    Button(role: .destructive) {
-                        Task {
-                            await deleteEmail(email)
-                            accessibilityManager.announce("Email eliminata")
-                        }
-                    } label: {
-                        Label("Elimina", systemImage: "trash.fill")
-                    }
-                    .buttonAccessibility(
-                        label: "Elimina email",
-                        hint: "Cancella definitivamente l'email"
-                    )
-                    
-                    // Forward
-                    Button {
-                        forwardEmail(email)
-                        accessibilityManager.announce("Apertura inoltro email")
-                    } label: {
-                        Label("Inoltra", systemImage: "arrowshape.turn.up.right.fill")
-                    }
-                    .tint(.indigo)
-                    .buttonAccessibility(
-                        label: "Inoltra email",
-                        hint: "Invia questa email a qualcun altro"
-                    )
-                    
-                    // Reply
-                    Button {
-                        replyToEmail(email)
-                        accessibilityManager.announce("Apertura risposta email")
-                    } label: {
-                        Label("Rispondi", systemImage: "arrowshape.turn.up.left.fill")
-                    }
-                    .tint(.blue)
-                    .buttonAccessibility(
-                        label: "Rispondi",
-                        hint: "Rispondi al mittente dell'email"
-                    )
-                }
+                emailRows
             }
-            } // Fine else (email singole)
         }
         .listStyle(.plain)
         .environment(\.defaultMinListRowHeight, 60)
-        .refreshable {
-            // MIGLIORATO: Usa refresh forzato per pull-to-refresh
-            await emailService.forceRefresh()
-        }
         .overlay {
             if emailService.isLoading {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                        .foregroundStyle(.blue)
-                    Text("Caricamento email...")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.regularMaterial)
+                EmailLoadingView()
             }
             
             if filteredEmails.isEmpty && !emailService.isLoading {
-                VStack(spacing: 16) {
-                    Image(systemName: "envelope.open")
-                        .font(.system(size: 50))
-                        .foregroundStyle(.secondary)
-                        .symbolRenderingMode(.hierarchical)
-                    
-                    Text("Nessuna email trovata")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    
-                    Text("Le tue email appariranno qui")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                EmailEmptyStateView()
             }
         }
-        .searchable(text: $searchText, prompt: "Cerca email...")
     }
     
-    // MARK: - AI Category Filters View
+    // MARK: - Conversation Rows
     
-    private var aiCategoryFiltersView: some View {
-        VStack(spacing: 8) {
-            // Filtri per categoria AI
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    // Filtro "Tutte"
-                    AICategoryFilterChip(
-                        category: nil,
-                        isSelected: selectedCategory == nil && !showUncategorized,
-                        count: getAllEmailsCount()
-                    ) {
+    private var conversationRows: some View {
+        ForEach(filteredConversations) { conversation in
+            NavigationLink(value: conversation) {
+                ConversationRowView(conversation: conversation)
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button {
+                    Task {
+                        await emailService.markConversationAsRead(conversation)
+                        hapticFeedback.impactOccurred()
+                    }
+                } label: {
+                    Label(
+                        conversation.hasUnread ? "Letta" : "Non letta",
+                        systemImage: conversation.hasUnread ? "envelope.open" : "envelope.badge"
+                    )
+                }
+                .tint(.blue)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) {
+                    // Delete conversation
+                } label: {
+                    Label("Elimina", systemImage: "trash.fill")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Email Rows
+    
+    private var emailRows: some View {
+        ForEach(filteredEmails) { email in
+            NavigationLink(value: email) {
+                EmailRowView(email: email)
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                // Mark Read/Unread
+                Button {
+                    Task {
+                        await emailService.markEmailAsRead(email.id)
+                        hapticFeedback.impactOccurred()
+                    }
+                } label: {
+                    Label(
+                        email.isRead ? "Non letta" : "Letta",
+                        systemImage: email.isRead ? "envelope.badge" : "envelope.open"
+                    )
+                }
+                .tint(.blue)
+                
+                // Archive
+                Button {
+                    Task {
+                        await emailService.archiveEmail(email.id)
+                        hapticFeedback.impactOccurred()
+                    }
+                } label: {
+                    Label("Archivia", systemImage: "archivebox.fill")
+                }
+                .tint(.green)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                // Delete
+                Button(role: .destructive) {
+                    Task {
+                        try? await emailService.deleteEmail(email.id)
+                    }
+                } label: {
+                    Label("Elimina", systemImage: "trash.fill")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Category Filters
+    
+    private var categoryFiltersView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                // Tutte
+                EmailFilterChip(
+                    title: "Tutte",
+                    count: getAllEmailsCount(),
+                    isSelected: selectedCategory == nil && !showUncategorized,
+                    action: {
                         selectedCategory = nil
                         showUncategorized = false
                     }
-                    
-                    // Filtro "Uncategorized"
-                    AICategoryFilterChip(
-                        category: nil,
-                        isSelected: selectedCategory == nil && showUncategorized,
-                        count: getUncategorizedCount(),
-                        overrideTitle: "Uncategorized",
-                        overrideIcon: "tray"
-                    ) {
+                )
+                
+                // Uncategorized
+                EmailFilterChip(
+                    title: "Da categorizzare",
+                    icon: "tray",
+                    count: getUncategorizedCount(),
+                    isSelected: showUncategorized,
+                    action: {
                         selectedCategory = nil
                         showUncategorized = true
                     }
-                    
-                    // Filtri per ogni categoria AI
-                    ForEach([EmailCategory.work, EmailCategory.personal, EmailCategory.notifications, EmailCategory.promotional], id: \.self) { category in
-                        AICategoryFilterChip(
-                            category: category,
-                            isSelected: selectedCategory == category,
-                            count: getCategoryCount(category)
-                        ) {
+                )
+                
+                // Categories
+                ForEach([EmailCategory.work, EmailCategory.personal, EmailCategory.notifications, EmailCategory.promotional], id: \.self) { category in
+                    EmailFilterChip(
+                        title: category.displayName,
+                        icon: category.icon,
+                        count: getCategoryCount(category),
+                        isSelected: selectedCategory == category,
+                        action: {
                             selectedCategory = category
                             showUncategorized = false
                         }
-                    }
+                    )
                 }
-                .padding(.horizontal, 16)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
-        .padding(.vertical, 8)
-    }
-    
-    // Conta email per categoria AI
-    private func getCategoryCount(_ category: EmailCategory) -> Int {
-        if emailService.isThreadingEnabled {
-            return emailService.emailConversations.filter { conversation in
-                conversation.messages.contains { message in
-                    message.category == category
-                }
-            }.count
-        } else {
-            return emailService.emails.filter { $0.category == category }.count
-        }
-    }
-    
-    // Conta tutte le email/conversazioni
-    private func getAllEmailsCount() -> Int {
-        if emailService.isThreadingEnabled {
-            return emailService.emailConversations.count
-        } else {
-            return emailService.emails.count
-        }
-    }
-
-    private func getUncategorizedCount() -> Int {
-        if emailService.isThreadingEnabled {
-            return emailService.emailConversations.filter { conversation in
-                conversation.messages.contains { $0.category == nil }
-            }.count
-        } else {
-            return emailService.emails.filter { $0.category == nil }.count
-        }
-    }
-    
-    // MARK: - Helper Functions for Accessibility
-    
-    /// Formattazione data relativa (stile Apple Mail)
-    private func formatRelativeDate(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        if calendar.isDateInToday(date) {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
-        } else if calendar.isDateInYesterday(date) {
-            return "Ieri"
-        } else if calendar.dateInterval(of: .weekOfYear, for: now)?.contains(date) == true {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "E" // Giorno della settimana abbreviato
-            return formatter.string(from: date)
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
-        }
-    }
-    
-    /// Nome del mittente formattato
-    private func senderDisplayName(_ from: String) -> String {
-        // Estrae il nome se è nel formato "Nome <email@domain.com>"
-        if let nameRange = from.range(of: " <") {
-            return String(from[..<nameRange.lowerBound])
-        }
-        return from
-    }
-    
-    // MARK: - SwipeAction Functions
-    
-    private func toggleReadStatus(for email: EmailMessage) async {
-        hapticFeedback.impactOccurred()
-        await emailService.markEmailAsRead(email.id)
-    }
-    
-    private func pinEmail(_ email: EmailMessage) {
-        hapticFeedback.impactOccurred()
-        // TODO: Implementare pin functionality
-        print("📌 Pin email: \(email.subject)")
-    }
-    
-    private func archiveEmail(_ email: EmailMessage) async {
-        hapticFeedback.impactOccurred()
-        // TODO: Implementare archive functionality
-        print("📦 Archive email: \(email.subject)")
-        await emailService.archiveEmail(email.id)
-    }
-    
-    private func deleteEmail(_ email: EmailMessage) async {
-        let impact = UIImpactFeedbackGenerator(style: .heavy)
-        impact.impactOccurred()
-        
-        do {
-            try await emailService.deleteEmail(email.id)
-        } catch {
-            print("❌ Error deleting email: \(error)")
-        }
-    }
-    
-    private func forwardEmail(_ email: EmailMessage) {
-        hapticFeedback.impactOccurred()
-        // TODO: Show compose sheet with forward data
-        print("↪️ Forward email: \(email.subject)")
-    }
-    
-    private func replyToEmail(_ email: EmailMessage) {
-        hapticFeedback.impactOccurred()
-        // TODO: Show compose sheet with reply data
-        print("↩️ Reply to email: \(email.subject)")
     }
     
     // MARK: - Login Content
     
     private var loginContent: some View {
         VStack(spacing: 30) {
-            // Icon iOS 26 style
             Image(systemName: "envelope.circle.fill")
                 .font(.system(size: 80))
                 .foregroundStyle(.blue)
@@ -672,7 +424,6 @@ public struct EmailListView: View {
                 Text("Accedi alla tua Email")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundStyle(.primary)
                 
                 Text("Connetti il tuo account email per iniziare")
                     .font(.body)
@@ -681,11 +432,9 @@ public struct EmailListView: View {
             }
             
             VStack(spacing: 16) {
-                // Google Login - iOS 26 style
+                // Google
                 Button {
-                    Task {
-                        await emailService.authenticateWithGoogle()
-                    }
+                    Task { await emailService.authenticateWithGoogle() }
                 } label: {
                     HStack {
                         Image(systemName: "envelope.circle")
@@ -699,14 +448,12 @@ public struct EmailListView: View {
                     .background(.blue, in: RoundedRectangle(cornerRadius: 12))
                 }
                 
-                // Microsoft Login - iOS 26 style
+                // Microsoft
                 Button {
-                    Task {
-                        await emailService.authenticateWithMicrosoft()
-                    }
+                    Task { await emailService.authenticateWithMicrosoft() }
                 } label: {
                     HStack {
-                        Image(systemName: "envelope.circle")
+                        Image(systemName: "envelope.badge")
                             .font(.title2)
                         Text("Accedi con Microsoft")
                             .font(.headline)
@@ -724,163 +471,42 @@ public struct EmailListView: View {
         .background(.regularMaterial)
     }
     
-    // MARK: - Settings Management
+    // MARK: - Helper Methods
     
-    private func loadViewerSettings() {
-        // Controlla se l'utente ha mai impostato una preferenza
-        if UserDefaults.standard.object(forKey: "use_modern_email_viewer") != nil {
-            // L'utente ha già scelto, usa la sua preferenza
-            useModernViewer = UserDefaults.standard.bool(forKey: "use_modern_email_viewer")
+    private func refreshEmails() async {
+        if let account = emailService.currentAccount {
+            await emailService.forceRefreshEmails(for: account)
+            hapticFeedback.impactOccurred()
+        }
+    }
+    
+    private func getCategoryCount(_ category: EmailCategory) -> Int {
+        if emailService.isThreadingEnabled {
+            return emailService.emailConversations.filter { conversation in
+                conversation.messages.contains { $0.category == category }
+            }.count
         } else {
-            // Prima volta: usa il nuovo viewer moderno come default
-            useModernViewer = true
-            UserDefaults.standard.set(true, forKey: "use_modern_email_viewer")
+            return emailService.emails.filter { $0.category == category }.count
         }
     }
-}
-
-// MARK: - Apple Mail Standard Email Row
-private struct ModernEmailRowView: View {
-    let email: EmailMessage
     
-    var body: some View {
-        HStack(spacing: 12) {
-            // NUOVO: Avatar del mittente (stile Apple Mail)
-            AvatarView(email: email)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                // NUOVO: Prima riga - Mittente + Data + Indicatore non letto
-                HStack {
-                    Text(senderDisplayName(email.from))
-                        .font(.subheadline)
-                        .fontWeight(email.isRead ? .regular : .semibold)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 6) {
-                        Text(formatRelativeDate(email.date))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        
-                        // NUOVO: Indicatore non letto più grande (stile Apple Mail)
-                        if !email.isRead {
-                            Circle()
-                                .fill(.blue)
-                                .frame(width: 8, height: 8)
-                        }
-                    }
-                }
-                
-                // NUOVO: Seconda riga - Oggetto
-                Text(email.subject)
-                    .font(.subheadline)
-                    .foregroundStyle(email.isRead ? .secondary : .primary)
-                    .fontWeight(email.isRead ? .regular : .medium)
-                    .lineLimit(1)
-                
-                // NUOVO: Terza riga - Preview body
-                Text(email.body.stripHTML())
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                
-                // NUOVO: Indicatori aggiuntivi (allegati, etc.)
-                HStack(spacing: 8) {
-                    if email.hasAttachments {
-                        Label("", systemImage: "paperclip")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .labelStyle(.iconOnly)
-                    }
-                    
-                    Spacer()
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(.clear)
-        .contentShape(Rectangle())
-    }
-    
-    // NUOVO: Formattazione data relativa (stile Apple Mail)
-    private func formatRelativeDate(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        if calendar.isDateInToday(date) {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: date)
-        } else if calendar.isDateInYesterday(date) {
-            return "Ieri"
-        } else if calendar.dateInterval(of: .weekOfYear, for: now)?.contains(date) == true {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "E" // Giorno della settimana abbreviato
-            return formatter.string(from: date)
+    private func getAllEmailsCount() -> Int {
+        if emailService.isThreadingEnabled {
+            return emailService.emailConversations.count
         } else {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
+            return emailService.emails.count
         }
     }
     
-    // NUOVO: Nome del mittente formattato  
-    private func senderDisplayName(_ from: String) -> String {
-        // Estrae il nome se è nel formato "Nome <email@domain.com>"
-        if let nameRange = from.range(of: " <") {
-            return String(from[..<nameRange.lowerBound])
-        }
-        return from
-    }
-}
-
-// MARK: - Avatar View (Apple Mail Style)
-private struct AvatarView: View {
-    let email: EmailMessage
-    
-    var body: some View {
-        ZStack {
-            // Background circle
-            Circle()
-                .fill(.blue.gradient)
-                .frame(width: 40, height: 40)
-            
-            // Initials
-            Text(avatarInitials(from: email.from))
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.white)
-        }
-    }
-    
-    private func avatarInitials(from: String) -> String {
-        let name = senderDisplayName(from)
-        let components = name.components(separatedBy: " ")
-        
-        if components.count >= 2 {
-            // Nome e cognome
-            let firstInitial = String(components[0].prefix(1)).uppercased()
-            let lastInitial = String(components[1].prefix(1)).uppercased()
-            return firstInitial + lastInitial
-        } else if !name.isEmpty {
-            // Solo nome o email
-            return String(name.prefix(2)).uppercased()
+    private func getUncategorizedCount() -> Int {
+        if emailService.isThreadingEnabled {
+            return emailService.emailConversations.filter { conversation in
+                conversation.messages.contains { $0.category == nil }
+            }.count
         } else {
-            return "?"
+            return emailService.emails.filter { $0.category == nil }.count
         }
     }
-    
-    private func senderDisplayName(_ from: String) -> String {
-        // Estrae il nome se è nel formato "Nome <email@domain.com>"
-        if let nameRange = from.range(of: " <") {
-            return String(from[..<nameRange.lowerBound])
-        }
-        return from
-    }
-
 }
 
 // MARK: - Conversation Row View
@@ -890,28 +516,21 @@ private struct ConversationRowView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Avatar del partecipante principale
-            Circle()
-                .fill(.blue.gradient)
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(conversation.participants.first?.prefix(1).uppercased() ?? "?")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.white)
-                )
+            // Avatar
+            EmailAvatarView(
+                email: conversation.participants.first ?? "?",
+                size: 40
+            )
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(conversation.subject)
                         .font(.subheadline)
                         .fontWeight(conversation.hasUnread ? .semibold : .medium)
-                        .foregroundStyle(.primary)
                         .lineLimit(1)
                     
                     Spacer()
                     
-                    // Numero messaggi
                     if conversation.messageCount > 1 {
                         Text("\(conversation.messageCount)")
                             .font(.caption2)
@@ -936,15 +555,12 @@ private struct ConversationRowView: View {
                     Text(latestMessage.body.stripHTML())
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
             }
             
-            // Indicatore non letto
             if conversation.hasUnread {
-                Circle()
-                    .fill(.blue)
-                    .frame(width: 8, height: 8)
+                UnreadIndicator()
                     .padding(.top, 8)
             }
         }
@@ -973,119 +589,31 @@ private struct ConversationRowView: View {
     }
 }
 
-// MARK: - Conversation Detail View
+// MARK: - Navigation Extensions
 
-private struct ConversationDetailView: View {
-    let conversation: EmailConversation
-    let emailService: EmailService
+extension EmailMessage: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
     
-    var body: some View {
-        List {
-            ForEach(conversation.messages.sorted { $0.date < $1.date }) { message in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(message.from)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        
-                        Spacer()
-                        
-                        Text(message.date, style: .time)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Text(message.body.stripHTML())
-                        .font(.body)
-                }
-                .padding()
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            }
-        }
-        .navigationTitle(conversation.subject)
-        .navigationBarTitleDisplayMode(.large)
+    public static func == (lhs: EmailMessage, rhs: EmailMessage) -> Bool {
+        lhs.id == rhs.id
     }
 }
 
-// MARK: - AI Category Filter Chip
-struct AICategoryFilterChip: View {
-    let category: EmailCategory?
-    let isSelected: Bool
-    let count: Int
-    // Opzionali: titolo e icona personalizzati (per 'Uncategorized')
-    var overrideTitle: String? = nil
-    var overrideIcon: String? = nil
-    let action: () -> Void
-    
-    private var title: String {
-        if let title = overrideTitle {
-            return title
-        } else if let category = category {
-            return category.displayName
-        } else {
-            return "Tutte"
-        }
+extension EmailConversation: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
     
-    private var icon: String {
-        if let icon = overrideIcon {
-            return icon
-        } else if let category = category {
-            return category.icon
-        } else {
-            return "envelope"
-        }
-    }
-    
-    private var color: Color {
-        if let category = category {
-            return category.color
-        } else {
-            return .blue
-        }
-    }
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isSelected ? .white : color)
-                
-                Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isSelected ? .white : .primary)
-                
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(isSelected ? Color.white.opacity(0.2) : Color.secondary.opacity(0.1))
-                        )
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isSelected ? color : Color.secondary.opacity(0.1))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(isSelected ? Color.clear : color.opacity(0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
+    public static func == (lhs: EmailConversation, rhs: EmailConversation) -> Bool {
+        lhs.id == rhs.id
     }
 }
 
-// MARK: - String Extension for HTML Stripping
-extension String {
-    func stripHTML() -> String {
-        return self.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+// MARK: - Preview
+#Preview {
+    NavigationStack {
+        EmailListView()
     }
-} 
+}

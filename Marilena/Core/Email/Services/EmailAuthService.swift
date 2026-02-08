@@ -1,23 +1,35 @@
+//
+//  EmailAuthServiceCompat.swift
+//  Marilena
+//
+//  Created by Claude
+//  Compatibility wrapper for EmailAuthService con multi-account support
+//
+
 import Foundation
 import Combine
 import GoogleSignIn
 import AuthenticationServices
 
-/// Servizio dedicato all'autenticazione OAuth
+/// Servizio di autenticazione email compatibile con multi-account
 @MainActor
 public final class EmailAuthService: ObservableObject {
 
-    // MARK: - Published Properties
+    // MARK: - Published Properties (deprecated ma mantenute per compatibilità)
     @Published public private(set) var currentAccount: EmailAccount?
     @Published public private(set) var isAuthenticated = false
 
     // MARK: - Private Properties
     private let keychainManager = KeychainManager.shared
     private let oauthService = OAuthService()
+    private let accountManager = EmailAccountManager.shared
 
     // MARK: - Initialization
     public init() {
-        loadSavedAccount()
+        // Carica account corrente da EmailAccountManager
+        currentAccount = accountManager.currentAccount
+        isAuthenticated = !accountManager.accounts.isEmpty
+
         Task {
             await restoreGoogleSignIn()
         }
@@ -44,15 +56,26 @@ public final class EmailAuthService: ObservableObject {
                 }
             }
 
-            let account = EmailAccount(
+            // Crea account candidato dal profilo Google
+            let candidateAccount = EmailAccount(
                 provider: .google,
                 email: user.profile?.email ?? "",
+                displayName: user.profile?.name,
+                photoURL: user.profile?.imageURL(withDimension: 200)?.absoluteString
+            )
+
+            let managedAccount = resolveManagedAccount(for: candidateAccount)
+
+            // Salva tokens nel Keychain
+            saveTokens(
+                accountId: managedAccount.id,
                 accessToken: user.accessToken.tokenString,
                 refreshToken: user.refreshToken.tokenString,
                 expiresAt: user.accessToken.expirationDate
             )
 
-            await saveAccount(account)
+            currentAccount = managedAccount
+            isAuthenticated = true
 
         } catch {
             print("ℹ️ EmailAuthService: No previous Google session")
@@ -66,13 +89,23 @@ public final class EmailAuthService: ObservableObject {
         let account = EmailAccount(
             provider: .google,
             email: token.email,
+            displayName: nil, // TODO: recuperare da Google profile
+            photoURL: nil
+        )
+
+        let managedAccount = resolveManagedAccount(for: account)
+
+        saveTokens(
+            accountId: managedAccount.id,
             accessToken: token.accessToken,
             refreshToken: token.refreshToken,
             expiresAt: token.expiresAt
         )
 
-        await saveAccount(account)
-        return account
+        currentAccount = managedAccount
+        isAuthenticated = true
+
+        return managedAccount
     }
 
     /// Autenticazione con Microsoft
@@ -82,13 +115,23 @@ public final class EmailAuthService: ObservableObject {
         let account = EmailAccount(
             provider: .microsoft,
             email: token.email,
+            displayName: nil, // TODO: recuperare da Microsoft profile
+            photoURL: nil
+        )
+
+        let managedAccount = resolveManagedAccount(for: account)
+
+        saveTokens(
+            accountId: managedAccount.id,
             accessToken: token.accessToken,
             refreshToken: token.refreshToken,
             expiresAt: token.expiresAt
         )
 
-        await saveAccount(account)
-        return account
+        currentAccount = managedAccount
+        isAuthenticated = true
+
+        return managedAccount
     }
 
     /// Refresh token se necessario
@@ -98,29 +141,28 @@ public final class EmailAuthService: ObservableObject {
         }
 
         let newToken = try await oauthService.refreshToken(for: account)
-        let updatedAccount = EmailAccount(
-            provider: account.provider,
-            email: account.email,
+
+        // Aggiorna solo i tokens, non l'account
+        saveTokens(
+            accountId: account.id,
             accessToken: newToken.accessToken,
             refreshToken: newToken.refreshToken,
             expiresAt: newToken.expiresAt
         )
 
-        await saveAccount(updatedAccount)
-        return updatedAccount
+        // Ritorna l'account esistente (i token vengono letti dal Keychain)
+        return account
     }
 
-    /// Disconnetti account
+    /// Disconnetti account corrente
     public func disconnect() {
-        currentAccount = nil
-        isAuthenticated = false
+        guard let account = currentAccount else { return }
 
-        _ = keychainManager.deleteAPIKey(for: "email_access_token")
-        _ = keychainManager.deleteAPIKey(for: "email_refresh_token")
+        accountManager.removeAccount(id: account.id)
 
-        UserDefaults.standard.removeObject(forKey: "email_account")
-        UserDefaults.standard.removeObject(forKey: "email_provider")
-        UserDefaults.standard.removeObject(forKey: "email_token_expires_at")
+        // Aggiorna stato locale
+        currentAccount = accountManager.currentAccount
+        isAuthenticated = !accountManager.accounts.isEmpty
     }
 
     /// Verifica e aggiunge scope Gmail se necessari
@@ -144,14 +186,12 @@ public final class EmailAuthService: ObservableObject {
 
                 if let account = currentAccount {
                     let updatedUser = GIDSignIn.sharedInstance.currentUser ?? currentUser
-                    let updatedAccount = EmailAccount(
-                        provider: account.provider,
-                        email: account.email,
+                    saveTokens(
+                        accountId: account.id,
                         accessToken: updatedUser.accessToken.tokenString,
                         refreshToken: updatedUser.refreshToken.tokenString,
                         expiresAt: updatedUser.accessToken.expirationDate
                     )
-                    await saveAccount(updatedAccount)
                 }
                 return true
             }
@@ -164,47 +204,31 @@ public final class EmailAuthService: ObservableObject {
 
     // MARK: - Private Methods
 
-    private func saveAccount(_ account: EmailAccount) async {
-        _ = keychainManager.saveAPIKey(account.accessToken, for: "email_access_token")
-        if let refreshToken = account.refreshToken {
-            _ = keychainManager.saveAPIKey(refreshToken, for: "email_refresh_token")
+    private func resolveManagedAccount(for candidate: EmailAccount) -> EmailAccount {
+        if let existing = accountManager.accounts.first(where: {
+            $0.provider == candidate.provider && $0.email.caseInsensitiveCompare(candidate.email) == .orderedSame
+        }) {
+            accountManager.switchAccount(to: existing.id)
+            return existing
         }
 
-        UserDefaults.standard.set(account.email, forKey: "email_account")
-        UserDefaults.standard.set(account.provider.rawValue, forKey: "email_provider")
+        accountManager.addAccount(candidate)
+        accountManager.switchAccount(to: candidate.id)
 
-        if let expiresAt = account.expiresAt {
-            UserDefaults.standard.set(expiresAt.timeIntervalSince1970, forKey: "email_token_expires_at")
-        }
-
-        currentAccount = account
-        isAuthenticated = true
+        return accountManager.currentAccount ?? candidate
     }
 
-    private func loadSavedAccount() {
-        guard let email = UserDefaults.standard.string(forKey: "email_account"),
-              let providerString = UserDefaults.standard.string(forKey: "email_provider"),
-              let provider = EmailProvider(rawValue: providerString),
-              let accessToken = keychainManager.getAPIKey(for: "email_access_token") else {
-            return
-        }
-
-        let refreshToken = keychainManager.getAPIKey(for: "email_refresh_token")
-
-        var expiresAt: Date?
-        if let expiresInterval = UserDefaults.standard.object(forKey: "email_token_expires_at") as? TimeInterval {
-            expiresAt = Date(timeIntervalSince1970: expiresInterval)
-        }
-
-        let account = EmailAccount(
-            provider: provider,
-            email: email,
+    private func saveTokens(accountId: String, accessToken: String, refreshToken: String?, expiresAt: Date?) {
+        accountManager.updateTokens(
+            accountId: accountId,
             accessToken: accessToken,
-            refreshToken: refreshToken,
-            expiresAt: expiresAt
+            refreshToken: refreshToken
         )
 
-        currentAccount = account
-        isAuthenticated = true
+        // Salva anche expiresAt in UserDefaults
+        if let expiresAt = expiresAt {
+            let key = "email_token_expires_at_\(accountId)"
+            UserDefaults.standard.set(expiresAt.timeIntervalSince1970, forKey: key)
+        }
     }
 }

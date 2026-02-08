@@ -14,7 +14,12 @@ class ContestoAIService {
             forTaskWithIdentifier: "com.marilena.contesto-update",
             using: nil
         ) { task in
-            self.handleBackgroundTask(task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                print("⚠️ ContestoAIService: Task non è BGAppRefreshTask")
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self.handleBackgroundTask(refreshTask)
         }
     }
     

@@ -121,6 +121,7 @@ public final class ModelCatalog: ObservableObject {
         case .apple:
             return AppleIntelligenceService.shared.isAvailable
         case .openai: keyName = "openai"
+        case .openrouter: keyName = "openrouter"
         case .anthropic: keyName = "anthropic"
         case .groq: keyName = "groq"
         case .mistral: keyName = "mistral"
@@ -155,6 +156,8 @@ public final class ModelCatalog: ObservableObject {
             return getStaticModels(for: provider)
         case .openai:
             return try await fetchOpenAIModels()
+        case .openrouter:
+            return try await fetchOpenRouterModels()
         case .anthropic:
             return try await fetchAnthropicModels()
         case .groq:
@@ -202,6 +205,46 @@ extension ModelCatalog {
 
         let apiResponse = try JSONDecoder().decode(OpenAIModelsResponse.self, from: data)
         return apiResponse.data.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+    }
+
+    private func fetchOpenRouterModels() async throws -> [APIModel] {
+        let forceGateway = UserDefaults.standard.bool(forKey: "force_gateway")
+        let hasAPIKey = KeychainManager.shared.getAPIKey(for: "openrouter") != nil
+
+        if forceGateway || !hasAPIKey {
+            // Use Cloudflare Gateway for OpenRouter
+            do {
+                let modelsData = try await CloudflareGatewayClient.shared.fetchModels(for: "openrouter")
+                return modelsData.map { APIModel(id: $0.id, name: $0.id, description: nil) }
+            } catch {
+                // Fallback to static models if Cloudflare fails
+                return getStaticModels(for: .openrouter)
+            }
+        }
+
+        guard let apiKey = KeychainManager.shared.getAPIKey(for: "openrouter"),
+              !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ModelCatalogError.missingAPIKey
+        }
+
+        let url = URL(string: "https://openrouter.ai/api/v1/models")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // OpenRouter specific headers for better tracking
+        request.setValue("Marilena/1.0", forHTTPHeaderField: "X-Title")
+        request.setValue("https://marilena.app", forHTTPHeaderField: "HTTP-Referer")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw ModelCatalogError.invalidResponse
+        }
+
+        let apiResponse = try JSONDecoder().decode(OpenRouterModelsResponse.self, from: data)
+        return apiResponse.data.map { APIModel(id: $0.id, name: $0.name ?? $0.id, description: $0.description) }
     }
 
     private func fetchAnthropicModels() async throws -> [APIModel] {
@@ -363,6 +406,40 @@ extension ModelCatalog {
                 APIModel(id: "claude-3-opus-20240229", name: "Claude 3 Opus", description: "Legacy premium model"),
                 APIModel(id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", description: "Fast responses")
             ]
+        case .openrouter:
+            // Fallback modelli aggiornati per OpenRouter (usati se l'API fallisce)
+            return [
+                // OpenAI Models
+                APIModel(id: "openai/gpt-4o", name: "GPT-4o", description: "OpenAI"),
+                APIModel(id: "openai/gpt-4o-mini", name: "GPT-4o Mini", description: "OpenAI"),
+                APIModel(id: "openai/gpt-4-turbo", name: "GPT-4 Turbo", description: "OpenAI"),
+                APIModel(id: "openai/o3-mini", name: "o3 Mini", description: "OpenAI Reasoning"),
+                APIModel(id: "openai/o1", name: "o1", description: "OpenAI Reasoning"),
+                // Anthropic Models
+                APIModel(id: "anthropic/claude-3.7-sonnet", name: "Claude 3.7 Sonnet", description: "Anthropic"),
+                APIModel(id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", description: "Anthropic"),
+                APIModel(id: "anthropic/claude-3-opus", name: "Claude 3 Opus", description: "Anthropic"),
+                APIModel(id: "anthropic/claude-3-haiku", name: "Claude 3 Haiku", description: "Anthropic"),
+                // Google Models
+                APIModel(id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash", description: "Google"),
+                APIModel(id: "google/gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Google"),
+                APIModel(id: "google/gemini-1.5-flash", name: "Gemini 1.5 Flash", description: "Google"),
+                // Meta Models
+                APIModel(id: "meta-llama/llama-3.3-70b-instruct", name: "Llama 3.3 70B", description: "Meta"),
+                APIModel(id: "meta-llama/llama-3.1-405b-instruct", name: "Llama 3.1 405B", description: "Meta"),
+                // Mistral Models
+                APIModel(id: "mistralai/mistral-large", name: "Mistral Large", description: "Mistral"),
+                APIModel(id: "mistralai/mistral-medium", name: "Mistral Medium", description: "Mistral"),
+                // DeepSeek Models
+                APIModel(id: "deepseek/deepseek-chat", name: "DeepSeek Chat", description: "DeepSeek"),
+                APIModel(id: "deepseek/deepseek-r1", name: "DeepSeek R1", description: "DeepSeek Reasoning"),
+                // Qwen Models
+                APIModel(id: "qwen/qwen-2.5-72b-instruct", name: "Qwen 2.5 72B", description: "Alibaba"),
+                // Other Models
+                APIModel(id: "x-ai/grok-2", name: "Grok 2", description: "xAI"),
+                APIModel(id: "perplexity/sonar", name: "Sonar", description: "Perplexity"),
+                APIModel(id: "cohere/command-r", name: "Command R", description: "Cohere")
+            ]
         case .groq:
             return [
                 APIModel(id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B Versatile", description: "Latest Llama model"),
@@ -430,6 +507,7 @@ extension ModelCatalog {
         switch provider {
         case .apple: return 32_000
         case .openai: return 128_000
+        case .openrouter: return 128_000
         case .anthropic: return 200_000
         case .groq: return 128_000
         case .mistral: return 128_000
@@ -488,6 +566,23 @@ private struct MistralModelsResponse: Codable {
     struct MistralModel: Codable {
         let id: String
         let description: String?
+    }
+}
+
+private struct OpenRouterModelsResponse: Codable {
+    let data: [OpenRouterModel]
+
+    struct OpenRouterModel: Codable {
+        let id: String
+        let name: String?
+        let description: String?
+        let context_length: Int?
+        let pricing: Pricing?
+
+        struct Pricing: Codable {
+            let prompt: Double?
+            let completion: Double?
+        }
     }
 }
 

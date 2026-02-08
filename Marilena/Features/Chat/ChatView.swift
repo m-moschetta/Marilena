@@ -77,6 +77,9 @@ struct ChatView: View {
                                             searchWithPerplexity()
                                         }
                                     )
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityLabel("\(messaggio.isUser ? "Tu" : "Marilena"): \(messaggio.contenuto ?? "")")
+                                    .accessibilityHint(messaggio.isUser ? "Messaggio inviato" : "Risposta dell'assistente")
                                 }
                             }
                             
@@ -88,6 +91,9 @@ struct ChatView: View {
                                         .scaleEffect(0.8)
                                 }
                                 .padding()
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("Marilena sta scrivendo una risposta")
+                                .accessibilityHint("Attendi il completamento della risposta")
                             }
                         }
                         .padding()
@@ -151,6 +157,8 @@ struct ChatView: View {
                                 }
                             }
                             .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSearchingPerplexity || isLoading)
+                            .accessibilityLabel("Ricerca web con Perplexity")
+                            .accessibilityHint("Cerca informazioni sul web usando il modello \(getPerplexityModelDisplayName(selectedPerplexityModel))")
                             .scaleEffect(isSearchingPerplexity ? 1.1 : 1.0)
                             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSearchingPerplexity)
                             .contextMenu {
@@ -190,6 +198,8 @@ struct ChatView: View {
                                 }
                             }
                             .disabled(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
+                            .accessibilityLabel(isLoading ? "Invio in corso..." : "Invia messaggio")
+                            .accessibilityHint("Invia il messaggio usando il modello \(selectedModel)")
                             .scaleEffect(testo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.9 : 1.0)
                             .contextMenu {
                                 ForEach(availableModels, id: \.self) { model in

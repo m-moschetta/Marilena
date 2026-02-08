@@ -149,10 +149,12 @@ struct ModelPickerForCategorizationView: View {
                 self.availableModels = sortedModels
                 self.isLoading = false
 
-                // Se non è selezionato nessun modello, seleziona il più economico disponibile
-                if self.selectedModel == nil, let cheapestModel = sortedModels.first {
-                    self.selectedModel = cheapestModel
-                    EmailCategorizationService().setSelectedModel(cheapestModel)
+                // Se non è selezionato nessun modello, prova prima a ripristinare quello salvato.
+                // In assenza di scelta salvata, preferisci il modello locale Apple privacy-first.
+                if self.selectedModel == nil,
+                   let preferredModel = self.preferredDefaultModel(from: sortedModels) {
+                    self.selectedModel = preferredModel
+                    EmailCategorizationService().setSelectedModel(preferredModel)
                 }
             }
         }
@@ -268,6 +270,23 @@ struct ModelPickerForCategorizationView: View {
                 outputTokens: PricingTier(price: 1.50, description: "per 1M tokens")
             )
         }
+    }
+
+    private func preferredDefaultModel(from models: [AIModelConfiguration]) -> AIModelConfiguration? {
+        if let savedModelId = UserDefaults.standard.string(forKey: "emailCategorizationModel"),
+           let savedModel = models.first(where: { $0.id == savedModelId }) {
+            return savedModel
+        }
+
+        if let foundationMedium = models.first(where: { $0.id == "foundation-medium" }) {
+            return foundationMedium
+        }
+
+        if let anyAppleModel = models.first(where: { $0.provider == .apple }) {
+            return anyAppleModel
+        }
+
+        return models.first
     }
 }
 

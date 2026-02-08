@@ -1,4 +1,6 @@
 import Foundation
+import Combine
+import UIKit
 
 // MARK: - OpenClaw Gateway Protocol Types
 

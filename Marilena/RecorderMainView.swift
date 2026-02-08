@@ -4,11 +4,7 @@ import CoreData
 struct RecorderMainView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var calendarManager: CalendarManager
-    @StateObject private var recordingService: RecordingService
-
-    init() {
-        self._recordingService = StateObject(wrappedValue: RecordingService(context: PersistenceController.shared.container.viewContext))
-    }
+    @EnvironmentObject private var recordingService: RecordingService
 
     var body: some View {
         RecordingsListView(context: viewContext, recordingService: recordingService)
@@ -24,5 +20,6 @@ struct RecorderMainView: View {
         RecorderMainView()
             .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
             .environmentObject(CalendarManager())
+            .environmentObject(RecordingService(context: PersistenceController.preview.container.viewContext))
     }
-} 
+}

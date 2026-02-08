@@ -253,6 +253,7 @@ public struct AppAPIConfiguration: Codable {
     
     private static let developmentEndpoints = [
         "openai": "https://api.openai.com/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
         "anthropic": "https://api.anthropic.com/v1",
         "google": "https://generativelanguage.googleapis.com/v1",
         "meta": "https://api.llama-api.com/v1",

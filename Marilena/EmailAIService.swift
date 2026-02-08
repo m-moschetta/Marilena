@@ -330,6 +330,9 @@ public class EmailAIService: ObservableObject {
                 }
             }
 
+        case .openrouter:
+            return try await sendOpenRouterPrompt(prompt, model: provider.model)
+
         case .anthropic:
             let content = AnthropicContent(type: "text", text: prompt)
             let message = AnthropicMessage(role: "user", content: [content])
@@ -365,6 +368,8 @@ public class EmailAIService: ObservableObject {
             let service = ModernXAIService(apiKey: apiKey)
             let response = try await service.sendMessage(request)
             return response.content
+        case .openclaw:
+            return try await OpenClawService.shared.sendMessage(prompt)
         }
     }
 
@@ -384,6 +389,58 @@ public class EmailAIService: ObservableObject {
         }
 
         return false
+    }
+
+    private func sendOpenRouterPrompt(_ prompt: String, model: String) async throws -> String {
+        guard let apiKey = KeychainManager.shared.getAPIKey(for: "openrouter"),
+              !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw EmailAIError.noProviderConfigured
+        }
+
+        struct OpenRouterRequest: Codable {
+            let model: String
+            let messages: [OpenAIMessage]
+            let max_tokens: Int
+            let temperature: Double
+        }
+
+        struct OpenRouterResponse: Codable {
+            struct Choice: Codable {
+                struct Message: Codable {
+                    let content: String
+                }
+                let message: Message
+            }
+            let choices: [Choice]
+        }
+
+        let url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://marilena.app", forHTTPHeaderField: "HTTP-Referer")
+        request.setValue("Marilena", forHTTPHeaderField: "X-Title")
+
+        let payload = OpenRouterRequest(
+            model: model,
+            messages: [OpenAIMessage(role: "user", content: prompt)],
+            max_tokens: maxTokens,
+            temperature: temperature
+        )
+        request.httpBody = try JSONEncoder().encode(payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw EmailAIError.generationFailed
+        }
+
+        let decoded = try JSONDecoder().decode(OpenRouterResponse.self, from: data)
+        guard let text = decoded.choices.first?.message.content else {
+            throw EmailAIError.invalidResponse
+        }
+        return text
     }
     
     private func parseEmailAnalysis(_ response: String) -> EmailAnalysis? {

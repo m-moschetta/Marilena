@@ -76,6 +76,7 @@
     <entity name="CachedEmail" representedClassName="CachedEmail" syncable="YES" codeGenerationType="class">
         <attribute name="accountId" optional="YES" attributeType="String"/>
         <attribute name="body" optional="YES" attributeType="String"/>
+        <attribute name="category" optional="YES" attributeType="String"/>
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="emailType" optional="YES" attributeType="String" defaultValueString="received"/>

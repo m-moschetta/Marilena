@@ -1,5 +1,35 @@
 import Foundation
 
+// MARK: - Microsoft Graph API Response Types (scoped to this service)
+private struct MicrosoftGraphResponse: Codable {
+    let value: [MicrosoftGraphMessage]
+}
+
+private struct MicrosoftGraphMessage: Codable {
+    let id: String
+    let subject: String?
+    let body: MicrosoftGraphBody?
+    let from: MicrosoftGraphEmailAddress?
+    let toRecipients: [MicrosoftGraphEmailAddress]?
+    let receivedDateTime: String?
+    let isRead: Bool?
+    let hasAttachments: Bool?
+}
+
+private struct MicrosoftGraphBody: Codable {
+    let content: String
+    let contentType: String
+}
+
+private struct MicrosoftGraphEmailAddress: Codable {
+    let emailAddress: MicrosoftGraphEmailAddressDetails?
+}
+
+private struct MicrosoftGraphEmailAddressDetails: Codable {
+    let address: String
+    let name: String?
+}
+
 /// Servizio dedicato alle chiamate di rete per le email
 public final class EmailNetworkService {
 
@@ -9,45 +39,66 @@ public final class EmailNetworkService {
 
     // MARK: - Public Methods
 
-    /// Fetch emails da Gmail API
-    public func fetchEmailsFromGmail(accessToken: String, maxResults: Int = 20) async throws -> [EmailMessage] {
-        await waitForRateLimit()
+    /// Fetch emails da Gmail API con pagination (fino a 500 email)
+    public func fetchEmailsFromGmail(accessToken: String, accountId: String, maxResults: Int = 100) async throws -> [EmailMessage] {
+        var allMessages: [EmailMessage] = []
+        var nextPageToken: String? = nil
+        let maxPages = 5 // Max 500 emails (5 pages × 100)
+        var currentPage = 0
 
-        let url = URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=\(maxResults)")!
+        while currentPage < maxPages {
+            await waitForRateLimit()
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 30
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw EmailError.networkError("Invalid HTTP response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw EmailError.networkError("Gmail API error: \(httpResponse.statusCode)")
-        }
-
-        let gmailResponse = try JSONDecoder().decode(GmailMessageList.self, from: data)
-
-        var messages: [EmailMessage] = []
-        guard let gmailMessages = gmailResponse.messages else {
-            return messages
-        }
-
-        for message in gmailMessages.prefix(maxResults) {
-            if let email = await fetchGmailMessageDetails(messageId: message.id, accessToken: accessToken) {
-                messages.append(email)
+            // Build URL with pagination
+            var urlString = "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=\(maxResults)"
+            if let pageToken = nextPageToken {
+                urlString += "&pageToken=\(pageToken)"
             }
+
+            guard let url = URL(string: urlString) else {
+                throw EmailError.networkError("Invalid URL")
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 30
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw EmailError.networkError("Invalid HTTP response")
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                throw EmailError.networkError("Gmail API error: \(httpResponse.statusCode)")
+            }
+
+            let gmailResponse = try JSONDecoder().decode(GmailMessageList.self, from: data)
+
+            // Fetch details for each message
+            for message in gmailResponse.messages {
+                if let email = await fetchGmailMessageDetails(messageId: message.id, accessToken: accessToken, accountId: accountId) {
+                    allMessages.append(email)
+                }
+            }
+
+            // Check for next page
+            nextPageToken = gmailResponse.nextPageToken
+            if nextPageToken == nil {
+                break // No more pages
+            }
+
+            currentPage += 1
+            print("📧 Gmail API: Loaded page \(currentPage)/\(maxPages), total: \(allMessages.count) emails")
         }
 
-        return messages
+        print("✅ Gmail API: Completed loading \(allMessages.count) emails from \(currentPage + 1) pages")
+        return allMessages
     }
 
     /// Fetch emails da Microsoft Graph
-    public func fetchEmailsFromMicrosoft(accessToken: String, maxResults: Int = 20) async throws -> [EmailMessage] {
+    public func fetchEmailsFromMicrosoft(accessToken: String, accountId: String, maxResults: Int = 100) async throws -> [EmailMessage] {
         await waitForRateLimit()
 
         let url = URL(string: "https://graph.microsoft.com/v1.0/me/messages?$top=\(maxResults)&$orderby=receivedDateTime desc")!
@@ -71,13 +122,15 @@ public final class EmailNetworkService {
         let messages = graphResponse.value.map { graphMessage in
             EmailMessage(
                 id: graphMessage.id,
+                accountId: accountId,
                 from: graphMessage.from?.emailAddress?.address ?? "Unknown",
                 to: graphMessage.toRecipients?.map { $0.emailAddress?.address ?? "" } ?? [],
                 subject: graphMessage.subject ?? "No Subject",
                 body: graphMessage.body?.content ?? "",
                 date: parseMicrosoftGraphDate(graphMessage.receivedDateTime),
                 isRead: graphMessage.isRead ?? false,
-                hasAttachments: graphMessage.hasAttachments ?? false
+                hasAttachments: graphMessage.hasAttachments ?? false,
+                emailType: .received
             )
         }
 
@@ -242,7 +295,7 @@ public final class EmailNetworkService {
         lastRequestTime = Date()
     }
 
-    private func fetchGmailMessageDetails(messageId: String, accessToken: String) async -> EmailMessage? {
+    private func fetchGmailMessageDetails(messageId: String, accessToken: String, accountId: String) async -> EmailMessage? {
         let url = URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/messages/\(messageId)")!
 
         var request = URLRequest(url: url)
@@ -266,13 +319,15 @@ public final class EmailNetworkService {
 
             return EmailMessage(
                 id: gmailMessage.id,
+                accountId: accountId,
                 from: from,
                 to: [],
                 subject: subject,
                 body: body,
                 date: parseGmailDate(dateString),
                 isRead: !gmailMessage.labelIds.contains("UNREAD"),
-                hasAttachments: gmailMessage.payload?.parts?.contains { $0.filename?.isEmpty == false } ?? false
+                hasAttachments: gmailMessage.payload?.parts?.contains { $0.filename?.isEmpty == false } ?? false,
+                emailType: .received
             )
 
         } catch {

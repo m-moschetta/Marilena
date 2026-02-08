@@ -69,11 +69,50 @@ public class EmailCategorizationService {
         let appleDefaultId = "foundation-medium"
 
         // Default: Apple Foundation Medium (on-device, privacy-first)
-        return sortedModels.first(where: { $0.id == appleDefaultId }) ??
-               sortedModels.first(where: { $0.provider == .apple }) ??
-               sortedModels.first ??
-               AIModelConfiguration.allModels.first(where: { $0.id == appleDefaultId }) ??
-               AIModelConfiguration.allModels.first!
+        // Fallback chain sicuro che evita crash se l'array è vuoto
+        if let model = sortedModels.first(where: { $0.id == appleDefaultId }) {
+            return model
+        }
+        if let model = sortedModels.first(where: { $0.provider == .apple }) {
+            return model
+        }
+        if let model = sortedModels.first {
+            return model
+        }
+        if let model = AIModelConfiguration.allModels.first(where: { $0.id == appleDefaultId }) {
+            return model
+        }
+        if let model = AIModelConfiguration.allModels.first {
+            return model
+        }
+        
+        // Ultimo fallback: crea un modello minimale compatibile con il catalogo corrente
+        print("⚠️ EmailCategorizationService: Nessun modello disponibile, uso fallback sicuro")
+        return AIModelConfiguration(
+            id: "fallback-model",
+            name: "Fallback Model",
+            provider: .openai,
+            version: "1.0",
+            releaseDate: Date(timeIntervalSince1970: 0),
+            description: "Fallback model for email categorization when catalog is unavailable",
+            contextWindow: 4096,
+            maxOutputTokens: 1024,
+            supportedModalities: [.text],
+            capabilities: [.reasoning, .analysis],
+            pricing: AIPricing(
+                inputTokens: PricingTier(price: 0),
+                outputTokens: PricingTier(price: 0)
+            ),
+            benchmarks: AIBenchmarks(),
+            availability: AIAvailability(
+                regions: ["global"],
+                accessTiers: [.api],
+                status: .available
+            ),
+            isExperimental: false,
+            requiresSpecialAccess: false,
+            tags: ["fallback", "email-categorization"]
+        )
     }
 
     /// Salva il modello selezionato per la categorizzazione email
@@ -199,6 +238,7 @@ public class EmailCategorizationService {
             let category = categorizeWithTraditionalMethods(email)
             let categorizedEmail = EmailMessage(
                 id: email.id,
+                accountId: email.accountId,
                 from: email.from,
                 to: email.to,
                 subject: email.subject,
@@ -232,6 +272,7 @@ public class EmailCategorizationService {
                             return await MainActor.run {
                                 EmailMessage(
                                     id: email.id,
+                                    accountId: email.accountId,
                                     from: email.from,
                                     to: email.to,
                                     subject: email.subject,
@@ -259,6 +300,7 @@ public class EmailCategorizationService {
                         let result = await MainActor.run {
                             EmailMessage(
                                 id: email.id,
+                                accountId: email.accountId,
                                 from: email.from,
                                 to: email.to,
                                 subject: email.subject,
@@ -699,6 +741,8 @@ public class EmailCategorizationService {
             return try await sendAppleMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
         case .openai:
             return try await sendOpenAIMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        case .openrouter:
+            return try await sendOpenRouterMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
 
         case .groq:
             return try await sendGroqMessage(systemPrompt: systemPrompt, userPrompt: userPrompt)
@@ -747,6 +791,76 @@ public class EmailCategorizationService {
                 }
             }
         }
+    }
+
+    /// Invia messaggio a OpenRouter (compatibile OpenAI)
+    private func sendOpenRouterMessage(systemPrompt: String, userPrompt: String) async throws -> String {
+        guard let apiKey = KeychainManager.shared.getAPIKey(for: "openrouter"),
+              !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw NSError(
+                domain: "OpenRouterMissingKey",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: "API key OpenRouter non configurata"]
+            )
+        }
+
+        struct OpenRouterRequest: Codable {
+            let model: String
+            let messages: [OpenAIMessage]
+            let max_tokens: Int
+            let temperature: Double
+        }
+
+        struct OpenRouterResponse: Codable {
+            struct Choice: Codable {
+                struct Message: Codable {
+                    let content: String
+                }
+                let message: Message
+            }
+            let choices: [Choice]
+        }
+
+        let url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://marilena.app", forHTTPHeaderField: "HTTP-Referer")
+        request.setValue("Marilena", forHTTPHeaderField: "X-Title")
+
+        let payload = OpenRouterRequest(
+            model: selectedModel.id,
+            messages: [
+                OpenAIMessage(role: "system", content: systemPrompt),
+                OpenAIMessage(role: "user", content: userPrompt)
+            ],
+            max_tokens: min(selectedModel.maxOutputTokens, 1000),
+            temperature: 0.2
+        )
+        request.httpBody = try JSONEncoder().encode(payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "no body"
+            throw NSError(
+                domain: "OpenRouterHTTPError",
+                code: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                userInfo: [NSLocalizedDescriptionKey: "OpenRouter errore HTTP: \(body)"]
+            )
+        }
+
+        let decoded = try JSONDecoder().decode(OpenRouterResponse.self, from: data)
+        guard let text = decoded.choices.first?.message.content, !text.isEmpty else {
+            throw NSError(
+                domain: "OpenRouterEmptyResponse",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "OpenRouter ha restituito una risposta vuota"]
+            )
+        }
+        return text
     }
 
     /// Invia messaggio a Groq

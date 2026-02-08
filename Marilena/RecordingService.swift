@@ -3,6 +3,7 @@ import AVFoundation
 import CoreData
 import CoreLocation
 import Combine
+import UIKit
 
 class RecordingService: NSObject, ObservableObject {
     @Published var recordingState: RecordingState = .idle
@@ -14,6 +15,9 @@ class RecordingService: NSObject, ObservableObject {
     private var locationManager = CLLocationManager()
     private var currentLocation: CLLocation?
     private var audioLevelTimer: Timer?
+    private var activeRecordingObjectID: NSManagedObjectID?
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    private var notificationObservers: [NSObjectProtocol] = []
 
     private let context: NSManagedObjectContext
     private let documentsDirectory: URL
@@ -30,7 +34,13 @@ class RecordingService: NSObject, ObservableObject {
         super.init()
         print("✅ RecordingService inizializzato")
         setupLocationManager()
+        setupLifecycleObservers()
         checkPermissions()
+    }
+
+    deinit {
+        notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        endBackgroundTaskIfNeeded()
     }
 
     /// Imposta il riferimento al CalendarManager per il collegamento eventi
@@ -80,8 +90,14 @@ class RecordingService: NSObject, ObservableObject {
         // 1. Setup audio session
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .default)
+            // .playAndRecord mantiene la sessione attiva anche con app in background/schermo spento.
+            try session.setCategory(
+                .playAndRecord,
+                mode: .default,
+                options: [.allowBluetooth, .allowBluetoothA2DP, .allowAirPlay, .defaultToSpeaker]
+            )
             try session.setActive(true)
+            audioSession = session
             print("✅ Audio session configured")
         } catch {
             print("❌ Audio session error: \(error)")
@@ -99,7 +115,7 @@ class RecordingService: NSObject, ObservableObject {
         recording.id = UUID()
         recording.dataCreazione = Date()
         recording.pathFile = fileURL
-        recording.statoElaborazione = "in_corso"
+        recording.statoElaborazione = "in_elaborazione"
 
         // 4. Link to current calendar event if available
         let (eventTitle, eventAttendees) = getCurrentEventInfo()
@@ -112,6 +128,7 @@ class RecordingService: NSObject, ObservableObject {
         
         do {
             try context.save()
+            activeRecordingObjectID = recording.objectID
             print("✅ Core Data record created")
         } catch {
             print("❌ Core Data error: \(error)")
@@ -144,26 +161,29 @@ class RecordingService: NSObject, ObservableObject {
                 recordingState = .error("Impossibile avviare registrazione")
                 context.delete(recording)
                 try? context.save()
+                activeRecordingObjectID = nil
             }
         } catch {
             print("❌ Recorder setup error: \(error)")
             recordingState = .error("Errore setup registratore")
             context.delete(recording)
             try? context.save()
+            activeRecordingObjectID = nil
         }
     }
     
     func stopRecording() {
         print("🛑 STOP RECORDING CALLED")
         
-        guard let recorder = audioRecorder else {
+        guard let recorder = audioRecorder, recorder.isRecording else {
             print("❌ No recorder to stop")
             return
         }
         
         let duration = recorder.currentTime
         print("⏱️ Recording duration: \(duration) seconds")
-        
+
+        beginBackgroundTaskIfNeeded()
         recorder.stop()
         recordingState = .processing
         stopAudioLevelMonitoring() // Ferma il timer del livello audio
@@ -180,16 +200,27 @@ class RecordingService: NSObject, ObservableObject {
     
     private func finalizeRecording(duration: TimeInterval) {
         print("🔧 RecordingService: Finalizing recording...")
-        
-        // Get the latest recording from Core Data
-        let fetchRequest: NSFetchRequest<RegistrazioneAudio> = RegistrazioneAudio.fetchRequest()
-        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \RegistrazioneAudio.dataCreazione, ascending: false)]
-        fetchRequest.fetchLimit = 1
-        
+
+        defer {
+            audioRecorder = nil
+            activeRecordingObjectID = nil
+            endBackgroundTaskIfNeeded()
+            do {
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            } catch {
+                print("⚠️ RecordingService: Impossibile disattivare sessione audio: \(error)")
+            }
+        }
+
+        guard let objectID = activeRecordingObjectID else {
+            print("❌ RecordingService: Nessuna registrazione attiva da finalizzare")
+            recordingState = .error("Registrazione non trovata")
+            return
+        }
+
         do {
-            let recordings = try context.fetch(fetchRequest)
-            guard let recording = recordings.first else {
-                print("❌ RecordingService: No recording found in Core Data")
+            guard let recording = try context.existingObject(with: objectID) as? RegistrazioneAudio else {
+                print("❌ RecordingService: Registrazione attiva non trovata")
                 recordingState = .error("Registrazione non trovata")
                 return
             }
@@ -199,6 +230,7 @@ class RecordingService: NSObject, ObservableObject {
             print("🔧 RecordingService: File path: \(filePath?.path ?? "nil")")
             
             // Verifica se il file esiste fisicamente
+            var isValidAudioFile = false
             if let filePath = filePath {
                 let fileExists = FileManager.default.fileExists(atPath: filePath.path)
                 print("🔧 RecordingService: File esiste fisicamente: \(fileExists)")
@@ -212,6 +244,7 @@ class RecordingService: NSObject, ObservableObject {
                         if fileSize == 0 {
                             print("❌ RecordingService: File salvato ma vuoto!")
                         } else {
+                            isValidAudioFile = true
                             print("✅ RecordingService: File salvato correttamente con dimensione: \(fileSize) bytes")
                         }
                     } catch {
@@ -236,11 +269,15 @@ class RecordingService: NSObject, ObservableObject {
             
             // Update recording with final duration
             recording.durata = duration
-            recording.statoElaborazione = "completata"
+            recording.statoElaborazione = isValidAudioFile ? "completata" : "errore"
             
             try context.save()
-            print("✅ RecordingService: Recording finalized and saved to Core Data")
-            recordingState = .completed
+            if isValidAudioFile {
+                print("✅ RecordingService: Recording finalized and saved to Core Data")
+                recordingState = .completed
+            } else {
+                recordingState = .error("File audio non valido")
+            }
             
         } catch {
             print("❌ RecordingService: Error finalizing recording: \(error)")
@@ -310,6 +347,86 @@ class RecordingService: NSObject, ObservableObject {
     private func setupLocationManager() {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
+    }
+
+    private func setupLifecycleObservers() {
+        let center = NotificationCenter.default
+
+        notificationObservers.append(
+            center.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                self?.handleAudioSessionInterruption(notification)
+            }
+        )
+
+        notificationObservers.append(
+            center.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.handleDidEnterBackground()
+            }
+        )
+    }
+
+    private func handleDidEnterBackground() {
+        guard recordingState == .recording else { return }
+
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+            print("✅ RecordingService: sessione audio mantenuta attiva in background")
+        } catch {
+            print("⚠️ RecordingService: impossibile mantenere sessione audio in background: \(error)")
+        }
+    }
+
+    private func handleAudioSessionInterruption(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+        else {
+            return
+        }
+
+        switch type {
+        case .began:
+            if recordingState == .recording {
+                print("⚠️ RecordingService: interruzione audio durante registrazione")
+            }
+        case .ended:
+            let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume), recordingState == .recording {
+                do {
+                    try AVAudioSession.sharedInstance().setActive(true)
+                    _ = audioRecorder?.record()
+                    print("✅ RecordingService: registrazione ripresa dopo interruzione")
+                } catch {
+                    print("❌ RecordingService: errore ripresa registrazione: \(error)")
+                }
+            }
+        @unknown default:
+            break
+        }
+    }
+
+    private func beginBackgroundTaskIfNeeded() {
+        guard backgroundTaskID == .invalid else { return }
+
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "FinalizeRecording") { [weak self] in
+            self?.endBackgroundTaskIfNeeded()
+        }
+    }
+
+    private func endBackgroundTaskIfNeeded() {
+        guard backgroundTaskID != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+        backgroundTaskID = .invalid
     }
     
     func getRecordings() -> [RegistrazioneAudio] {

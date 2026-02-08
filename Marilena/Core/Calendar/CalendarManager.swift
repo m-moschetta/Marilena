@@ -342,7 +342,7 @@ public class CalendarManager: ObservableObject {
     
     /// Restituisce i promemoria per una data specifica
     public func reminders(for date: Date) -> [CalendarReminder] {
-        return reminderService.reminders(for: date)
+        return reminderService.remindersForDate(date)
     }
     
     /// Crea un nuovo promemoria
